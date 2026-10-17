@@ -52,7 +52,10 @@ export function typoDistanceRatio(a: string, b: string): number {
  */
 export function closest(name: string, candidates: Iterable<string>): string[] {
   const token = name.toLowerCase();
-  const near = [...new Set(candidates)]
+  // One suggestion per spelling: the first of the candidates that differ only by case.
+  const unique = new Map<string, string>();
+  for (const c of candidates) if (!unique.has(c.toLowerCase())) unique.set(c.toLowerCase(), c);
+  const near = [...unique.values()]
     .map((c) => ({ c, distance: typoDistanceRatio(token, c.toLowerCase()) }))
     .filter((d) => d.distance <= 1 / 3)
     .sort((a, b) => a.distance - b.distance || (a.c < b.c ? -1 : a.c > b.c ? 1 : 0));

@@ -78,3 +78,8 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 | `player` | Phase 5: the presentation runtime (placeholder) |
 | `cli` | Phase 2: the `loopweft` command-line tool (placeholder) |
 
+Every edit to a project is an operation in `@loopweft/model` (`src/ops/`): a project goes in, and
+`{ project, result, summary }` comes out, with the input untouched; an expected failure is an `OpError`
+(`invalid`, `usage`, `notFound` or `conflict`). The Studio and the CLI call the same operations; add new
+edits there, never to one front end only.
+

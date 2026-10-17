@@ -63,20 +63,20 @@ function fromZod(issue: ZodIssue): Issue[] {
   const one = (code: string, message: string, at: Path = path): Issue[] => [
     { severity: 'error', code, message, path: at },
   ];
+  // A value that is not there at all, whatever kind it should have been.
+  if (issue.input === undefined && ['invalid_type', 'invalid_value', 'invalid_union'].includes(issue.code)) {
+    const name = path.at(-1);
+    return one(
+      'missingField',
+      typeof name === 'string' ? `Missing required field "${name}".` : 'Missing value.',
+    );
+  }
   switch (issue.code) {
-    case 'invalid_type': {
-      if (issue.input === undefined) {
-        const name = path.at(-1);
-        return one(
-          'missingField',
-          typeof name === 'string' ? `Missing required field "${name}".` : 'Missing value.',
-        );
-      }
+    case 'invalid_type':
       return one(
         'invalidType',
         `Expected ${EXPECTED[issue.expected] ?? issue.expected}, got ${kindOf(issue.input)}.`,
       );
-    }
     case 'unrecognized_keys':
       return issue.keys.flatMap((key) =>
         one('unknownField', `Unknown field "${key}"${didYouMean(key, KNOWN_FIELDS)}.`, [...path, key]),
@@ -135,6 +135,11 @@ function fromZod(issue: ZodIssue): Issue[] {
   }
 }
 
+/** A zod error as Issues; `base` is the path of the value that was parsed, within its project. */
+export function zodIssues(error: z.ZodError, base: Path = []): Issue[] {
+  return error.issues.flatMap(fromZod).map((issue) => ({ ...issue, path: [...base, ...issue.path] }));
+}
+
 /**
  * Validates a parsed JSON document as a Loopweft project. Older format versions are migrated first
  * (`migrated` lists what changed). The project is returned with every collection present; warnings come
@@ -144,7 +149,7 @@ export function parseProject(input: unknown): ParseResult {
   const migrated = migrate(input);
   if (!migrated.ok) return { ok: false, issues: migrated.issues };
   const parsed = ProjectSchema.safeParse(migrated.document, { reportInput: true });
-  if (!parsed.success) return { ok: false, issues: parsed.error.issues.flatMap(fromZod) };
+  if (!parsed.success) return { ok: false, issues: zodIssues(parsed.error) };
   const issues = validateProject(parsed.data);
   return hasErrors(issues)
     ? { ok: false, issues }
