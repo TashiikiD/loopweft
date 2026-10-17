@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { deckFolder } from '../scripts/polycrisis-deck.ts';
+import { deckFolder, privateWords } from '../scripts/polycrisis-deck.ts';
 import { convertPolycrisis } from '../src/importers/polycrisis.ts';
 import {
   type LoopStats,
@@ -175,6 +175,17 @@ describe('the polycrisis example', () => {
     expect(step('S08', '3c').map.links).toEqual({ base: 'ghost', focus: ['E128', 'E129', 'E080'] });
     // The deck showed the unnamed side-effect at the base level.
     expect(step('S09', '3').map.links?.ghost).toEqual(['E129']);
+  });
+});
+
+// Words such as the presenter's name are listed only on this machine (privateWords in .local.json), so
+// that the repository never contains them; where they are set, the example must not contain them either.
+const PRIVATE_WORDS = privateWords();
+describe.skipIf(PRIVATE_WORDS.length === 0)('the private words kept outside the repository', () => {
+  it('appear nowhere in the example', () => {
+    const lower = TEXT.toLowerCase();
+    // Counted rather than listed, so a failure never prints them.
+    expect(PRIVATE_WORDS.filter((word) => lower.includes(word)).length).toBe(0);
   });
 });
 

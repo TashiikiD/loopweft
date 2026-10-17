@@ -44,10 +44,14 @@ presentation is available they also rebuild it and compare byte for byte. To poi
 `LOOPWEFT_POLYCRISIS_DECK`, or create `.local.json` (git-ignored) at the repository root:
 
 ```json
-{ "polycrisisDeck": "C:/path/to/PolycrisisPresentation" }
+{ "polycrisisDeck": "C:/path/to/PolycrisisPresentation", "privateWords": ["a name", "a course code"] }
 ```
 
 Elsewhere (and on CI) those two tests are skipped.
+
+`privateWords` lists words that must never appear in the example, such as the presenter's name. They live
+only in `.local.json` (or `LOOPWEFT_PRIVATE_WORDS`, comma-separated) so the repository never contains them;
+the converter refuses to write an example that contains one, and a test checks the committed example.
 
 ## Reporting problems
 

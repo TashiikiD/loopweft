@@ -8,19 +8,32 @@ import type { DeckScene, PolycrisisDeck } from '../src/importers/polycrisis.ts';
 
 const repoRoot = new URL('../../../', import.meta.url);
 
+/** This machine's settings, from the repository's git-ignored `.local.json` (empty when there is none). */
+function localSettings(): { polycrisisDeck?: string; privateWords?: string[] } {
+  const local = new URL('.local.json', repoRoot);
+  return existsSync(local) ? JSON.parse(readFileSync(local, 'utf8')) : {};
+}
+
 /**
  * Where the deck lives on this machine: `--deck <folder>`, else the LOOPWEFT_POLYCRISIS_DECK environment
- * variable, else "polycrisisDeck" in the repository's git-ignored `.local.json`. Undefined when none is set
- * or the folder is missing (as on CI, where the deck is not available).
+ * variable, else "polycrisisDeck" in `.local.json`. Undefined when none is set or the folder is missing (as
+ * on CI, where the deck is not available).
  */
 export function deckFolder(argv: readonly string[] = process.argv): string | undefined {
   const flag = argv.indexOf('--deck');
-  let folder = flag >= 0 ? argv[flag + 1] : process.env.LOOPWEFT_POLYCRISIS_DECK;
-  const local = new URL('.local.json', repoRoot);
-  if (!folder && existsSync(local)) {
-    folder = (JSON.parse(readFileSync(local, 'utf8')) as { polycrisisDeck?: string }).polycrisisDeck;
-  }
+  const folder =
+    (flag >= 0 ? argv[flag + 1] : process.env.LOOPWEFT_POLYCRISIS_DECK) || localSettings().polycrisisDeck;
   return folder && existsSync(join(folder, 'content', 'map.json')) ? folder : undefined;
+}
+
+/**
+ * Words that must never appear in the example, such as the presenter's name, kept out of the repository:
+ * LOOPWEFT_PRIVATE_WORDS (comma-separated), else "privateWords" in `.local.json`. Empty when neither is set.
+ */
+export function privateWords(): string[] {
+  const env = process.env.LOOPWEFT_PRIVATE_WORDS;
+  const words = env ? env.split(',') : (localSettings().privateWords ?? []);
+  return words.map((w) => w.trim().toLowerCase()).filter(Boolean);
 }
 
 /** The deck's content files and its assembled builds. */

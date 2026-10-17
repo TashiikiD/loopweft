@@ -2,14 +2,15 @@
 //
 //   npm run convert:polycrisis -- --deck <folder of PolycrisisPresentation> [--out <file>]
 //
-// The deck folder can also come from LOOPWEFT_POLYCRISIS_DECK or `.local.json` (see polycrisis-deck.ts).
+// The deck folder can also come from LOOPWEFT_POLYCRISIS_DECK or `.local.json` (see polycrisis-deck.ts),
+// and so can the private words (such as the presenter's name) that the result must not contain.
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { convertPolycrisis } from '../src/importers/polycrisis.ts';
+import { convertPolycrisis, POLYCRISIS_CLEANUP } from '../src/importers/polycrisis.ts';
 import { serializeProject } from '../src/serialize.ts';
 import { validateProject } from '../src/validate.ts';
-import { deckFolder, readDeck } from './polycrisis-deck.ts';
+import { deckFolder, privateWords, readDeck } from './polycrisis-deck.ts';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const args = process.argv;
@@ -24,7 +25,14 @@ if (!folder) {
 const at = args.indexOf('--out');
 const out = resolve(repoRoot, at >= 0 ? (args[at + 1] ?? '') : 'examples/polycrisis.loopweft');
 
-const { project, notes } = convertPolycrisis(await readDeck(folder));
+const words = privateWords();
+const { project, notes } = convertPolycrisis(await readDeck(folder), {
+  ...POLYCRISIS_CLEANUP,
+  banned: [...POLYCRISIS_CLEANUP.banned, ...words],
+});
+if (words.length === 0) {
+  process.stderr.write('note: no private words set (privateWords in .local.json), so none were checked\n');
+}
 writeFileSync(out, serializeProject(project));
 const warnings = validateProject(project).filter((i) => i.severity === 'warning');
 const steps = project.story.scenes.reduce((n, s) => n + s.steps.length, 0);

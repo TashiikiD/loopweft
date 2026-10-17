@@ -23,6 +23,9 @@ reviews before the next one starts. The file format is specified in [docs/format
 - **Evidence stays traceable.** Citations keep their source and pages; a conversion or import that cannot
   carry something across says so instead of approximating it.
 - **No telemetry, no accounts, no server.** The only network call is the optional DOI lookup.
+- **Nothing personal in the repository.** It is public: no real names, course details, local paths or
+  personal email addresses in files or commits (commit with the GitHub noreply address). Words that must
+  never appear in the example go in the git-ignored `.local.json` (`privateWords`), never in code.
 - **Permissive dependencies only**, development tools included: MIT, MIT-0, Apache-2.0, BSD-2-Clause,
   BSD-3-Clause, ISC, 0BSD, BlueOak-1.0.0, Zlib, CC0-1.0; OFL-1.1 for fonts only. No MPL, LGPL or GPL. That is
   why Vite stays on 7: Vite 8 requires Lightning CSS (MPL-2.0). [`test/repo.test.ts`](test/repo.test.ts)
