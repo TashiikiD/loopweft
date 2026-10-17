@@ -760,6 +760,7 @@
   stroke-width: 3;
 }
 
+/* A loop icon's letter: in the text colour inside the glowing ring, as on the deck's leverage-at-depth cards. */
 .lw-stage .cd-icon .ic-text {
   fill: var(--lw-text);
   font-family: var(--lw-font-sans);
@@ -820,6 +821,11 @@
 .lw-stage .cards.compact .cd-card.on .cd-icon {
   color: var(--lw-glow);
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lw-glow) 60%, transparent));
+}
+
+/* Here the icon's colour marks the active card, so a loop icon's letter takes it too: muted until active. */
+.lw-stage .cards.compact .cd-icon .ic-text {
+  fill: currentColor;
 }
 
 .lw-stage .cards.compact::before {

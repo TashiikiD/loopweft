@@ -1,10 +1,30 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ManualClock, Motion } from '@loopweft/motion';
 import { describe, expect, it } from 'vitest';
 import { MapView, StoryView, schedule, storyPositions } from '../src/index.ts';
 import { example, stepAt } from './helpers.ts';
 
 const project = example();
+
+// A path, not a URL: under jsdom the global URL is jsdom's, which Node's file functions refuse.
+const STYLESHEET = join(dirname(fileURLToPath(import.meta.url)), '../src/render.css');
+
+/**
+ * The stage's stylesheet in the document, each theme colour written out so that jsdom can resolve
+ * `currentColor` through the cascade. Returns a function that takes it out again.
+ */
+function addStylesheet(colours: Record<string, string>): () => void {
+  const style = document.createElement('style');
+  style.textContent = readFileSync(STYLESHEET, 'utf8').replace(
+    /var\(--lw-([a-z-]+)\)/g,
+    (token, name: string) => colours[name] ?? token,
+  );
+  document.head.append(style);
+  return () => style.remove();
+}
 
 function mapView() {
   const clock = new ManualClock();
@@ -268,5 +288,45 @@ describe('the story view', () => {
       'domino',
       'feedback',
     ]);
+  });
+
+  it('mutes a compact card’s whole icon, its loop letter too, until the card is active', () => {
+    const colours = { text: 'rgb(1, 1, 1)', muted: 'rgb(2, 2, 2)', glow: 'rgb(3, 3, 3)' };
+    const removeStylesheet = addStylesheet(colours);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    try {
+      const story = new StoryView(host, { project, motion: new Motion(new ManualClock()) });
+      const items = [
+        { title: 'Balancing', icon: 'balancing' as const },
+        { title: 'Reinforcing', icon: 'reinforcing' as const },
+      ];
+      const show = (place: 'left' | 'top-right') =>
+        story.overlays.apply(
+          [{ type: 'cards', items, active: [1], place }],
+          { number: 1, title: 'Test' },
+          'instant',
+        );
+      /** Each icon's ring and letter colours, as the stylesheet resolves them. */
+      const drawn = () =>
+        [...host.querySelectorAll('.cd-icon')].map((icon) => [
+          getComputedStyle(icon.querySelector('.ic-line') as Element).stroke,
+          getComputedStyle(icon.querySelector('.ic-text') as Element).fill,
+        ]);
+      show('top-right');
+      expect(drawn()).toEqual([
+        [colours.muted, colours.muted],
+        [colours.glow, colours.glow],
+      ]);
+      // A column keeps the deck's look: a glowing ring, and the letter in the text colour.
+      show('left');
+      expect(drawn()).toEqual([
+        [colours.glow, colours.text],
+        [colours.glow, colours.text],
+      ]);
+    } finally {
+      host.remove();
+      removeStylesheet();
+    }
   });
 });
