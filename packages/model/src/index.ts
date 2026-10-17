@@ -2,6 +2,20 @@
 // and in the browser; nothing reads the clock or draws random numbers.
 export { errorsIn, formatPath, hasErrors, type Issue, issueLines } from './issues.ts';
 export { projectJsonSchema, projectJsonSchemaText } from './json-schema.ts';
+export {
+  type CycleEdge,
+  type CycleOptions,
+  countCycles,
+  cycleEdges,
+  DEFAULT_LOOP_LIMIT,
+  type FoundLoop,
+  findLoops,
+  type LoopStats,
+  loopPolarity,
+  loopStats,
+  type Polarity,
+  type ProjectLoopOptions,
+} from './loops.ts';
 export { type JsonObject, MIGRATIONS, type MigrateResult, type Migration, migrate } from './migrate.ts';
 export * from './ops/index.ts';
 export { createProject } from './project.ts';
