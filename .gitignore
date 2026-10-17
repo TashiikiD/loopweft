@@ -17,3 +17,6 @@ playwright-report/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Review stills and contact sheets (tools/capture.ts): they include renders of the private deck.
+review/

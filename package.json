@@ -23,6 +23,8 @@
     "prepare": "node scripts/install-hooks.mjs",
     "site": "node scripts/build-site.mjs",
     "viewer": "vite apps/viewer",
+    "review:capture": "node tools/capture.ts",
+    "review:sheets": "node tools/contact-sheet.ts",
     "schema": "node packages/model/scripts/export-schema.ts",
     "convert:polycrisis": "node packages/model/scripts/convert-polycrisis.ts"
   },

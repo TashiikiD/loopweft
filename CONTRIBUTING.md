@@ -53,6 +53,21 @@ Elsewhere (and on CI) those two tests are skipped.
 only in `.local.json` (or `LOOPWEFT_PRIVATE_WORDS`, comma-separated) so the repository never contains them;
 the converter refuses to write an example that contains one, and a test checks the committed example.
 
+### Comparing renders with the presentation
+
+`npm run review:capture` takes a still of every step of the example, played by the viewer, and, where the
+presentation is available, of every build of the presentation from its own built `dist/` folder (served
+read-only; nothing is written into it). `npm run review:sheets` then lays each pair side by side: contact
+sheets as PNGs and an `index.html` with every pair at full width, in `review/phase1/`. Both take
+`--out <folder>`; the capture also takes `--only S04.2a,S05.2` and `--no-deck`. The stills include the
+presentation's own title page, so `review/` is git-ignored: keep them out of the repository.
+
+## Viewing the example
+
+`npm run viewer` serves the viewer (`apps/viewer`) on this machine. It plays the example story; drop any
+`.loopweft` file on the page to play that instead. The published copy is at
+<https://tashiikid.github.io/loopweft/demo/>.
+
 ## Reporting problems
 
 Open an issue with what you did, what you expected and what happened instead. For a `.loopweft` file that
