@@ -63,9 +63,12 @@ reviews before the next one starts.
 | `npm test` | Vitest unit tests |
 | `npm run verify` | The full merge gate, with a Markdown summary |
 | `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
+| `npm run convert:polycrisis -- --deck <folder>` | Rebuilds `examples/polycrisis.loopweft` from the private polycrisis deck |
 | `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |
 
-Generated files (`packages/model/schema/*.schema.json`) are not edited by hand; a test checks they are current.
+Generated files (`packages/model/schema/*.schema.json`, `examples/polycrisis.loopweft`) are not edited by
+hand; tests check that they are current. The polycrisis deck is private, so the test that rebuilds the
+example runs only where the deck is (see CONTRIBUTING.md) and is skipped on CI.
 
 ## Layout
 

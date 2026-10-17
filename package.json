@@ -21,7 +21,8 @@
     "verify:fast": "node scripts/verify.mjs --fast",
     "prepare": "node scripts/install-hooks.mjs",
     "site": "node scripts/build-site.mjs",
-    "schema": "node packages/model/scripts/export-schema.ts"
+    "schema": "node packages/model/scripts/export-schema.ts",
+    "convert:polycrisis": "node packages/model/scripts/convert-polycrisis.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

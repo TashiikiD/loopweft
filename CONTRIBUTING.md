@@ -36,6 +36,19 @@ pinned to the same cut-off. `npm test` fails if any locked package has a licence
 Code copied from DataViz or from the polycrisis deck starts with a `Source:` comment naming the original
 file and commit. Copy engine code only, never private notes, research data or credentials.
 
+## The polycrisis example
+
+`examples/polycrisis.loopweft` is generated from a private presentation by
+`npm run convert:polycrisis -- --deck <folder>`. The tests check the committed file everywhere; where the
+presentation is available they also rebuild it and compare byte for byte. To point the tests at it, set
+`LOOPWEFT_POLYCRISIS_DECK`, or create `.local.json` (git-ignored) at the repository root:
+
+```json
+{ "polycrisisDeck": "C:/path/to/PolycrisisPresentation" }
+```
+
+Elsewhere (and on CI) those two tests are skipped.
+
 ## Reporting problems
 
 Open an issue with what you did, what you expected and what happened instead. For a `.loopweft` file that
