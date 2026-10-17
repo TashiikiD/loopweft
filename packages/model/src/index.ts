@@ -8,8 +8,22 @@ export { createProject } from './project.ts';
 export { checkReferences, elementIds } from './refs.ts';
 export * from './schema.ts';
 export { canonicalize, serializeProject } from './serialize.ts';
+export {
+  applyShorthand,
+  parseShorthand,
+  type ShorthandCell,
+  ShorthandError,
+  type ShorthandForm,
+  type ShorthandGroup,
+  type ShorthandIssue,
+  type ShorthandParse,
+  type ShorthandRelation,
+  type ShorthandResult,
+  type ShorthandSign,
+} from './shorthand.ts';
 export { compareStrings, ID_PATTERN, nextSequentialId, slugify, uniqueId } from './text/ids.ts';
 export { closest, didYouMean, editDistanceRatio, typoDistanceRatio } from './text/similarity.ts';
+export { cleanText, type Reading, readBoolean, readNumber } from './text/values.ts';
 export {
   CONFIDENCE_VOCABULARY,
   normalizeToken,
