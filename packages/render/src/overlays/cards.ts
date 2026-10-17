@@ -19,6 +19,9 @@ export function citationLine(project: Project, citations: Citation[] | undefined
     .join('; ');
 }
 
+/** Text written all in capitals, which reads better with its letters spaced a little apart. */
+const allCaps = (text: string): boolean => /\p{Lu}/u.test(text) && text === text.toUpperCase();
+
 /** Cards in the top or bottom band of the stage sit in a compact grid, out of the map's way. */
 export const isCompact = (place: CardsState['place']): boolean => /^(top|bottom)/.test(place ?? 'left');
 
@@ -110,7 +113,7 @@ export class CardsView {
         h(
           'div',
           { class: 'cd-text' },
-          h('div', { class: 'cd-title' }, typeset(c.title)),
+          h('div', { class: `cd-title${allCaps(c.title) ? ' caps' : ''}` }, typeset(c.title)),
           c.sub ? h('div', { class: 'cd-sub' }, typeset(c.sub)) : null,
         ),
       ),

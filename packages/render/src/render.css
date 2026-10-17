@@ -716,6 +716,11 @@
   line-height: 1.2;
 }
 
+/* Titles in capitals, spaced a little apart (the deck's professional lenses). */
+.lw-stage .cd-title.caps {
+  letter-spacing: 0.06em;
+}
+
 .lw-stage .cd-sub {
   font-size: 24px;
   color: var(--lw-muted);

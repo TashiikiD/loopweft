@@ -57,10 +57,12 @@ the converter refuses to write an example that contains one, and a test checks t
 
 `npm run review:capture` takes a still of every step of the example, played by the viewer, and, where the
 presentation is available, of every build of the presentation from its own built `dist/` folder (served
-read-only; nothing is written into it). `npm run review:sheets` then lays each pair side by side: contact
-sheets as PNGs and an `index.html` with every pair at full width, in `review/phase1/`. Both take
-`--out <folder>`; the capture also takes `--only S04.2a,S05.2` and `--no-deck`. The stills include the
-presentation's own title page, so `review/` is git-ignored: keep them out of the repository.
+read-only; nothing is written into it). `npm run review:diff` measures where each pair differs (a share of
+the picture, and an image: teal where only Loopweft draws, magenta where only the presentation does).
+`npm run review:sheets` then lays each pair side by side: contact sheets as PNGs, and an `index.html` with
+every pair and its difference at full width, in `review/phase1/`. All three take `--out <folder>`; the
+capture also takes `--only S04.2a,S05.2` and `--no-deck`. The stills include the presentation's own title
+page, so `review/` is git-ignored: keep them out of the repository.
 
 ## Viewing the example
 
