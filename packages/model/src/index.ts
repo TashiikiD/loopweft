@@ -1,5 +1,12 @@
 // @loopweft/model: the .loopweft file format and the operations on it. Everything here runs in Node
 // and in the browser; nothing reads the clock or draws random numbers.
+export {
+  type Cleanup,
+  type Conversion,
+  convertPolycrisis,
+  POLYCRISIS_CLEANUP,
+  type PolycrisisDeck,
+} from './importers/polycrisis.ts';
 export { checkEvidence, checkProject, checkStory } from './integrity.ts';
 export { errorsIn, formatPath, hasErrors, type Issue, issueLines } from './issues.ts';
 export { projectJsonSchema, projectJsonSchemaText } from './json-schema.ts';

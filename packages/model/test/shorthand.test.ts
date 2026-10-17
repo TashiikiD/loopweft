@@ -340,6 +340,12 @@ describe('applyShorthand with field=value items', () => {
     );
   });
 
+  it("points DataViz's label= to rationale=", () => {
+    expect(() => applyShorthand(project, 'A -> B (+, label="slow")')).toThrow(
+      'line 1, column 12: Loopweft links have no label; write rationale="..." to say why the link holds.',
+    );
+  });
+
   it('asks which is meant when a short form shares its name with a custom field', () => {
     const weighted = projectWith({
       types: { fields: [{ id: 'custom_weight', name: 'Weight', kind: 'number', appliesTo: 'links' }] },

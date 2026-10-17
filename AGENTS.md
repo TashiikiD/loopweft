@@ -6,10 +6,11 @@ Guidance for AI agents (and humans) working in this repository.
 
 Loopweft is an open-source (MIT) studio for beautiful, animated causal systems maps. People draw a causal
 map, cite its evidence, author an animated story step by step, present it and share it as one HTML file.
-It grew out of a cinematic polycrisis presentation, whose map and story become its first example.
+It grew out of a cinematic polycrisis presentation; [`examples/polycrisis.loopweft`](examples/polycrisis.loopweft)
+is that map and story, converted and cleaned up.
 
 The work is phased (see [README.md](README.md#roadmap)); each phase ends with a checkpoint the project owner
-reviews before the next one starts.
+reviews before the next one starts. The file format is specified in [docs/format.md](docs/format.md).
 
 ## Principles (non-negotiable)
 
@@ -50,8 +51,8 @@ reviews before the next one starts.
   and Linux for every push and pull request. The pre-push hook runs `npm run verify:fast`.
 - Keep slices vertical and shippable; don't leave half-wired code on `main`.
 - A change to the `.loopweft` format updates the zod schema (`packages/model/src/schema.ts`), the JSON
-  Schema (`npm run schema`) and the specification; once version 1 is released, it also needs a migration
-  (`packages/model/src/migrate.ts`).
+  Schema (`npm run schema`) and the specification ([docs/format.md](docs/format.md)); once version 1 is
+  released, it also needs a migration (`packages/model/src/migrate.ts`).
 
 ## Commands
 
@@ -76,7 +77,7 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 
 | Package | Role |
 |---|---|
-| `model` | The `.loopweft` format and everything that needs no screen (Phase 0) |
+| `model` | The `.loopweft` format (zod schema, JSON Schema, validation, migrations, canonical serialization), `ops`, the shorthand, loops, integrity checks, references and the polycrisis converter |
 | `motion`, `layout`, `render` | Phase 1: the animation engine, auto-layouts and the SVG renderer (placeholders for now) |
 | `player` | Phase 5: the presentation runtime (placeholder) |
 | `cli` | Phase 2: the `loopweft` command-line tool (placeholder) |

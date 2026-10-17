@@ -13,7 +13,11 @@ no server, no telemetry.
 ## Status
 
 **Phase 0: Foundations.** Nothing to try in a browser yet. This phase sets up the repository and the
-`@loopweft/model` package.
+`@loopweft/model` package: the `.loopweft` file format, its validation and integrity checks, the edit
+operations, the link shorthand, loop counting, and the polycrisis example.
+
+- [The `.loopweft` format, version 1 (draft)](docs/format.md)
+- [The polycrisis example](examples/README.md)
 
 ## Roadmap
 
@@ -37,6 +41,8 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | Path | What it holds |
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
+| `docs/` | The format specification |
+| `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render`, `player`, `cli` | Placeholders for later phases |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |

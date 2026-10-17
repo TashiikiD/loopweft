@@ -388,13 +388,15 @@ const LINK_FIELDS = [
   'rationale',
 ];
 
-/** Link fields the arrow and the project give: never set by an item. */
+/** Items that cannot set a link field, and what to write instead. */
 const STRUCTURAL: Record<string, string> = {
   id: 'A link id is assigned automatically.',
   from: 'from comes from the arrow; write "A -> B".',
   to: 'to comes from the arrow; write "A -> B".',
   citations: 'Citations cannot be written in shorthand; cite sources separately.',
   fields: 'Write custom fields by their own key, e.g. evidence=explicit.',
+  // DataViz's label= has no Loopweft counterpart.
+  label: 'Loopweft links have no label; write rationale="..." to say why the link holds.',
 };
 
 interface Column {
