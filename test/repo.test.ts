@@ -1,6 +1,6 @@
 // Source: DataViz test/repo.test.ts @ efcdbe2 (TashiikiD/DataViz, private), adapted for Loopweft.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const root = new URL('../', import.meta.url);
@@ -64,7 +64,13 @@ describe('repository rules', () => {
   });
 
   it('pins every direct dependency to an exact version', () => {
-    const manifests = ['package.json', 'packages/model/package.json'].map(
+    const workspaces = ['packages', 'apps'].flatMap((dir) =>
+      existsSync(new URL(dir, root))
+        ? readdirSync(new URL(dir, root)).map((name) => `${dir}/${name}/package.json`)
+        : [],
+    );
+    expect(workspaces).toContain('packages/layout/package.json');
+    const manifests = ['package.json', ...workspaces].map(
       (file) =>
         JSON.parse(readFileSync(new URL(file, root), 'utf8')) as {
           dependencies?: Record<string, string>;
