@@ -5114,6 +5114,7 @@
                 "active": [
                   0
                 ],
+                "place": "top-right",
                 "citations": [
                   {
                     "source": "L",
@@ -5193,6 +5194,7 @@
                 "active": [
                   1
                 ],
+                "place": "top-right",
                 "citations": [
                   {
                     "source": "L",
@@ -5279,6 +5281,7 @@
                 "active": [
                   2
                 ],
+                "place": "top-right",
                 "citations": [
                   {
                     "source": "L",
@@ -5366,6 +5369,7 @@
                 "active": [
                   3
                 ],
+                "place": "top-right",
                 "citations": [
                   {
                     "source": "L",

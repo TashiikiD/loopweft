@@ -376,9 +376,11 @@ describe('the polycrisis converter', () => {
     });
     expect(pulse?.overlays).toEqual([
       {
+        // The deck's panel of mechanisms: a compact grid at the top right, where the deck had it.
         type: 'cards',
         items: [{ title: 'Common stresses' }, { title: 'Domino effects' }],
         active: [1],
+        place: 'top-right',
         citations: [{ source: 'A', pages: '2' }],
       },
       {

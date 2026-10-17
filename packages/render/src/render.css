@@ -728,6 +728,50 @@
   margin-top: 4px;
 }
 
+/* Cards in the top or bottom band: a compact grid of two columns, out of the map's way (as the deck's panel
+   of the four ways crises entangle). */
+.lw-stage .cards.compact {
+  width: auto;
+  max-width: 920px;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 10px 14px;
+}
+
+.lw-stage .compact .cd-head,
+.lw-stage .compact .cd-source {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.lw-stage .cards.compact .cd-card {
+  margin: 0;
+  padding: 7px 16px;
+  gap: 12px;
+  border-radius: 12px;
+}
+
+.lw-stage .cards.compact .cd-index {
+  font-size: 26px;
+  min-width: 34px;
+}
+
+.lw-stage .cards.compact .cd-title {
+  font-size: 26px;
+}
+
+.lw-stage .cards.compact::before {
+  inset: -28px -48px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--lw-ink) 85%, transparent),
+    color-mix(in srgb, var(--lw-ink) 55%, transparent) 70%,
+    transparent
+  );
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 /* ----- Title page ----- */
 
 .lw-stage .title-page {

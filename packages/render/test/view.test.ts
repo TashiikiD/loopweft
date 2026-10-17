@@ -220,4 +220,29 @@ describe('the story view', () => {
     expect(layers.map((l) => l.textContent)).toEqual(['First', 'Second']);
     expect(layers.map((l) => Number(l.style.zIndex))).toEqual([2, 3]);
   });
+
+  it('sets cards beside the map as a column, and above or below it as a compact grid', () => {
+    const motion = new Motion(new ManualClock());
+    const host = document.createElement('div');
+    const story = new StoryView(host, { project, motion });
+    const items = [{ title: 'One' }, { title: 'Two' }];
+    const show = (place?: 'left' | 'top-right' | 'bottom') =>
+      story.overlays.apply(
+        [{ type: 'cards', items, active: [1], ...(place ? { place } : {}) }],
+        { number: 1, title: 'Test' },
+        'instant',
+      );
+    show();
+    expect(host.querySelector('.cards')?.className).toBe('cards place-left');
+    show('top-right');
+    expect(host.querySelector('.cards')?.className).toBe('cards place-top-right compact');
+    // In a column the active card stands forward; in a grid it stays in line.
+    const cards = [...host.querySelectorAll<HTMLElement>('.cd-card')];
+    expect(cards.map((c) => c.style.transform)).toEqual(['', '']);
+    expect(cards.map((c) => c.classList.contains('on'))).toEqual([false, true]);
+    // The example keeps the four ways crises entangle at the top right (deck S03.7 is step S03.5).
+    expect(
+      stepAt(project, 'S03.7').overlays.find((o) => o.type === 'cards' && o.place === 'top-right'),
+    ).toBeDefined();
+  });
 });

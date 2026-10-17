@@ -4,6 +4,7 @@ export {
   type Cleanup,
   type Conversion,
   convertPolycrisis,
+  ONE_OFF_VISUALS,
   POLYCRISIS_CLEANUP,
   type PolycrisisDeck,
 } from './importers/polycrisis.ts';

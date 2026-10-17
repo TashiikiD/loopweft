@@ -294,7 +294,7 @@ const MECHANISMS: Record<string, { name: string; description?: string }> = {
 const CARD_SOURCES: Record<string, string> = { 'Søgaard Jørgensen et al. 2023': 'J' };
 
 /** The deck's own visuals for one talk, which stay in the deck (see the plan). */
-const ONE_OFF_VISUALS = new Set([
+export const ONE_OFF_VISUALS: ReadonlySet<string> = new Set([
   'decoy',
   'traps',
   'timeline',
@@ -491,7 +491,8 @@ function convertViz(
         break;
       }
       case 'mechanisms': {
-        // The grammar of crisis interactions: four named mechanisms, one lit. In Loopweft, a row of cards.
+        // The grammar of crisis interactions: four named mechanisms, one lit. In Loopweft, cards in a compact
+        // grid at the top right, where the deck's panel sat (the map below shows the whole network).
         const { active } = s as { active: string };
         const items = deck.visuals.mechanisms.items;
         const index = items.findIndex((m) => m.id === active);
@@ -500,6 +501,7 @@ function convertViz(
           type: 'cards',
           items: items.map((m) => ({ title: m.title })),
           active: [index],
+          place: 'top-right',
           citations: [cite(deck.visuals.mechanisms.source)],
         });
         break;
