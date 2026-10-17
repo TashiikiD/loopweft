@@ -2,7 +2,15 @@
   "name": "@loopweft/render",
   "version": "0.0.0",
   "private": true,
-  "description": "The SVG map renderer and its choreography, overlays, and themes with palettes and colour-vision checks.",
+  "description": "Draws a project's map and plays its story: the drawable graph, map states, choreography, glyphs and themes, and the SVG map view with its overlays.",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@loopweft/layout": "*",
+    "@loopweft/model": "*",
+    "@loopweft/motion": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }
