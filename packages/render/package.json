@@ -11,6 +11,7 @@
     "@loopweft/motion": "*"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./render.css": "./src/render.css"
   }
 }

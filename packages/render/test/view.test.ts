@@ -1,0 +1,223 @@
+// @vitest-environment jsdom
+import { ManualClock, Motion } from '@loopweft/motion';
+import { describe, expect, it } from 'vitest';
+import { MapView, StoryView, schedule, storyPositions } from '../src/index.ts';
+import { example, stepAt } from './helpers.ts';
+
+const project = example();
+
+function mapView() {
+  const clock = new ManualClock();
+  const motion = new Motion(clock);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const view = new MapView(host, { project, motion });
+  return { clock, motion, host, view };
+}
+
+/** An element's inline opacity; unset reads as 1. */
+const opacity = (el: Element | null | undefined) => {
+  const value = (el as HTMLElement | null)?.style.opacity;
+  if (value === undefined) return Number.NaN;
+  return value === '' ? 1 : Number(value);
+};
+const q = (root: ParentNode, selector: string) => root.querySelector(selector);
+
+describe('the map view', () => {
+  it('draws every variable, link, loop badge and group halo, hidden until a step shows them', () => {
+    const { host } = mapView();
+    expect(host.querySelectorAll('.node')).toHaveLength(41);
+    expect(host.querySelectorAll('.edge')).toHaveLength(132);
+    expect(host.querySelectorAll('.loop-badge')).toHaveLength(18);
+    expect(host.querySelectorAll('.map-cluster')).toHaveLength(7);
+    expect(host.querySelectorAll('.map-label')).toHaveLength(41);
+    expect(host.querySelectorAll('.edge.style-dotted.flagged .edge-flag')).toHaveLength(
+      project.links.filter((l) => l.type === 'side_effect').length,
+    );
+    expect(host.querySelectorAll('.node.response .node-ring')).toHaveLength(5);
+    for (const node of host.querySelectorAll('.node')) expect(opacity(node)).toBe(0);
+  });
+
+  it('gives each view its own SVG ids, so two maps can share a page', () => {
+    const a = mapView().host;
+    const b = mapView().host;
+    const ids = (host: HTMLElement) => [...host.querySelectorAll('[id]')].map((el) => el.id);
+    expect(ids(a).length).toBeGreaterThan(3);
+    expect(ids(a).filter((id) => ids(b).includes(id))).toEqual([]);
+  });
+
+  it('shows a step at once: levels, labels and camera', () => {
+    const { host, view } = mapView();
+    const r = view.apply(stepAt(project, 'S04.2').map, 'instant');
+    const node = (id: string) => q(host, `.node[data-id="${id}"]`);
+    const levels = { hidden: 0, ghost: 0.13, dim: 0.32, normal: 0.88, focus: 1, active: 1 };
+    for (const [id, level] of r.nodeLevel) expect(opacity(node(id)), id).toBe(levels[level]);
+    expect(r.nodeLevel.get('geopolitical_conflict')).toBe('focus');
+    expect(opacity(q(host, '.edge[data-id="E022"]'))).toBeGreaterThan(0.8);
+    for (const [id, el] of [...host.querySelectorAll<HTMLElement>('.map-label')].map(
+      (el, i) => [[...view.graph.nodes.keys()][i], el] as const,
+    )) {
+      expect(opacity(el), id).toBe(r.labels.has(id as string) ? 1 : 0);
+    }
+    expect(q(host, '.map-camera')?.getAttribute('transform')).toMatch(/^translate\(.+\) scale\(.+\)$/);
+  });
+
+  it('plays a forward step: the new link traces, a pulse travels it, the trend lands with it', () => {
+    const { clock, host, view } = mapView();
+    view.apply(stepAt(project, 'S04.1').map, 'instant');
+    view.apply(stepAt(project, 'S04.2').map, 'smooth');
+    // E022 is conditional, so it is dashed where lit: it traces through a growing mask, keeping its dashes.
+    const line = q(host, '.edge[data-id="E022"] .edge-line') as SVGPathElement;
+    expect(line.classList.contains('dashed')).toBe(true);
+    expect(line.getAttribute('mask')).toMatch(/^url\(#lw\d+-trace-\d+\)$/);
+    const trend = q(host, '.node[data-id="energy_price_shocks"] .node-trend');
+    expect(opacity(trend)).toBe(0);
+    clock.advance(2);
+    expect(view.pulseLayer.querySelectorAll('.pulse').length).toBe(1);
+    expect(q(host, '.edge[data-id="E022"]')?.classList.contains('carrying')).toBe(true);
+    clock.advance(4);
+    expect(line.hasAttribute('mask')).toBe(false);
+    expect(host.querySelectorAll('mask')).toHaveLength(0);
+    expect(opacity(trend)).toBe(1);
+    expect(trend?.getAttribute('class')).toBe('node-trend up');
+    expect(view.pulseLayer.childElementCount).toBe(0);
+    expect(q(host, '.edge[data-id="E022"]')?.classList.contains('carrying')).toBe(false);
+  });
+
+  it('lands a step that is still moving before the next one starts', () => {
+    const { clock, host, view } = mapView();
+    view.apply(stepAt(project, 'S05.7').map, 'instant');
+    view.apply(stepAt(project, 'S05.8').map, 'smooth');
+    clock.advance(1.2);
+    const masks = [...host.querySelectorAll('mask')].map((m) => m.id);
+    expect(masks.length).toBeGreaterThan(0);
+    view.apply(stepAt(project, 'S05.9').map, 'smooth');
+    // Nothing of the landed step is left in flight: its trace masks are gone, and no pulse or ring remains.
+    expect(masks.filter((id) => host.querySelector(`#${id}`))).toEqual([]);
+    expect(view.pulseLayer.childElementCount).toBe(0);
+    clock.advance(12);
+    expect(view.pulseLayer.childElementCount).toBe(0);
+    expect(host.querySelectorAll('mask')).toHaveLength(0);
+  });
+
+  it('pops new loop badges in once their loop has traced', () => {
+    const { clock, host, view } = mapView();
+    view.apply(stepAt(project, 'S05.1').map, 'instant');
+    view.apply(stepAt(project, 'S05.2').map, 'smooth');
+    const badge = q(host, '.loop-badge[data-id="R7"]');
+    expect(opacity(badge)).toBe(0);
+    clock.advance(5);
+    expect(opacity(badge)).toBe(1);
+  });
+
+  it('keeps soft pulses wandering a held step, and stops them on the next step', () => {
+    const { clock, view } = mapView();
+    view.apply(stepAt(project, 'S00.1').map, 'instant');
+    let seen = 0;
+    for (let i = 0; i < 60; i++) {
+      clock.advance(0.25);
+      seen = Math.max(seen, view.pulseLayer.querySelectorAll('.pulse.soft').length);
+    }
+    expect(seen).toBeGreaterThan(0);
+    view.apply(stepAt(project, 'S01.1').map, 'instant');
+    expect(view.pulseLayer.childElementCount).toBe(0);
+    clock.advance(10);
+    expect(view.pulseLayer.childElementCount).toBe(0);
+  });
+
+  it('holds everything while paused, and lands it on skip', () => {
+    const { clock, motion, host, view } = mapView();
+    view.apply(stepAt(project, 'S04.1').map, 'instant');
+    view.apply(stepAt(project, 'S04.2').map, 'smooth');
+    motion.setPaused(true);
+    const trend = q(host, '.node[data-id="energy_price_shocks"] .node-trend');
+    clock.advance(10);
+    expect(opacity(trend)).toBe(0);
+    motion.landAll();
+    expect(opacity(trend)).toBe(1);
+  });
+
+  it('agrees with the schedule on how long a step takes', () => {
+    const { view } = mapView();
+    const prev = view.apply(stepAt(project, 'S09.1').map, 'instant');
+    const next = view.apply(stepAt(project, 'S09.2').map, 'smooth');
+    const plan = schedule(view.graph, view.loops, prev, next, stepAt(project, 'S09.2').map);
+    expect(plan.pulses.length).toBeGreaterThan(0);
+    expect(plan.duration).toBeGreaterThan(2);
+  });
+});
+
+describe('the story view', () => {
+  it('plays the whole story forward and back without leaving anything behind', () => {
+    const clock = new ManualClock();
+    const motion = new Motion(clock);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const story = new StoryView(host, { project, motion });
+    const positions = storyPositions(project);
+    expect(positions).toHaveLength(70);
+    expect(positions[3]?.key).toBe('S01.3');
+    story.show(0, 0, 'instant');
+    for (const p of positions.slice(1)) {
+      story.show(p.scene, p.step, 'smooth');
+      clock.advance(0.5);
+    }
+    for (const p of positions.slice(0, -1).reverse()) story.show(p.scene, p.step, 'quick');
+    motion.landAll();
+    expect(story.position).toEqual({ scene: 0, step: 0 });
+    expect(host.querySelectorAll('.title-page')).toHaveLength(1);
+    expect(host.querySelectorAll('.statement, .cards, .legend')).toHaveLength(0);
+  });
+
+  it('shows the scene caption, statements, cards and the legend where a step lists them', () => {
+    const motion = new Motion(new ManualClock());
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const story = new StoryView(host, { project, motion });
+    const at = (key: string) => {
+      const p = storyPositions(project);
+      const scene = project.story.scenes.findIndex((s) => s.id === key.split('.')[0]);
+      const step = Number(key.split('.')[1]) - 1;
+      expect(p.some((x) => x.scene === scene && x.step === step)).toBe(true);
+      story.show(scene, step, 'instant');
+    };
+    at('S01.1');
+    const caption = host.querySelector('.caption');
+    expect(caption?.textContent).toContain('01 · ');
+    expect(caption?.hasAttribute('data-reserve')).toBe(true);
+
+    const kinds = (key: string) => {
+      at(key);
+      return stepAt(project, key).overlays.map((o) => o.type);
+    };
+    // Find steps that list each overlay type, and check each shows.
+    for (const type of ['statement', 'cards', 'legend'] as const) {
+      const key = storyPositions(project)
+        .map((p) => `${project.story.scenes[p.scene]?.id}.${p.step + 1}`)
+        .find((k) => stepAt(project, k).overlays.some((o) => o.type === type));
+      expect(key, type).toBeDefined();
+      expect(kinds(key as string)).toContain(type);
+      const el = host.querySelector(`.overlay-${type} .${type === 'cards' ? 'cards' : type}`);
+      expect(el, `${type} on ${key}`).not.toBeNull();
+      expect(opacity(el)).not.toBe(0);
+    }
+  });
+
+  it('stacks overlays in list order, under the caption', () => {
+    const motion = new Motion(new ManualClock());
+    const host = document.createElement('div');
+    const story = new StoryView(host, { project, motion });
+    story.overlays.apply(
+      [
+        { type: 'caption' },
+        { type: 'statement', lines: ['First'] },
+        { type: 'statement', lines: ['Second'] },
+      ],
+      { number: 1, title: 'Test' },
+      'instant',
+    );
+    const layers = [...host.querySelectorAll<HTMLElement>('.overlay-statement')];
+    expect(layers.map((l) => l.textContent)).toEqual(['First', 'Second']);
+    expect(layers.map((l) => Number(l.style.zIndex))).toEqual([2, 3]);
+  });
+});

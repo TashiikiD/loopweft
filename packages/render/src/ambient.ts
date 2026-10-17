@@ -19,13 +19,22 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-/** Plans walks over the visible map; `walk()` returns null when no walk can start. */
+export interface AmbientWalker {
+  /** False when no start variable is visible with a visible link out: then there are no walks. */
+  ready: boolean;
+  /** The links of the next walk (empty when the start found no way on); null when not ready. */
+  walk(): string[] | null;
+  /** Seconds until the next walk. */
+  gap(): number;
+}
+
+/** Plans walks over the visible map. */
 export function ambientWalker(
   graph: Graph,
   resolved: ResolvedMap,
   spec: AmbientSpec,
   random: () => number,
-): { walk(): string[] | null; gap(): number } {
+): AmbientWalker {
   const visible = (level: Parameters<typeof rank>[0]) => rank(level) > rank('hidden');
   const out = new Map<string, GraphEdge[]>();
   for (const e of graph.edges.values()) {
@@ -38,6 +47,7 @@ export function ambientWalker(
   const between = ([lo, hi]: [number, number]) => lo + random() * (hi - lo);
 
   return {
+    ready: starts.length > 0,
     walk() {
       if (starts.length === 0) return null;
       const start = starts[Math.floor(random() * starts.length)] as string;

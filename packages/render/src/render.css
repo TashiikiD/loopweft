@@ -1,0 +1,850 @@
+/*
+ * Loopweft's stage, map and overlays. Ported from the polycrisis deck's styles (PolycrisisPresentation
+ * src/styles/base.css, stage.css, map.css and viz.css @ 539bc8e, private), scoped to the stage, with colours
+ * from the theme's tokens (--lw-*, set on .lw-viewport from theme.ts). Sizes are stage pixels on a
+ * 1920 × 1080 stage; content text is never below 24 px.
+ */
+
+.lw-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--lw-bg-deep);
+}
+
+.lw-viewport *,
+.lw-viewport *::before,
+.lw-viewport *::after {
+  box-sizing: border-box;
+}
+
+.lw-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  overflow: hidden;
+  background: var(--lw-bg);
+  color: var(--lw-text);
+  font-family: var(--lw-font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  /* Projector-safe sizes. */
+  font-size: 28px;
+  line-height: 1.35;
+}
+
+.lw-stage .layer {
+  position: absolute;
+  inset: 0;
+}
+
+.lw-stage .layer-bg {
+  background:
+    radial-gradient(
+      1200px 800px at 50% 46%,
+      color-mix(in srgb, var(--lw-glow) 7%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(1600px 1000px at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.45) 100%), var(--lw-bg);
+}
+
+.lw-viewport[data-theme="light"] .layer-bg {
+  background:
+    radial-gradient(
+      1200px 800px at 50% 46%,
+      color-mix(in srgb, var(--lw-glow) 6%, transparent),
+      transparent 70%
+    ),
+    var(--lw-bg);
+}
+
+.lw-stage .layer-overlay,
+.lw-stage .layer-chrome,
+.lw-stage .overlay-layer {
+  pointer-events: none;
+}
+
+.lw-stage .overlay-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.lw-stage .overlay-caption {
+  z-index: 100;
+}
+
+/* ----- The map ----- */
+
+.lw-stage .map {
+  position: absolute;
+  inset: 0;
+}
+
+.lw-stage .map-svg {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: visible;
+}
+
+.lw-stage .edge-line {
+  fill: none;
+  stroke: var(--c);
+  stroke-linecap: round;
+}
+
+/* Conditional links show their dashes where they are the subject (focus or active); faint background links
+   stay solid so a hundred dashes don't shimmer. */
+.lw-stage .edge-line.dashed,
+.lw-stage .edge.style-dashed .edge-line {
+  stroke-dasharray: 7 6;
+}
+
+/* Dotted links: in the example, documented possible side-effects of a response. */
+.lw-stage .edge.style-dotted .edge-line {
+  stroke-dasharray: 1.5 6;
+}
+
+.lw-stage .edge-flag circle {
+  fill: var(--lw-ink);
+  stroke: var(--c);
+  stroke-width: 1.8;
+}
+
+.lw-stage .edge-flag path {
+  fill: var(--c);
+}
+
+.lw-stage .edge-head {
+  fill: var(--c);
+}
+
+.lw-stage .edge.active {
+  filter: drop-shadow(0 0 5px var(--c));
+}
+
+.lw-stage .node-core {
+  fill: var(--c);
+  stroke: color-mix(in srgb, var(--lw-ink) 95%, transparent);
+  stroke-width: 2.5;
+}
+
+.lw-stage .node-ring {
+  fill: var(--lw-ring-fill);
+  stroke: var(--c);
+  stroke-width: 3;
+}
+
+.lw-stage .node-dot {
+  fill: var(--c);
+}
+
+.lw-stage .node.active .node-core,
+.lw-stage .node.active .node-dot {
+  filter: brightness(1.15);
+}
+
+.lw-stage .node-trend circle {
+  fill: var(--lw-ink);
+  stroke-width: 2;
+}
+
+.lw-stage .node-trend.up circle {
+  stroke: var(--lw-harm);
+}
+
+.lw-stage .node-trend.up path {
+  fill: var(--lw-harm);
+}
+
+.lw-stage .node-trend.down circle {
+  stroke: var(--lw-relief);
+}
+
+.lw-stage .node-trend.down path {
+  fill: var(--lw-relief);
+}
+
+.lw-stage .node-trend.mixed circle {
+  stroke: var(--lw-mixed);
+}
+
+.lw-stage .node-trend.mixed path {
+  fill: var(--lw-mixed);
+}
+
+/* R/B loop badges: the conventional loop marker. */
+.lw-stage .loop-disc {
+  fill: color-mix(in srgb, var(--lw-ink) 86%, transparent);
+}
+
+.lw-stage .loop-arc {
+  fill: none;
+  stroke: var(--lw-muted);
+  stroke-width: 1.8;
+}
+
+.lw-stage .loop-head {
+  fill: var(--lw-muted);
+}
+
+.lw-stage .loop-badge text {
+  fill: var(--lw-text);
+  font-family: var(--lw-font-sans);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ----- Pulses carry a direction of change along a link ----- */
+
+.lw-stage .map-pulses {
+  pointer-events: none;
+}
+
+.lw-stage .pulse {
+  --pc: var(--lw-harm);
+}
+
+.lw-stage .pulse.tone-relief {
+  --pc: var(--lw-relief);
+}
+
+.lw-stage .pulse.tone-mixed {
+  --pc: var(--lw-mixed);
+}
+
+.lw-stage .pulse-trail {
+  fill: none;
+  stroke: var(--pc);
+  stroke-linecap: round;
+  stroke-opacity: 0.6;
+}
+
+/* A bright core edged in the pulse colour. */
+.lw-stage .pulse-head {
+  fill: var(--lw-pulse-core);
+  stroke: var(--pc);
+}
+
+.lw-stage .pulse-ring {
+  fill: none;
+  stroke: var(--lw-harm);
+}
+
+.lw-stage .pulse-ring.tone-relief {
+  stroke: var(--lw-relief);
+}
+
+.lw-stage .pulse-ring.tone-mixed {
+  stroke: var(--lw-mixed);
+}
+
+/* A held step's idle pulses: a quieter head, so text over the map stays first. */
+.lw-stage .pulse.soft .pulse-head {
+  fill: color-mix(in srgb, var(--pc) 35%, var(--lw-pulse-core));
+}
+
+.lw-stage .pulse.soft .pulse-trail {
+  stroke-opacity: 0.45;
+}
+
+/* The link a pulse is travelling glows in the pulse's colour. */
+.lw-stage .edge.carrying .edge-line {
+  filter: drop-shadow(0 0 6px var(--tone)) drop-shadow(0 0 2px var(--tone));
+}
+
+/* A loop's archetype or name, under its badge. */
+.lw-stage .map-loop-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% 0;
+  font-size: 24px;
+  font-weight: 600;
+  font-style: italic;
+  white-space: nowrap;
+  color: var(--lw-text);
+  text-shadow:
+    0 0 3px var(--lw-ink),
+    0 0 8px var(--lw-ink),
+    0 0 16px var(--lw-ink);
+  will-change: transform, opacity;
+}
+
+/* Labels live in HTML so they stay crisp and a constant size at any zoom. */
+.lw-stage .map-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lw-stage .map-label,
+.lw-stage .map-group-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: pre;
+  will-change: transform, opacity;
+}
+
+.lw-stage .map-label {
+  --gap: 20px;
+  font-size: 24px;
+  line-height: 1.12;
+  font-weight: 500;
+  color: var(--lw-text);
+  text-shadow:
+    0 0 3px var(--lw-ink),
+    0 0 8px var(--lw-ink),
+    0 0 16px var(--lw-ink);
+}
+
+.lw-stage .map-label.pos-above {
+  translate: -50% calc(-100% - var(--gap));
+  text-align: center;
+}
+
+.lw-stage .map-label.pos-below {
+  translate: -50% var(--gap);
+  text-align: center;
+}
+
+.lw-stage .map-label.pos-left {
+  translate: calc(-100% - var(--gap)) -50%;
+  text-align: right;
+}
+
+.lw-stage .map-label.pos-right {
+  translate: var(--gap) -50%;
+  text-align: left;
+}
+
+.lw-stage .map-label.pos-above-right {
+  translate: calc(var(--gap) * 0.72) calc(-100% - var(--gap) * 0.72);
+  text-align: left;
+}
+
+.lw-stage .map-label.pos-above-left {
+  translate: calc(-100% - var(--gap) * 0.72) calc(-100% - var(--gap) * 0.72);
+  text-align: right;
+}
+
+.lw-stage .map-label.pos-below-right {
+  translate: calc(var(--gap) * 0.72) calc(var(--gap) * 0.72);
+  text-align: left;
+}
+
+.lw-stage .map-label.pos-below-left {
+  translate: calc(-100% - var(--gap) * 0.72) calc(var(--gap) * 0.72);
+  text-align: right;
+}
+
+/* Label text set for one step (single words). */
+.lw-stage .map-label.word {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--c);
+}
+
+.lw-stage .map-group-label {
+  translate: -50% -50%;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--c);
+  text-shadow: 0 0 10px var(--lw-ink);
+}
+
+.lw-stage .minimap {
+  position: absolute;
+  right: 56px;
+  bottom: 56px;
+  width: 240px;
+  height: 135px;
+}
+
+.lw-stage .minimap-frame {
+  fill: color-mix(in srgb, var(--lw-ink) 80%, transparent);
+  stroke: color-mix(in srgb, var(--lw-muted) 28%, transparent);
+}
+
+.lw-stage .minimap-view {
+  fill: color-mix(in srgb, var(--lw-glow) 8%, transparent);
+  stroke: var(--lw-glow);
+  stroke-width: 1.2;
+}
+
+/* ----- The scene caption above the map ----- */
+
+.lw-stage .caption {
+  position: absolute;
+  top: 64px;
+  left: 80px;
+  max-width: 980px;
+}
+
+.lw-stage .caption-kicker {
+  font-size: 24px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lw-glow);
+  margin-bottom: 12px;
+}
+
+.lw-stage .caption-headline {
+  margin: 0;
+  font-family: var(--lw-font-serif);
+  font-weight: 400;
+  font-size: 46px;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 144;
+}
+
+/* Places on the stage shared by the overlays (each type has its own default). */
+.lw-stage .place-top-left {
+  left: 80px;
+  top: 58px;
+}
+
+.lw-stage .place-top {
+  left: 50%;
+  top: 58px;
+  translate: -50% 0;
+}
+
+.lw-stage .place-top-right {
+  right: 80px;
+  top: 58px;
+}
+
+.lw-stage .place-left {
+  left: 80px;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.lw-stage .place-center {
+  left: 50%;
+  top: 52%;
+  translate: -50% -50%;
+}
+
+.lw-stage .place-right {
+  right: 80px;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.lw-stage .place-bottom-left {
+  left: 80px;
+  bottom: 96px;
+}
+
+.lw-stage .place-bottom {
+  left: 50%;
+  bottom: 88px;
+  translate: -50% 0;
+}
+
+.lw-stage .place-bottom-right {
+  right: 80px;
+  bottom: 96px;
+}
+
+/* ----- Statements ----- */
+
+.lw-stage .statement {
+  position: absolute;
+  /* Its own stacking context, so the scrim sits behind the text but above the map. */
+  isolation: isolate;
+  color: var(--lw-text);
+  width: 920px;
+}
+
+.lw-stage .statement.place-center {
+  width: 1720px;
+  text-align: center;
+}
+
+.lw-stage .statement.place-bottom,
+.lw-stage .statement.place-top {
+  width: 1600px;
+  text-align: center;
+}
+
+.lw-stage .statement.place-bottom::before,
+.lw-stage .statement.place-center::before {
+  content: "";
+  position: absolute;
+  inset: -60px -120px;
+  z-index: -1;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--lw-ink) 90%, transparent),
+    color-mix(in srgb, var(--lw-ink) 55%, transparent) 60%,
+    transparent
+  );
+}
+
+.lw-stage .statement.place-top-right,
+.lw-stage .statement.place-top-left {
+  width: 720px;
+}
+
+.lw-stage .statement.place-top-right,
+.lw-stage .statement.place-right,
+.lw-stage .statement.place-bottom-right {
+  text-align: right;
+}
+
+.lw-stage .st-kicker {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lw-glow);
+  margin-bottom: 8px;
+}
+
+.lw-stage .st-hero .st-line {
+  font-family: var(--lw-font-serif);
+  font-size: 108px;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 144;
+}
+
+.lw-stage .st-hero .st-line-1 {
+  color: var(--lw-glow);
+  font-style: italic;
+}
+
+.lw-stage .st-question .st-line {
+  font-family: var(--lw-font-serif);
+  font-style: italic;
+  font-size: 62px;
+  line-height: 1.15;
+  font-variation-settings: "opsz" 144;
+}
+
+.lw-stage .st-closing .st-line {
+  font-size: 60px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.32;
+  white-space: nowrap;
+}
+
+.lw-stage .st-closing .st-line-2 {
+  color: var(--lw-glow);
+}
+
+.lw-stage .st-title .st-line {
+  font-family: var(--lw-font-serif);
+  font-size: 44px;
+  line-height: 1.15;
+}
+
+.lw-stage .st-note .st-line {
+  font-size: 30px;
+  color: var(--lw-muted);
+}
+
+/* ----- Legend: role glyphs and link styles ----- */
+
+.lw-stage .legend {
+  position: absolute;
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+}
+
+.lw-stage .legend.place-top-right {
+  top: 74px;
+  justify-items: end;
+}
+
+.lw-stage .legend.place-right,
+.lw-stage .legend.place-bottom-right {
+  justify-items: end;
+}
+
+.lw-stage .legend.place-top,
+.lw-stage .legend.place-center,
+.lw-stage .legend.place-bottom {
+  justify-items: center;
+}
+
+.lw-stage .lg-row {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.lw-stage .lg-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  color: var(--lw-text);
+}
+
+.lw-stage .legend .lg-glyph .node-core {
+  fill: var(--lw-legend-ink);
+  stroke: var(--lw-ink);
+  stroke-width: 2.5;
+}
+
+.lw-stage .legend .lg-glyph .node-ring {
+  fill: var(--lw-ring-fill);
+  stroke: var(--lw-legend-ink);
+  stroke-width: 3;
+}
+
+.lw-stage .legend .lg-glyph .node-dot,
+.lw-stage .lg-head {
+  fill: var(--lw-legend-ink);
+}
+
+.lw-stage .lg-line {
+  stroke: var(--lw-legend-ink);
+  stroke-width: 2.6;
+}
+
+.lw-stage .lg-link.conditional .lg-line {
+  stroke-dasharray: 7 6;
+}
+
+/* ----- Card columns ----- */
+
+.lw-stage .cards {
+  position: absolute;
+  width: 610px;
+  isolation: isolate;
+}
+
+.lw-stage .cards.place-left {
+  top: 252px;
+  translate: none;
+}
+
+.lw-stage .cards.place-right {
+  top: 252px;
+  translate: none;
+}
+
+/* A soft scrim behind the column, so the map never shows through receded cards. */
+.lw-stage .cards::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -48px -150px -48px -80px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--lw-ink) 94%, transparent) 0%,
+    color-mix(in srgb, var(--lw-ink) 86%, transparent) 70%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(180deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
+  pointer-events: none;
+}
+
+.lw-stage .cards.place-right::before,
+.lw-stage .cards.place-top-right::before,
+.lw-stage .cards.place-bottom-right::before {
+  inset: -48px -80px -48px -150px;
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--lw-ink) 94%, transparent) 0%,
+    color-mix(in srgb, var(--lw-ink) 86%, transparent) 70%,
+    transparent 100%
+  );
+}
+
+.lw-stage .cd-head {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lw-glow);
+  margin-bottom: 16px;
+}
+
+.lw-stage .cd-card {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 22px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--lw-surface) 86%, transparent);
+  border: 1px solid var(--lw-line);
+  border-left: 4px solid color-mix(in srgb, var(--lw-glow) 25%, transparent);
+}
+
+.lw-stage .cd-card.on {
+  border-left-color: var(--lw-glow);
+  background: color-mix(in srgb, var(--lw-surface) 92%, var(--lw-glow));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--lw-glow) 28%, transparent),
+    0 12px 34px rgba(0, 0, 0, 0.4);
+}
+
+.lw-stage .cd-index {
+  font-family: var(--lw-font-serif);
+  font-size: 34px;
+  color: var(--lw-glow);
+  min-width: 46px;
+}
+
+.lw-stage .cd-title {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.lw-stage .cd-sub {
+  font-size: 24px;
+  color: var(--lw-muted);
+  margin-top: 2px;
+}
+
+.lw-stage .cd-source {
+  font-size: 24px;
+  color: var(--lw-muted);
+  margin-top: 4px;
+}
+
+/* ----- Title page ----- */
+
+.lw-stage .title-page {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+
+/* The map stays alive behind the title; this keeps the type clear of it. */
+.lw-stage .title-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      ellipse 62% 78% at 24% 52%,
+      color-mix(in srgb, var(--lw-ink) 94%, transparent) 0%,
+      color-mix(in srgb, var(--lw-ink) 80%, transparent) 46%,
+      transparent 100%
+    ),
+    linear-gradient(90deg, color-mix(in srgb, var(--lw-ink) 60%, transparent) 0%, transparent 62%);
+}
+
+.lw-stage .tt-block {
+  position: absolute;
+  left: 140px;
+  top: 50%;
+  translate: 0 -52%;
+  width: 1180px;
+}
+
+.lw-stage .tt-title {
+  margin: 22px 0 0;
+  font-family: var(--lw-font-serif);
+  font-size: 148px;
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 144;
+  color: var(--lw-text);
+}
+
+.lw-stage .tt-sub {
+  margin-top: 18px;
+  font-family: var(--lw-font-serif);
+  font-size: 58px;
+  font-style: italic;
+  line-height: 1.1;
+  font-variation-settings: "opsz" 144;
+  color: var(--lw-glow);
+}
+
+.lw-stage .tt-rule {
+  width: 132px;
+  height: 3px;
+  margin: 52px 0 36px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--lw-glow), color-mix(in srgb, var(--lw-glow) 20%, transparent));
+}
+
+.lw-stage .tt-name {
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--lw-text);
+}
+
+.lw-stage .tt-meta {
+  margin-top: 8px;
+  font-size: 28px;
+  line-height: 1.3;
+  color: var(--lw-muted);
+}
+
+/* ----- Images ----- */
+
+.lw-stage .image {
+  position: absolute;
+  margin: 0;
+  max-width: 1100px;
+}
+
+.lw-stage .image img {
+  display: block;
+  max-width: 100%;
+  max-height: 720px;
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.lw-stage .image figcaption {
+  margin-top: 12px;
+  font-size: 24px;
+  color: var(--lw-muted);
+}
+
+/* ----- Text over the map stays legible against links and halos ----- */
+
+.lw-stage .statement,
+.lw-stage .legend,
+.lw-stage .cards .cd-head,
+.lw-stage .image figcaption {
+  text-shadow:
+    0 0 4px var(--lw-ink),
+    0 0 14px var(--lw-ink),
+    0 0 28px var(--lw-ink);
+}
+
+/* Low power: no blurred glows; halos stay because they are cheap gradients. */
+.lw-stage.low-power .edge.active,
+.lw-stage.low-power .edge.carrying .edge-line,
+.lw-stage.low-power .node.active .node-core,
+.lw-stage.low-power .node.active .node-dot {
+  filter: none;
+}
+
+.lw-stage.low-power .pulse-glow {
+  display: none;
+}

@@ -1,7 +1,9 @@
-// @loopweft/render: draws a project's map and plays its story. This part is pure (Node-safe): the drawable
-// graph, its named loops, how a step's map state resolves, the choreography of a forward step, the walks of a
-// held step, the glyphs and the themes.
-export { type AmbientSpec, ambientWalker, seededRandom } from './ambient.ts';
+// @loopweft/render: draws a project's map and plays its story.
+// - Pure (Node-safe): the drawable graph, its named loops, how a step's map state resolves, the choreography
+//   of a forward step, the walks of a held step, the glyphs and the themes.
+// - Browser: the map view on @loopweft/motion, its minimap, the overlays, the stage that holds them and the
+//   story view. Styles: render.css, exported as "@loopweft/render/render.css".
+export { type AmbientSpec, type AmbientWalker, ambientWalker, seededRandom } from './ambient.ts';
 export {
   DRAW,
   HOP_GAP,
@@ -12,6 +14,7 @@ export {
   type Tone,
   TRAVEL,
 } from './choreo.ts';
+export { glyph, h, svg, typeset } from './dom.ts';
 export { FLAG_MARK, type GlyphPart, LOOP_ARROW, shapeGlyph, TREND_GLYPH } from './glyphs.ts';
 export {
   buildGraph,
@@ -27,7 +30,19 @@ export {
   type Shape,
 } from './graph.ts';
 export { type NamedLoop, namedLoops } from './loops.ts';
+export { MapView, type MapViewOptions } from './map-view.ts';
+export { MINIMAP_BOX, Minimap } from './minimap.ts';
+export { type CaptionState, CaptionView } from './overlays/caption.ts';
+export { type CardsState, CardsView, citationLine } from './overlays/cards.ts';
+export { type ImageState, ImageView } from './overlays/image.ts';
+export { OverlayStage } from './overlays/index.ts';
+export { LEGEND_LINKS, type LegendState, LegendView } from './overlays/legend.ts';
+export { type StatementState, StatementView } from './overlays/statement.ts';
+export { type TitleState, TitleView } from './overlays/title.ts';
 export { HIDDEN_MAP, type ResolvedMap, rank, resolveMap } from './resolve.ts';
+export { Stage, type StageLayers } from './stage.ts';
+export { FADE, Step, type StepTweenOptions, type Transition } from './step.ts';
+export { type StoryPosition, StoryView, storyPositions } from './story-view.ts';
 export {
   categoryColours,
   DEFAULT_PALETTE,
