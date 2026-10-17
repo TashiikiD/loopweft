@@ -18,6 +18,11 @@ describe('the GitHub Pages site', () => {
     expect(existsSync(join(out, 'index.html'))).toBe(true);
   });
 
+  it('publishes the JSON Schema where `$schema` points', () => {
+    const schema = JSON.parse(readFileSync(join(out, 'schema/v1.json'), 'utf8')) as { $id: string };
+    expect(schema.$id).toBe('https://tashiikid.github.io/loopweft/schema/v1.json');
+  });
+
   it('loads nothing from other sites', () => {
     const page = readFileSync(join(root, 'site/index.html'), 'utf8');
     // Links are fine; scripts, stylesheets, fonts and images from elsewhere are not (no tracking, works offline).

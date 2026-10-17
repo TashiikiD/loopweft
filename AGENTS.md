@@ -49,6 +49,9 @@ reviews before the next one starts.
 - `npm run verify` is the merge gate: typecheck, lint and tests. GitHub Actions runs it on Windows, macOS
   and Linux for every push and pull request. The pre-push hook runs `npm run verify:fast`.
 - Keep slices vertical and shippable; don't leave half-wired code on `main`.
+- A change to the `.loopweft` format updates the zod schema (`packages/model/src/schema.ts`), the JSON
+  Schema (`npm run schema`) and the specification; once version 1 is released, it also needs a migration
+  (`packages/model/src/migrate.ts`).
 
 ## Commands
 
@@ -59,7 +62,10 @@ reviews before the next one starts.
 | `npm run lint` | Biome lint and format check (`npm run format` fixes) |
 | `npm test` | Vitest unit tests |
 | `npm run verify` | The full merge gate, with a Markdown summary |
+| `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
 | `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |
+
+Generated files (`packages/model/schema/*.schema.json`) are not edited by hand; a test checks they are current.
 
 ## Layout
 

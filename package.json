@@ -20,7 +20,8 @@
     "verify": "node scripts/verify.mjs",
     "verify:fast": "node scripts/verify.mjs --fast",
     "prepare": "node scripts/install-hooks.mjs",
-    "site": "node scripts/build-site.mjs"
+    "site": "node scripts/build-site.mjs",
+    "schema": "node packages/model/scripts/export-schema.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

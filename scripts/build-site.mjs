@@ -11,7 +11,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const out = resolve(process.argv[2] ?? resolve(root, '_site'));
 
 /** [source in the repository, path on the site] */
-const FILES = [['site', '.']];
+const FILES = [
+  ['site', '.'],
+  // The JSON Schema that `.loopweft` files name in "$schema" (SCHEMA_URL in packages/model/src/schema.ts).
+  ['packages/model/schema/loopweft.v1.schema.json', 'schema/v1.json'],
+];
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
