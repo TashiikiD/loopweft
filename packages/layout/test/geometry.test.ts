@@ -1,0 +1,117 @@
+// Partly from PolycrisisPresentation tests/map.test.ts @ 539bc8e (private): the geometry, camera and label
+// tests, run on the converted example instead of the deck's own map.
+import { describe, expect, it } from 'vitest';
+import {
+  boxFor,
+  edgeGeometry,
+  FRAMES,
+  fitCamera,
+  mapGeometry,
+  placeLabels,
+  project,
+  quad,
+  wholeMapCamera,
+} from '../src/index.ts';
+import { example } from './helpers.ts';
+
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+const geometry = mapGeometry(example());
+const positions = new Map([...geometry.nodes].map(([id, n]) => [id, { x: n.x, y: n.y }]));
+
+describe('link geometry', () => {
+  it('gives every variable a position and every link a curve', () => {
+    expect(geometry.nodes.size).toBe(41);
+    expect(geometry.edges.size).toBe(132);
+    for (const e of geometry.edges.values())
+      expect(e.geom.length, `${e.id} is degenerate`).toBeGreaterThan(10);
+  });
+
+  it('starts and ends links at the rims of their variables, not their centres', () => {
+    const a = { x: 0, y: 0 };
+    const b = { x: 300, y: 0 };
+    const g = edgeGeometry(a, 11, b, 15, 0.12, '+');
+    expect(Math.abs(dist(g.p0, a) - 15)).toBeLessThan(1);
+    // The line stops where the arrowhead begins; the arrowhead tip touches the rim gap.
+    expect(dist(g.p1, b)).toBeGreaterThan(15 + 4);
+    const tip = /^M([\d.-]+) ([\d.-]+)/.exec(g.head) as RegExpExecArray;
+    expect(Math.abs(Math.hypot(Number(tip[1]) - b.x, Number(tip[2]) - b.y) - 19)).toBeLessThan(1);
+  });
+
+  it('ends a + link in an arrowhead, a − link in a bar, and a ? link in an arrowhead', () => {
+    const a = { x: 0, y: 0 };
+    const b = { x: 300, y: 0 };
+    expect(edgeGeometry(a, 11, b, 11, 0.12, '+').head.match(/L/g)).toHaveLength(2);
+    expect(edgeGeometry(a, 11, b, 11, 0.12, '-').head.match(/L/g)).toHaveLength(3);
+    expect(edgeGeometry(a, 11, b, 11, 0.12, '?').head).toBe(edgeGeometry(a, 11, b, 11, 0.12, '+').head);
+  });
+
+  it('bows the two directions of a feedback pair apart', () => {
+    const ab = geometry.edges.get('E033')?.geom;
+    const ba = geometry.edges.get('E034')?.geom;
+    if (!ab || !ba) throw new Error('missing links');
+    expect(dist(quad(ab.p0, ab.c, ab.p1, 0.5), quad(ba.p0, ba.c, ba.p1, 0.5))).toBeGreaterThan(10);
+  });
+
+  it('sizes hubs and response rings as the deck did, and keeps bends set by hand', () => {
+    expect(geometry.nodes.get('food_insecurity')?.r).toBe(15);
+    expect(geometry.nodes.get('ecorestoration')?.r).toBe(13);
+    expect(geometry.nodes.get('climate_heating')?.r).toBe(11);
+    expect(geometry.edges.get('E129')?.bend).toBe(-0.28);
+  });
+});
+
+describe('the camera', () => {
+  it('fits its subject inside the requested frame', () => {
+    const ids = ['geopolitical_conflict', 'energy_price_shocks', 'food_insecurity'];
+    const cam = fitCamera(positions, { fit: ids, frame: 'center' });
+    const f = FRAMES.center;
+    for (const id of ids) {
+      const n = positions.get(id) as { x: number; y: number };
+      const p = project(cam, n.x, n.y);
+      expect(p.x >= f.x && p.x <= f.x + f.w && p.y >= f.y && p.y <= f.y + f.h, `${id} outside frame`).toBe(
+        true,
+      );
+    }
+  });
+
+  it("frames the whole example much as the deck's fixed whole-map camera did", () => {
+    // The deck: { cx: 960, cy: 478, zoom: 0.9 }, set by hand for its layout.
+    const cam = wholeMapCamera(positions);
+    expect(cam.zoom).toBeGreaterThan(0.85);
+    expect(cam.zoom).toBeLessThan(0.95);
+    expect(Math.abs(cam.cx - 960)).toBeLessThan(40);
+    expect(Math.abs(cam.cy - 478)).toBeLessThan(40);
+    expect(fitCamera(positions, undefined)).toEqual(cam);
+  });
+
+  it('shrinks the whole map into a frame when a step frames no subject', () => {
+    const inset = fitCamera(positions, { frame: 'inset' });
+    expect(inset.zoom).toBeLessThan(wholeMapCamera(positions).zoom);
+  });
+});
+
+describe('label placement', () => {
+  it('moves a label off a lit link running along its preferred side', () => {
+    // E022 runs left from conflict toward energy prices; a left label would sit on it.
+    const cam = fitCamera(positions, { fit: ['geopolitical_conflict', 'energy_price_shocks'] });
+    const sides = placeLabels(
+      [{ id: 'geopolitical_conflict', w: 140, h: 54, preferred: 'left', priority: 5 }],
+      {
+        graph: geometry,
+        camera: cam,
+        edges: [{ id: 'E022', weight: 5 }],
+        nodes: [],
+        badges: [],
+        reserved: [],
+      },
+    );
+    expect(sides.get('geopolitical_conflict')).not.toBe('left');
+  });
+
+  it('puts label boxes on the named side of the variable', () => {
+    const b = boxFor('above', 100, 100, 20, 60, 30);
+    expect(b.y + b.h <= 80 && b.x + b.w / 2 === 100).toBe(true);
+    const r = boxFor('right', 100, 100, 20, 60, 30);
+    expect(r.x >= 120 && r.y + r.h / 2 === 100).toBe(true);
+  });
+});

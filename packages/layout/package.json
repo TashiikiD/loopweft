@@ -2,7 +2,14 @@
   "name": "@loopweft/layout",
   "version": "0.0.0",
   "private": true,
-  "description": "Automatic layouts and link quality: constellation by category, a seeded force layout, flow layout, link scoring and re-bending, label placement and text measurement.",
+  "description": "Where things go: automatic layouts (constellation, a seeded force layout, flow), link curvature with crossing and corridor scoring, label placement and camera maths.",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@loopweft/model": "*",
+    "d3-force": "3.0.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }
