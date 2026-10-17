@@ -153,7 +153,14 @@ export function miniDeck(): PolycrisisDeck {
           tone: 'On the fake slide: deadpan.',
           sources: [],
         },
-        { id: 'S01', target_seconds: 60, guided: ['Name it.'], key_facts: [], tone: 'Calm.', sources: ['A'] },
+        {
+          id: 'S01',
+          target_seconds: 60,
+          guided: ['Name it.', 'This room knows it.'],
+          key_facts: [],
+          tone: 'Calm.',
+          sources: ['A'],
+        },
       ],
     },
     visuals: {
@@ -269,5 +276,6 @@ export const MINI_CLEANUP: Cleanup = {
   },
   dropNotes: { S00: ['Untimed. The fake title page'] },
   dropTone: ['S00'],
-  banned: ['fake', 'deadpan'],
+  rewordNotes: { S01: [['This room knows it.', 'Say what it is.']] },
+  banned: ['fake', 'deadpan', 'this room'],
 };

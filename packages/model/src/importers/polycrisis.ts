@@ -193,6 +193,8 @@ export interface Cleanup {
   dropNotes: Record<string, string[]>;
   /** Scenes whose "tone" note is left out. */
   dropTone: string[];
+  /** Speaker-note lines reworded, by scene id: [deck line, new line]. Applies to tone, guided notes and key facts. */
+  rewordNotes: Record<string, [string, string][]>;
   /** Words that must not appear anywhere in the result (compared in lower case). */
   banned: string[];
 }
@@ -222,7 +224,44 @@ export const POLYCRISIS_CLEANUP: Cleanup = {
     S00: ['Untimed. The fake title page', "Don't acknowledge the switch", "The fake slide's"],
   },
   dropTone: ['S00'],
-  banned: ['fake title', 'fake slide', 'deadpan', 'thrown together', '[>]'],
+  // Notes that spoke to the talk's own audience, made to suit any audience.
+  rewordNotes: {
+    S01: [
+      [
+        'Open with familiar crises, not statistics; this room knows each one. Name the six words slowly.',
+        'Open with familiar crises, not statistics. Name the six words slowly.',
+      ],
+    ],
+    S03: [
+      [
+        'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. The class knows the notation; give the legend five seconds.',
+        'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. For an audience that knows causal-loop notation, five seconds on the legend is enough.',
+      ],
+    ],
+    S07: [
+      [
+        'The turn toward agency: warmer and more direct. Speak to the room as fellow practitioners.',
+        'The turn toward agency: warmer and more direct. Speak to the audience as fellow practitioners.',
+      ],
+    ],
+    S09: [
+      [
+        'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the room.',
+        'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the audience.',
+      ],
+    ],
+  },
+  banned: [
+    'fake title',
+    'fake slide',
+    'deadpan',
+    'thrown together',
+    '[>]',
+    'this room',
+    'the class knows',
+    'to the room',
+    'deflating the room',
+  ],
 };
 
 // ----- Fixed choices -----
@@ -484,9 +523,16 @@ function notesFor(
     if (rule) used.add(`note ${scene.id} ${rule}`);
     return !rule;
   };
-  const guided = scene.guided.filter(keep);
-  const facts = scene.key_facts.filter(keep);
-  let tone = scene.tone;
+  const reworded = cleanup.rewordNotes[scene.id] ?? [];
+  const reword = (line: string) => {
+    const rule = reworded.find(([deck]) => deck === line);
+    if (!rule) return line;
+    used.add(`reword ${scene.id} ${rule[0]}`);
+    return rule[1];
+  };
+  const guided = scene.guided.filter(keep).map(reword);
+  const facts = scene.key_facts.filter(keep).map(reword);
+  let tone = scene.tone === undefined ? undefined : reword(scene.tone);
   if (cleanup.dropTone.includes(scene.id)) {
     used.add(`tone ${scene.id}`);
     tone = undefined;
@@ -681,6 +727,9 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
       starts.map((s) => `note ${scene} ${s}`),
     ),
     ...cleanup.dropTone.map((s) => `tone ${s}`),
+    ...Object.entries(cleanup.rewordNotes).flatMap(([scene, pairs]) =>
+      pairs.map(([deck]) => `reword ${scene} ${deck}`),
+    ),
   ];
   const unused = rules.filter((r) => !used.has(r));
   if (unused.length) throw new Error(`Clean-up rules that no longer match the deck: ${unused.join('; ')}`);
@@ -751,6 +800,10 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
         `Left out ${starts.length} speaker-note line(s) of ${scene} about the fake title page and the presenter.`,
     ),
     ...cleanup.dropTone.map((scene) => `Left out the tone note of ${scene}.`),
+    ...Object.entries(cleanup.rewordNotes).map(
+      ([scene, pairs]) =>
+        `Reworded ${pairs.length} speaker-note line(s) of ${scene} that addressed the talk's own audience.`,
+    ),
     ...[...dropped.visuals].map(
       ([kind, keys]) => `Left out the one-off visual "${kind}" (it stays in the deck) on ${keys.join(', ')}.`,
     ),

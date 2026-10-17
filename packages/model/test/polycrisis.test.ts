@@ -143,9 +143,19 @@ describe('the polycrisis example', () => {
       'deadpan',
       'thrown together',
       '[>]',
+      // Speaker notes that spoke to the talk's own audience.
+      'this room',
+      'the class knows',
+      'to the room',
+      'deflating the room',
     ]) {
       expect(lower, word).not.toContain(word);
     }
+    const notes = (id: string) => example.story.scenes.find((s) => s.id === id)?.notes ?? '';
+    expect(notes('S03')).toContain(
+      'For an audience that knows causal-loop notation, five seconds on the legend is enough.',
+    );
+    expect(notes('S07')).toContain('Speak to the audience as fellow practitioners.');
     expect(example.story.scenes.some((s) => s.script !== undefined)).toBe(false);
     expect(example.meta).toEqual({
       title: 'Global Polycrisis - The Connections That Change Everything',
@@ -332,7 +342,7 @@ describe('the polycrisis converter', () => {
       ],
     });
     expect(story?.targetSeconds).toBe(60);
-    expect(story?.notes).toBe('Tone: Calm.\n\n- Name it.');
+    expect(story?.notes).toBe('Tone: Calm.\n\n- Name it.\n- Say what it is.');
     const [legend, pulse, side] = story?.steps ?? [];
     expect(legend?.overlays).toEqual([
       { type: 'legend', citations: [{ source: 'A', pages: '1' }] },
@@ -375,8 +385,9 @@ describe('the polycrisis converter', () => {
     ]);
   });
 
-  it('says what it left out', () => {
+  it('says what it left out and reworded', () => {
     expect(notes).toContain('Left out build S00.1: the fake title page.');
+    expect(notes).toContain("Reworded 1 speaker-note line(s) of S01 that addressed the talk's own audience.");
     expect(notes).toContain('Left out the one-off visual "counter" (it stays in the deck) on S01.3.');
   });
 
@@ -396,6 +407,11 @@ describe('the polycrisis converter', () => {
     gone.scenes[0]?.builds.splice(0, 1);
     expect(() => convertPolycrisis(gone, MINI_CLEANUP)).toThrow(
       'Clean-up rules that no longer match the deck: drop S00.1',
+    );
+    const edited = miniDeck();
+    (edited.narration.scenes[1] as { guided: string[] }).guided[1] = 'This room knows it well.';
+    expect(() => convertPolycrisis(edited, MINI_CLEANUP)).toThrow(
+      'Clean-up rules that no longer match the deck: reword S01 This room knows it.',
     );
   });
 

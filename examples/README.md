@@ -36,7 +36,9 @@ The talk was one person's presentation; the example is for anyone. So:
   line of each scene, and the speaker notes about the fake page and the presenter's introduction.
 - **Title page:** the title and subtitle stay; the presenter's name, programme, course and university do not.
 - **Reworded:** three step labels and cues that addressed the room or spoke for the authors ("our map"
-  became "the map"; "our reading" became "an interpretive reading, not from the source").
+  became "the map"; "our reading" became "an interpretive reading, not from the source"), and four speaker
+  notes that spoke to the talk's own audience ("this room knows each one", "the class knows the notation",
+  "speak to the room", "without deflating the room"), so they suit any audience.
 - **Renumbered:** with the fake page gone, the title page is step 1 of its scene.
 
 ### What stays in the talk
