@@ -411,7 +411,7 @@ The last finds **warnings**: the project is valid, but something should be looke
 | `selfLink` | A link from a variable to itself. |
 | `loopRevisits` | A named loop passes through a variable twice. |
 | `emptyScene` | A scene with no steps. |
-| `trendContradictsSign` | A ▲/▼ that the signs of the lit links contradict: along a lit link, the target must move as the source does times the sign (± is left open). |
+| `trendContradictsSign` | A ▲/▼ that the signs of the lit links contradict: along a lit link, the target must move as the source does times the sign (± is left open; a response at the active level with no trend counts as rising). |
 | `pulseOnHiddenLink` | A pulse on a link that is not visible. |
 | `pulseBeforeArrival` | A pulse leaves a variable before any earlier pulse reaches it. |
 | `loopNameWithoutBadge` | A loop name shown without its badge. |

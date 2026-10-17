@@ -129,6 +129,10 @@ export function checkEvidence(project: Project): Issue[] {
 export function checkStory(project: Project): Issue[] {
   const issues: Issue[] = [];
   const linkById = new Map(project.links.map((l) => [l.id, l]));
+  const responseRoles = new Set(project.types.roles.filter((r) => r.response).map((r) => r.id));
+  const responses = new Set(
+    project.variables.filter((v) => v.role !== undefined && responseRoles.has(v.role)).map((v) => v.id),
+  );
 
   project.story.scenes.forEach((scene, s) => {
     scene.steps.forEach((step, t) => {
@@ -158,19 +162,23 @@ export function checkStory(project: Project): Issue[] {
       }
 
       // Polarity: along a lit link, the target moves as the source does times the link's sign.
-      // ± (mixed) marks a variable where opposing influences meet; the net is left open.
+      // ± (mixed) marks a variable where opposing influences meet; the net is left open. A response at the
+      // active level, with no trend of its own, counts as rising.
       for (const id of levels.litLinks) {
         const link = linkById.get(id);
         if (!link || link.sign === '?') continue;
-        const source = trends[link.from];
+        const given = trends[link.from];
+        const rising = !given && responses.has(link.from) && levels.variables.get(link.from) === 'active';
+        const source = given ?? (rising ? 'up' : undefined);
         const target = trends[link.to];
         if (!source || !target || source === 'mixed' || target === 'mixed') continue;
         const expected = (source === 'up') === (link.sign === '+') ? 'up' : 'down';
         if (target !== expected) {
+          const from = rising ? `${link.from} (an active response, so up)` : `${link.from} (${source})`;
           warn(
             'trendContradictsSign',
             ['trends', link.to],
-            `${link.to} is marked ${target}, but ${id} (${link.sign}) from ${link.from} (${source}) implies ${expected}.`,
+            `${link.to} is marked ${target}, but ${id} (${link.sign}) from ${from} implies ${expected}.`,
           );
         }
       }

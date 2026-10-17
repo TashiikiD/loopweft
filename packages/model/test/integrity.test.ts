@@ -107,6 +107,19 @@ describe('story checks', () => {
     ]);
   });
 
+  it('counts a response at the active level as rising', () => {
+    const response = { 'variables.0.role': 'policy', [`${step}.trends`]: { population: 'down' } };
+    const found = warnings({
+      ...response,
+      [`${step}.variables`]: { base: 'dim', focus: ['population'], active: ['births'] },
+    });
+    expect(found.slice(2).map((i) => i.message)).toEqual([
+      'Step S1.2: population is marked down, but L1 (+) from births (an active response, so up) implies up.',
+    ]);
+    // At the focus level it is not assumed to move.
+    expect(warnings(response).slice(2)).toEqual([]);
+  });
+
   it('leaves ± (mixed) open, and ignores links that are not lit', () => {
     expect(warnings({ [`${step}.trends`]: { births: 'up', population: 'mixed' } }).slice(2)).toEqual([]);
     expect(
