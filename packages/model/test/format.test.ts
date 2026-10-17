@@ -52,7 +52,7 @@ describe('reading a project', () => {
   it('reads file text, tolerating a byte-order mark', () => {
     const text = serializeProject(richProject());
     expect(readProject(text).ok).toBe(true);
-    expect(readProject(`﻿${text}`).ok).toBe(true);
+    expect(readProject(`\uFEFF${text}`).ok).toBe(true);
     expect(problems(readProject('{ "format": '))).toEqual(['invalidJson ']);
   });
 

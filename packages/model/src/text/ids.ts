@@ -20,7 +20,7 @@ export const ID_PATTERN = /^[\p{L}\p{N}_-]+$/u;
 export function slugify(label: string): string {
   return label
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .normalize('NFC')
     .toLowerCase()
     .replace(/['’]/g, '')

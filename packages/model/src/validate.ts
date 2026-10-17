@@ -155,7 +155,7 @@ export function parseProject(input: unknown): ParseResult {
 export function readProject(text: string): ParseResult {
   let json: unknown;
   try {
-    json = JSON.parse(text.replace(/^﻿/, ''));
+    json = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (error) {
     return {
       ok: false,
