@@ -19,7 +19,8 @@
     "test:watch": "vitest --project unit",
     "verify": "node scripts/verify.mjs",
     "verify:fast": "node scripts/verify.mjs --fast",
-    "prepare": "node scripts/install-hooks.mjs"
+    "prepare": "node scripts/install-hooks.mjs",
+    "site": "node scripts/build-site.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

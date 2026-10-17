@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loopweft</title>
+  <meta name="description" content="Loopweft: an open-source studio for beautiful, animated causal systems maps.">
+  <style>
+    :root {
+      --bg: #0b1016;
+      --panel: #121a23;
+      --text: #e8eef2;
+      --muted: #9fb0bd;
+      --relief: #5ecba9;
+      --harm: #f2b36b;
+      --line: #263341;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 44rem; margin: 0 auto; padding: 4rem 16px 3rem; }
+    h1 {
+      font: 600 3rem/1.1 Georgia, "Iowan Old Style", "Times New Roman", serif;
+      letter-spacing: -0.01em;
+      margin: 1.5rem 0 0.5rem;
+    }
+    .tagline { font-size: 1.25rem; color: var(--muted); margin: 0 0 2rem; }
+    .status {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 2rem 0;
+    }
+    .status strong { color: var(--harm); }
+    a { color: var(--relief); }
+    ul { padding-left: 1.2rem; }
+    footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1rem; }
+    svg { display: block; width: 100%; max-width: 22rem; height: auto; }
+    .node { fill: var(--panel); stroke-width: 2.5; }
+    .pulse { fill: var(--harm); }
+    @media (prefers-reduced-motion: reduce) { .pulse { display: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <svg viewBox="0 0 360 140" role="img" aria-label="Two variables that reinforce each other: a feedback loop">
+      <path id="ab" d="M86 58 C 150 18, 210 18, 274 58" fill="none" stroke="#5ecba9" stroke-width="2.5"/>
+      <path id="ba" d="M274 82 C 210 122, 150 122, 86 82" fill="none" stroke="#f2b36b" stroke-width="2.5"/>
+      <path d="M274 58 l-12 -1 l5 -10 z" fill="#5ecba9"/>
+      <path d="M86 82 l12 1 l-5 10 z" fill="#f2b36b"/>
+      <circle class="node" cx="64" cy="70" r="22" stroke="#5ecba9"/>
+      <circle class="node" cx="296" cy="70" r="22" stroke="#f2b36b"/>
+      <text x="180" y="76" fill="#9fb0bd" font-size="16" text-anchor="middle" font-family="Georgia, serif">R</text>
+      <circle class="pulse" r="5">
+        <animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#ab"/></animateMotion>
+      </circle>
+      <circle class="pulse" r="5">
+        <animateMotion dur="2.4s" begin="-1.2s" repeatCount="indefinite"><mpath href="#ba"/></animateMotion>
+      </circle>
+    </svg>
+
+    <h1>Loopweft</h1>
+    <p class="tagline">A studio for beautiful, animated causal systems maps.</p>
+
+    <p>
+      Draw a causal map, cite its evidence, and tell its story step by step: links trace in, pulses follow
+      the signs round a loop, and every claim keeps its source and page. Present it with a presenter console,
+      or share it as one HTML file.
+    </p>
+    <ul>
+      <li>Open source under the MIT licence.</li>
+      <li>Local files only: no accounts, no server, no telemetry.</li>
+      <li>A documented command-line tool, so AI agents can build maps for people who want that.</li>
+    </ul>
+
+    <div class="status">
+      <strong>Under construction.</strong> Phase 0 (foundations) is laying down the <code>.loopweft</code>
+      file format; the editor and the presenter arrive in later phases.
+    </div>
+
+    <ul>
+      <li><a href="https://github.com/TashiikiD/loopweft">Source code on GitHub</a></li>
+    </ul>
+
+    <footer>Loopweft is free software under the MIT licence.</footer>
+  </main>
+</body>
+</html>

@@ -59,6 +59,7 @@ reviews before the next one starts.
 | `npm run lint` | Biome lint and format check (`npm run format` fixes) |
 | `npm test` | Vitest unit tests |
 | `npm run verify` | The full merge gate, with a Markdown summary |
+| `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |
 
 ## Layout
 

@@ -38,7 +38,9 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
 | `packages/motion`, `layout`, `render`, `player`, `cli` | Placeholders for later phases |
+| `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
+| `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |
 
 ## Development
 
