@@ -70,7 +70,8 @@
       {
         "id": "intervention",
         "name": "Response",
-        "shape": "ring"
+        "shape": "ring",
+        "response": true
       }
     ],
     "linkTypes": [

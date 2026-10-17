@@ -161,6 +161,7 @@ A role is the part a variable plays, shown by its glyph's shape, like stress, tr
 | `id`, `name` | **Required.** |
 | `shape` | **Required.** `circle`, `ring`, `square`, `rounded-square`, `octagon`, `diamond`, `triangle` or `hexagon`. |
 | `description` | |
+| `response` | `true` for responses: deliberate actions against the pressures, such as policies or interventions. A pulse arriving at a response shows relief unless a trend says otherwise, and relief walks leave a response along its `-` links (see the map state). Default: `false`. |
 
 ### Link types
 
@@ -339,8 +340,8 @@ Every field is optional; `{}` shows the whole map plainly, with the labels in vi
 | `loops` | Loops whose R/B badge shows. |
 | `loopNames` | Loops whose name shows beside their badge. |
 | `reveal` | How newly shown things arrive. `mode`: `draw` (new links trace themselves from their source; the default) or `bloom` (the map fades in ring by ring). `from`: the variables it grows out from. `sequence`: an exact order, one beat each (variable ids appear, link ids trace). `stagger`: seconds between beats. `delay`: seconds before the first. |
-| `pulses` | Glows that travel along links. `hops`: lists of links pulsed together; each hop leaves when the one before arrives. `repeat`: extra passes (going round a loop again). `delay`. `tone`: `harm`, `relief` or `mixed` for every pulse; left out, each pulse takes its target's trend. |
-| `ambient` | Pulses that keep wandering the lit map while the step is held, for a title or a close. `from`: start variables. `tone`: `harm` (walks follow `+` links: an increase spreading) or `relief` (a walk leaves through a `-` link, then follows `+` links: a decrease spreading). `every`: seconds between walks, `[min, max]`. `hops`: links per walk, `[min, max]`. `delay`. |
+| `pulses` | Glows that travel along links. `hops`: lists of links pulsed together; each hop leaves when the one before arrives. `repeat`: extra passes (going round a loop again). `delay`. `tone`: `harm`, `relief` or `mixed` for every pulse; left out, each pulse takes its target's trend, else `relief` when the target is a response, else its source's trend, else `harm`. |
+| `ambient` | Pulses that keep wandering the lit map while the step is held, for a title or a close. `from`: start variables. `tone`: `harm` (walks follow `+` links: an increase spreading) or `relief` (a decrease spreading along `+` links; a walk that starts at a response first leaves it through one of its `-` links). `every`: seconds between walks, `[min, max]`. `hops`: links per walk, `[min, max]`. `delay`. |
 | `clusters` | Group halos: `show` (the default), `dim` or `hide`. |
 | `minimap` | `true` or `false`. Left out: shown when zoomed in. |
 
@@ -490,3 +491,6 @@ These choices refine the plan's sketch. Each can still change before version 1 i
     and key facts in it.
 15. **The example leaves out the author and course** (`meta.author`, `meta.course`) and the presenter's
     lines on the title page; add them back if you want the example credited.
+16. **Roles can mark responses** (`response: true`; added in Phase 1, not yet confirmed). The deck coloured a
+    pulse arriving at an intervention as relief and started relief walks along an intervention's `-` links,
+    so the renderer needs to know which variables are responses. The example marks its intervention role.

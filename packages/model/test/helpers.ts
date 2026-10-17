@@ -23,6 +23,7 @@ export function richInput(): ProjectInput {
       roles: [
         { id: 'stock', name: 'Stock', shape: 'rounded-square' },
         { id: 'flow', name: 'Flow', shape: 'circle' },
+        { id: 'policy', name: 'Policy', shape: 'ring', response: true },
       ],
       linkTypes: [
         { id: 'main', name: 'Main' },

@@ -138,6 +138,14 @@ export const RoleSchema = z
     name: Text,
     shape: z.enum(SHAPES),
     description: Text.optional(),
+    response: z
+      .boolean()
+      .optional()
+      .describe(
+        'True for responses: deliberate actions against the pressures, such as policies or interventions. A ' +
+          'pulse arriving at one shows relief unless a trend says otherwise, and relief walks leave one along ' +
+          'its - links. Absent: false.',
+      ),
   })
   .meta({
     id: 'Role',

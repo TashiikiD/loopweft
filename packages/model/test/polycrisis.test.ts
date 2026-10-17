@@ -74,6 +74,7 @@ describe('the polycrisis example', () => {
       'crisis octagon',
       'intervention ring',
     ]);
+    expect(example.types.roles.filter((r) => r.response).map((r) => r.id)).toEqual(['intervention']);
     expect(example.types.linkTypes.filter((t) => t.optional).map((t) => t.id)).toEqual(['side_effect']);
     // Every citation of the deck's map.json, with its page: 319 on variables and links.
     const citations = [...example.variables, ...example.links].flatMap((x) => x.citations);

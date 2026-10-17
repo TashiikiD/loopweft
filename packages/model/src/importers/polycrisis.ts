@@ -567,7 +567,8 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
   const roles = visuals.legend.roles.map((r) => {
     const shape = ROLE_SHAPES[r.role];
     if (!shape) throw new Error(`No shape for the role ${r.role}`);
-    return { id: r.role, name: r.label, shape };
+    // The deck's interventions: pulses into them read as relief, and relief walks leave them by "-" links.
+    return { id: r.role, name: r.label, shape, ...(r.role === 'intervention' ? { response: true } : {}) };
   });
   const linkTypes = map.edge_mechanisms.map((id) => {
     const mechanism = MECHANISMS[id];
