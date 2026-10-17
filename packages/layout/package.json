@@ -1,0 +1,8 @@
+{
+  "name": "@loopweft/layout",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Automatic layouts and link quality: constellation by category, a seeded force layout, flow layout, link scoring and re-bending, label placement and text measurement.",
+  "license": "MIT",
+  "type": "module"
+}

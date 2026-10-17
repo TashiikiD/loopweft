@@ -1,0 +1,8 @@
+{
+  "name": "@loopweft/render",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The SVG map renderer and its choreography, overlays, and themes with palettes and colour-vision checks.",
+  "license": "MIT",
+  "type": "module"
+}

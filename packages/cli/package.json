@@ -1,0 +1,8 @@
+{
+  "name": "@loopweft/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The loopweft command-line tool, for people and AI agents: every command prints one JSON document with --json.",
+  "license": "MIT",
+  "type": "module"
+}

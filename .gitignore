@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+_site/
+*.log
+.DS_Store
+Thumbs.db
+
+# Machine-specific settings, e.g. where the private polycrisis deck lives (see CONTRIBUTING.md).
+.local.json
+
+# playwright
+test-results/
+playwright-report/
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

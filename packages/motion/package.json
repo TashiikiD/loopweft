@@ -1,0 +1,8 @@
+{
+  "name": "@loopweft/motion",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The MIT timeline engine: tweens of CSS and SVG properties, positioned timelines, eases and callbacks, and a clock that runs live or steps one exact frame at a time.",
+  "license": "MIT",
+  "type": "module"
+}

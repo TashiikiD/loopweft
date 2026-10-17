@@ -1,0 +1,31 @@
+{
+  "name": "loopweft",
+  "private": true,
+  "version": "0.0.0",
+  "description": "A studio for animated causal systems maps: draw the map, cite its evidence, tell its story step by step, present it and share it.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "verify": "node scripts/verify.mjs",
+    "verify:fast": "node scripts/verify.mjs --fast",
+    "prepare": "node scripts/install-hooks.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vite": "7.3.6",
+    "vitest": "5.0.3"
+  }
+}

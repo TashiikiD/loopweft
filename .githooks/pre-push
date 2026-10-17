@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fast local gate before anything leaves the machine. Full gate: npm run verify.
+npm run verify:fast
