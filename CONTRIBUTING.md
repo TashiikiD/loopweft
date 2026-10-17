@@ -52,6 +52,8 @@ Elsewhere (and on CI) those two tests are skipped.
 `privateWords` lists words that must never appear in the example, such as the presenter's name. They live
 only in `.local.json` (or `LOOPWEFT_PRIVATE_WORDS`, comma-separated) so the repository never contains them;
 the converter refuses to write an example that contains one, and a test checks the committed example.
+Another test ([`test/repo.test.ts`](test/repo.test.ts)) looks for them in every file of the repository: as
+staged for the next commit, as on disk, and in untracked files that git does not ignore.
 
 ### Comparing renders with the presentation
 

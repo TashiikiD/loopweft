@@ -1,8 +1,10 @@
 // Source: DataViz test/repo.test.ts @ efcdbe2 (TashiikiD/DataViz, private), adapted for Loopweft.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { privateWords } from '../packages/model/scripts/polycrisis-deck.ts';
+import { findPrivateWords } from './private-words.ts';
 
 const root = new URL('../', import.meta.url);
 
@@ -102,20 +104,9 @@ describe('repository rules', () => {
 
   // AGENTS.md: nothing personal in the repository. The words come from this machine only (`privateWords` in the
   // git-ignored .local.json, or LOOPWEFT_PRIVATE_WORDS); where none are set, as on CI, there is nothing to check.
+  // private-words.test.ts checks the check itself, with a made-up word, everywhere.
   const words = privateWords();
   it.skipIf(words.length === 0)('contains none of the private words set on this machine', () => {
-    const files = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
-      cwd: root,
-      encoding: 'utf8',
-    }).stdout.split('\n');
-    const found = files
-      .filter((file) => file && !/\.(png|jpe?g|gif|webp|ico|woff2?|pdf)$/i.test(file))
-      .flatMap((file) => {
-        const path = new URL(file, root);
-        if (!existsSync(path)) return [];
-        const text = readFileSync(path, 'utf8').toLowerCase();
-        return words.filter((word) => text.includes(word)).map((word) => `${file}: "${word}"`);
-      });
-    expect(found).toEqual([]);
+    expect(findPrivateWords(fileURLToPath(root), words)).toEqual([]);
   });
 });
