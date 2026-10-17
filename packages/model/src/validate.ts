@@ -1,9 +1,9 @@
 // Reading a `.loopweft` document: JSON, then the format and version (migrating older versions), then the
 // schema, then the references. Each problem becomes an Issue with a stable code and a path.
 import type { z } from 'zod';
+import { checkProject } from './integrity.ts';
 import { hasErrors, type Issue } from './issues.ts';
 import { migrate } from './migrate.ts';
-import { checkReferences } from './refs.ts';
 import { type Project, ProjectSchema } from './schema.ts';
 import { didYouMean } from './text/similarity.ts';
 
@@ -177,7 +177,10 @@ export function readProject(text: string): ParseResult {
   return parseProject(json);
 }
 
-/** The checks a structurally valid project must pass: references and ids. */
+/**
+ * The checks for a structurally valid project: references and ids (errors), then evidence and story
+ * (warnings). See integrity.ts.
+ */
 export function validateProject(project: Project): Issue[] {
-  return checkReferences(project);
+  return checkProject(project);
 }

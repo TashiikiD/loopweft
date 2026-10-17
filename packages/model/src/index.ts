@@ -1,5 +1,6 @@
 // @loopweft/model: the .loopweft file format and the operations on it. Everything here runs in Node
 // and in the browser; nothing reads the clock or draws random numbers.
+export { checkEvidence, checkProject, checkStory } from './integrity.ts';
 export { errorsIn, formatPath, hasErrors, type Issue, issueLines } from './issues.ts';
 export { projectJsonSchema, projectJsonSchemaText } from './json-schema.ts';
 export {
@@ -19,6 +20,14 @@ export {
 export { type JsonObject, MIGRATIONS, type MigrateResult, type Migration, migrate } from './migrate.ts';
 export * from './ops/index.ts';
 export { createProject } from './project.ts';
+export {
+  citedIn,
+  type Reference,
+  referenceList,
+  referenceSpans,
+  type Span,
+  sceneList,
+} from './references.ts';
 export { checkReferences, elementIds } from './refs.ts';
 export * from './schema.ts';
 export { canonicalize, serializeProject } from './serialize.ts';
@@ -35,6 +44,7 @@ export {
   type ShorthandResult,
   type ShorthandSign,
 } from './shorthand.ts';
+export { atLeast, type ResolvedLevels, resolveLevels, sceneSources, stepSources } from './story.ts';
 export { compareStrings, ID_PATTERN, nextSequentialId, slugify, uniqueId } from './text/ids.ts';
 export { closest, didYouMean, editDistanceRatio, typoDistanceRatio } from './text/similarity.ts';
 export { cleanText, type Reading, readBoolean, readNumber } from './text/values.ts';

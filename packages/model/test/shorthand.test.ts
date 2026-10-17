@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyShorthand,
   createProject,
+  errorsIn,
   type Project,
   type ProjectInput,
   parseProject,
@@ -143,7 +144,7 @@ describe('applyShorthand', () => {
       citations: [],
     });
     expect(project.types.categories).toEqual([{ id: 'social', name: 'social' }]);
-    expect(validateProject(project)).toEqual([]);
+    expect(errorsIn(validateProject(project))).toEqual([]);
   });
 
   it('matches existing variables by label, ignoring case', () => {

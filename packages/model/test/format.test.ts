@@ -45,8 +45,12 @@ describe('reading a project', () => {
 
   it('accepts a project that uses every part of the format', () => {
     const result = parseProject(richInput());
-    expect(result.issues).toEqual([]);
     expect(result.ok).toBe(true);
+    // Valid, with the two warnings the test project carries on purpose (see integrity.test.ts).
+    expect(result.issues.map((i) => `${i.severity} ${i.code}`)).toEqual([
+      'warning uncitedLink',
+      'warning unknownSign',
+    ]);
   });
 
   it('reads file text, tolerating a byte-order mark', () => {

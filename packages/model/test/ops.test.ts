@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addLink,
   addVariable,
+  errorsIn,
   flipSign,
   OpError,
   type Project,
@@ -42,7 +43,7 @@ describe('variables', () => {
       citations: [],
     });
     expect(before).toEqual(richProject());
-    expect(validateProject(project)).toEqual([]);
+    expect(errorsIn(validateProject(project))).toEqual([]);
   });
 
   it('keeps ids unique across variables, links and loops', () => {
@@ -145,7 +146,7 @@ describe('variables', () => {
       minimap: false,
     });
     expect(hold?.map).toEqual({ opacity: 0.6 });
-    expect(validateProject(project)).toEqual([]);
+    expect(errorsIn(validateProject(project))).toEqual([]);
   });
 });
 
@@ -231,7 +232,7 @@ describe('links', () => {
     const { project, result } = removeLink(richProject(), 'L4', { cascade: true });
     expect(result).toEqual({ id: 'L4', removedLoops: ['B1'], changedSteps: [] });
     expect(project.layout.bends).toEqual({});
-    expect(validateProject(project)).toEqual([]);
+    expect(errorsIn(validateProject(project))).toEqual([]);
   });
 
   it('flips a sign, and refuses to flip an unknown one', () => {
