@@ -9,7 +9,8 @@
     "node": ">=24"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -21,6 +22,7 @@
     "verify:fast": "node scripts/verify.mjs --fast",
     "prepare": "node scripts/install-hooks.mjs",
     "site": "node scripts/build-site.mjs",
+    "viewer": "vite apps/viewer",
     "schema": "node packages/model/scripts/export-schema.ts",
     "convert:polycrisis": "node packages/model/scripts/convert-polycrisis.ts"
   },

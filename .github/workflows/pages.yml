@@ -1,4 +1,5 @@
-# Publishes the site (landing page, and later the docs and the web app) to GitHub Pages.
+# Publishes the site (landing page, the viewer with the example story, and later the docs and the web app)
+# to GitHub Pages.
 # One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
 name: Pages
 
@@ -22,7 +23,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: npm
+      - run: npm ci
       - run: node scripts/build-site.mjs
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

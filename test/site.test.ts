@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,5 +29,20 @@ describe('the GitHub Pages site', () => {
     expect(page).not.toMatch(
       /<script[^>]+src=|<link[^>]+href="https?:|url\(\s*["']?https?:|<img[^>]+src="https?:/i,
     );
+  });
+
+  it('publishes the viewer at demo/, with its fonts and the example built in', () => {
+    const page = readFileSync(join(out, 'demo/index.html'), 'utf8');
+    // Relative paths, so it runs from /loopweft/demo/ on Pages and from any local folder.
+    const assets = [...page.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1] as string);
+    expect(assets.some((a) => a.endsWith('.js'))).toBe(true);
+    expect(assets.some((a) => a.endsWith('.css'))).toBe(true);
+    for (const asset of assets) expect(existsSync(join(out, 'demo', asset)), asset).toBe(true);
+    expect(page).not.toMatch(/<script[^>]+src="https?:|<link[^>]+href="https?:/i);
+    const files = readdirSync(join(out, 'demo/assets'));
+    expect(files.some((f) => /^inter-latin-opsz-normal-.*\.woff2$/.test(f))).toBe(true);
+    expect(files.some((f) => /^fraunces-latin-opsz-italic-.*\.woff2$/.test(f))).toBe(true);
+    const script = readFileSync(join(out, 'demo', assets.find((a) => a.endsWith('.js')) as string), 'utf8');
+    expect(script).toContain('"format": "loopweft"');
   });
 });
