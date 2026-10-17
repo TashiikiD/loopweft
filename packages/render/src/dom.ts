@@ -20,7 +20,11 @@ export function svg<K extends keyof SVGElementTagNameMap>(
 
 /** Glyph parts (see glyphs.ts) as SVG elements. */
 export function glyph(parts: GlyphPart[]): SVGElement[] {
-  return parts.map((p) => svg(p.tag, p.attrs));
+  return parts.map((p) => {
+    const el = svg(p.tag, p.attrs);
+    if (p.text !== undefined) el.textContent = p.text;
+    return el;
+  });
 }
 
 export function h<K extends keyof HTMLElementTagNameMap>(

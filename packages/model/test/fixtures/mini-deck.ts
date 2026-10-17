@@ -180,9 +180,17 @@ export function miniDeck(): PolycrisisDeck {
         ],
         source: { source_id: 'A', page: 2 },
       },
-      cards: { lenses: { title: 'Lenses', items: [{ title: 'One', sub: 'first' }, { title: 'Two' }] } },
+      cards: {
+        lenses: { title: 'Lenses', items: [{ title: 'One', sub: 'first' }, { title: 'Two' }] },
+        depth: {
+          title: 'Depth',
+          items: [{ title: 'Break' }, { title: 'Balance' }, { title: 'Root' }, { title: 'Deeper' }],
+        },
+      },
     },
     hubNodes: ['crops'],
+    // As the deck's own code bends each link (E4 set by hand in its layout).
+    bends: { E1: 0.12, E2: 0.18, E3: 0.12, E4: -0.2 },
     scenes: [
       {
         id: 'S00',
@@ -257,6 +265,7 @@ export function miniDeck(): PolycrisisDeck {
             viz: {
               statement: { lines: ['A line.'], style: 'note', place: 'lower-left' },
               counter: { stage: 'R1' },
+              cards: { set: 'depth' },
             },
           },
         ],
@@ -277,5 +286,6 @@ export const MINI_CLEANUP: Cleanup = {
   dropNotes: { S00: ['Untimed. The fake title page'] },
   dropTone: ['S00'],
   rewordNotes: { S01: [['This room knows it.', 'Say what it is.']] },
+  deckBends: ['E2'],
   banned: ['fake', 'deadpan', 'this room'],
 };

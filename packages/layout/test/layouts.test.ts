@@ -115,11 +115,21 @@ describe('link bends', () => {
   });
 
   it('re-bends a few links only when that crosses and overlaps less', () => {
-    const { report } = mapGeometry(example());
+    // The example's map without the bends it keeps from the deck (see the next test).
+    const project = example();
+    project.layout.bends = {};
+    const { report } = mapGeometry(project);
+    expect(report.changed.length).toBeGreaterThan(0);
     expect(report.changed.length).toBeLessThanOrEqual(5);
     expect(report.after.crossings).toBeLessThanOrEqual(report.before.crossings);
     expect(report.after.sharedLength).toBeLessThanOrEqual(report.before.sharedLength + 0.001);
-    const plain = mapGeometry(example(), { refineBends: false }).report;
+    const plain = mapGeometry(project, { refineBends: false }).report;
     expect(plain.changed).toEqual([]);
+  });
+
+  it("keeps the example's curves as the deck drew them: refinement re-bends none of its links", () => {
+    // The example writes the deck's bend for each link refinement would change (POLYCRISIS_CLEANUP.deckBends);
+    // if refinement ever finds another link to re-bend, add it there and convert again.
+    expect(mapGeometry(example()).report.changed).toEqual([]);
   });
 });

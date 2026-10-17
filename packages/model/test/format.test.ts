@@ -194,6 +194,14 @@ describe('schema errors', () => {
     const type = firstIssue(parseChanged({ 'layout.positions.births.x': '300' }));
     expect(type).toMatchObject({ code: 'invalidType', path: ['layout', 'positions', 'births', 'x'] });
     expect(type.message).toBe('Expected a number, got the text "300".');
+
+    // Card icons come from a fixed set, which the message lists.
+    const icon = firstIssue(parseChanged({ 'story.scenes.0.steps.1.overlays.2.items.1.icon': 'loop' }));
+    expect(icon).toMatchObject({
+      code: 'invalidValue',
+      path: ['story', 'scenes', 0, 'steps', 1, 'overlays', 2, 'items', 1, 'icon'],
+    });
+    expect(icon.message).toMatch(/^Expected one of "circle", .*"balancing", .*"root"; got "loop"\.$/);
   });
 
   it('checks ids, colours, dates, DOIs and empty text', () => {

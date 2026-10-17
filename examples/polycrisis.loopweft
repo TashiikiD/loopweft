@@ -3954,7 +3954,19 @@
       }
     ],
     "bends": {
-      "E129": -0.28
+      "E005": 0.12,
+      "E015": 0.12,
+      "E016": 0.18,
+      "E017": 0.18,
+      "E030": 0.12,
+      "E041": 0.24,
+      "E045": 0.24,
+      "E059": 0.18,
+      "E106": 0.12,
+      "E116": 0.12,
+      "E119": -0.12,
+      "E129": -0.28,
+      "E131": 0.18
     }
   },
   "loops": [
@@ -5099,16 +5111,20 @@
                 "type": "cards",
                 "items": [
                   {
-                    "title": "Common stresses"
+                    "title": "Common stresses",
+                    "icon": "common-stress"
                   },
                   {
-                    "title": "Common triggers"
+                    "title": "Common triggers",
+                    "icon": "common-trigger"
                   },
                   {
-                    "title": "Domino effects"
+                    "title": "Domino effects",
+                    "icon": "domino"
                   },
                   {
-                    "title": "Feedbacks"
+                    "title": "Feedbacks",
+                    "icon": "feedback"
                   }
                 ],
                 "active": [
@@ -5179,16 +5195,20 @@
                 "type": "cards",
                 "items": [
                   {
-                    "title": "Common stresses"
+                    "title": "Common stresses",
+                    "icon": "common-stress"
                   },
                   {
-                    "title": "Common triggers"
+                    "title": "Common triggers",
+                    "icon": "common-trigger"
                   },
                   {
-                    "title": "Domino effects"
+                    "title": "Domino effects",
+                    "icon": "domino"
                   },
                   {
-                    "title": "Feedbacks"
+                    "title": "Feedbacks",
+                    "icon": "feedback"
                   }
                 ],
                 "active": [
@@ -5266,16 +5286,20 @@
                 "type": "cards",
                 "items": [
                   {
-                    "title": "Common stresses"
+                    "title": "Common stresses",
+                    "icon": "common-stress"
                   },
                   {
-                    "title": "Common triggers"
+                    "title": "Common triggers",
+                    "icon": "common-trigger"
                   },
                   {
-                    "title": "Domino effects"
+                    "title": "Domino effects",
+                    "icon": "domino"
                   },
                   {
-                    "title": "Feedbacks"
+                    "title": "Feedbacks",
+                    "icon": "feedback"
                   }
                 ],
                 "active": [
@@ -5354,16 +5378,20 @@
                 "type": "cards",
                 "items": [
                   {
-                    "title": "Common stresses"
+                    "title": "Common stresses",
+                    "icon": "common-stress"
                   },
                   {
-                    "title": "Common triggers"
+                    "title": "Common triggers",
+                    "icon": "common-trigger"
                   },
                   {
-                    "title": "Domino effects"
+                    "title": "Domino effects",
+                    "icon": "domino"
                   },
                   {
-                    "title": "Feedbacks"
+                    "title": "Feedbacks",
+                    "icon": "feedback"
                   }
                 ],
                 "active": [
@@ -7689,15 +7717,18 @@
                 "items": [
                   {
                     "title": "Break a link",
-                    "sub": "Buffer one link and a cascade can stop"
+                    "sub": "Buffer one link and a cascade can stop",
+                    "icon": "broken-link"
                   },
                   {
                     "title": "Strengthen balancing loops",
-                    "sub": "Firebreaks and redundancy, not just efficiency"
+                    "sub": "Firebreaks and redundancy, not just efficiency",
+                    "icon": "balancing"
                   },
                   {
                     "title": "Work at the root",
-                    "sub": "Short-termism amplifies 12 traps"
+                    "sub": "Short-termism amplifies 12 traps",
+                    "icon": "root"
                   }
                 ]
               },

@@ -1,9 +1,11 @@
 // Partly from PolycrisisPresentation tests/map.test.ts and tests/motion.test.ts @ 539bc8e (private): the
 // graph, resolve and choreography tests, run on the converted example instead of the deck's own content.
+import { CARD_ICONS } from '@loopweft/model';
 import { describe, expect, it } from 'vitest';
 import {
   ambientWalker,
   buildGraph,
+  cardIcon,
   categoryColours,
   DRAW,
   moveNode,
@@ -215,6 +217,23 @@ describe('ambient walks', () => {
 });
 
 describe('glyphs and themes', () => {
+  it('draws every card icon of the format, in the text colour', () => {
+    for (const name of CARD_ICONS) {
+      const icon = cardIcon(name);
+      expect(icon.parts.length, name).toBeGreaterThan(0);
+      expect(icon.width * icon.height, name).toBeGreaterThan(0);
+      expect(icon.viewBox.split(' ').map(Number).slice(2), name).toEqual([icon.width, icon.height]);
+    }
+    // The deck's families share its boxes, so titles line up; loops carry their letter.
+    expect(
+      ['common-stress', 'common-trigger', 'domino', 'feedback'].map((n) => cardIcon(n as 'domino').width),
+    ).toEqual([64, 64, 64, 64]);
+    expect(cardIcon('balancing').parts.find((p) => p.tag === 'text')?.text).toBe('B');
+    expect(cardIcon('reinforcing').parts.find((p) => p.tag === 'text')?.text).toBe('R');
+    expect(cardIcon('feedback').parts.some((p) => p.tag === 'text')).toBe(false);
+    expect(cardIcon('ring').parts.map((p) => p.attrs.class)).toEqual(['node-ring', 'node-dot']);
+  });
+
   it('draws every role shape of the format', () => {
     for (const shape of [
       'circle',

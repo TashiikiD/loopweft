@@ -494,6 +494,33 @@ const Place = z
   .optional()
   .describe('Where on the stage. Absent: the default for the overlay type.');
 
+/** The small icons a card can carry, all drawn in the card's text colour. */
+export const CARD_ICONS = [
+  // The role shapes, as the map draws them.
+  ...SHAPES,
+  // Link marks: the arrowhead, the bar and a dashed line.
+  'increases',
+  'decreases',
+  'conditional',
+  // Loop marks: the circular arrow, alone or around R or B.
+  'feedback',
+  'reinforcing',
+  'balancing',
+  // Ways crises become entangled (Lawrence et al., 2024): fans of arrows from a slow stress or a trigger,
+  // and a chain of dominoes.
+  'common-stress',
+  'common-trigger',
+  'domino',
+  // Leverage at depth: a link broken, and a root.
+  'broken-link',
+  'root',
+] as const;
+export const CardIconSchema = z.enum(CARD_ICONS).meta({
+  id: 'CardIcon',
+  description: 'A small built-in icon: a role shape, a link or loop mark, or a way crises become entangled.',
+});
+export type CardIcon = z.infer<typeof CardIconSchema>;
+
 export const OverlaySchema = z
   .discriminatedUnion('type', [
     z
@@ -521,12 +548,20 @@ export const OverlaySchema = z
       .strictObject({
         type: z.literal('cards'),
         title: Text.optional(),
-        items: z.array(z.strictObject({ title: Text, sub: Text.optional() })).min(1),
+        items: z
+          .array(
+            z.strictObject({
+              title: Text,
+              sub: Text.optional(),
+              icon: CardIconSchema.optional().describe('A small icon in place of the card’s number.'),
+            }),
+          )
+          .min(1),
         active: z.array(z.int().min(0)).optional().describe('Highlighted cards, from 0; the rest recede.'),
         place: Place,
         citations: Citations.optional(),
       })
-      .describe('A row of cards.'),
+      .describe('Cards: a column beside the map, or a compact grid above or below it.'),
     z
       .strictObject({
         type: z.literal('legend'),

@@ -29,6 +29,7 @@ export {
   positionsOf,
   type Shape,
 } from './graph.ts';
+export { cardIcon, type Icon } from './icons.ts';
 export { type NamedLoop, namedLoops } from './loops.ts';
 export { MapView, type MapViewOptions } from './map-view.ts';
 export { MINIMAP_BOX, Minimap } from './minimap.ts';

@@ -245,4 +245,28 @@ describe('the story view', () => {
       stepAt(project, 'S03.7').overlays.find((o) => o.type === 'cards' && o.place === 'top-right'),
     ).toBeDefined();
   });
+
+  it('shows a card’s icon in place of its number', () => {
+    const motion = new Motion(new ManualClock());
+    const host = document.createElement('div');
+    const story = new StoryView(host, { project, motion });
+    story.overlays.apply(
+      [{ type: 'cards', items: [{ title: 'Break a link', icon: 'broken-link' }, { title: 'Numbered' }] }],
+      { number: 1, title: 'Test' },
+      'instant',
+    );
+    const [first, second] = [...host.querySelectorAll('.cd-card')];
+    expect(first?.querySelector('svg.cd-icon.icon-broken-link path')).not.toBeNull();
+    expect(first?.querySelector('.cd-index')).toBeNull();
+    expect(second?.querySelector('.cd-index')?.textContent).toBe('02');
+
+    // The example's panel of the ways crises become entangled carries the deck's four icons.
+    const panel = stepAt(project, 'S03.7').overlays.find((o) => o.type === 'cards');
+    expect(panel?.type === 'cards' && panel.items.map((i) => i.icon)).toEqual([
+      'common-stress',
+      'common-trigger',
+      'domino',
+      'feedback',
+    ]);
+  });
 });

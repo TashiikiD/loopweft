@@ -188,7 +188,10 @@ export function richInput(): ProjectInput {
                 {
                   type: 'cards',
                   title: 'Two loops',
-                  items: [{ title: 'R1', sub: 'Births' }, { title: 'B1' }],
+                  items: [
+                    { title: 'R1', sub: 'Births', icon: 'reinforcing' },
+                    { title: 'B1', icon: 'balancing' },
+                  ],
                   active: [0],
                   citations: [{ source: 'T' }],
                 },

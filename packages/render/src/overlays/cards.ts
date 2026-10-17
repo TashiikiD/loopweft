@@ -1,11 +1,26 @@
 // Source: PolycrisisPresentation src/viz/cards.ts @ 539bc8e (private), on @loopweft/motion: the cards come
-// from the overlay, numbered, with the sources it cites beneath.
-import type { Citation, Overlay, Project } from '@loopweft/model';
+// from the overlay, each with its icon or number, with the sources it cites beneath.
+import type { CardIcon, Citation, Overlay, Project } from '@loopweft/model';
 import { land, type Motion, type Props, type Timeline } from '@loopweft/motion';
-import { h, typeset } from '../dom.ts';
+import { glyph, h, svg, typeset } from '../dom.ts';
+import { cardIcon } from '../icons.ts';
 import { Step, type Transition } from '../step.ts';
 
 export type CardsState = Extract<Overlay, { type: 'cards' }>;
+
+/** A card's icon, in the card's text colour. */
+function iconElement(name: CardIcon): SVGSVGElement {
+  const icon = cardIcon(name);
+  const el = svg('svg', {
+    class: `cd-icon icon-${name}`,
+    viewBox: icon.viewBox,
+    width: icon.width,
+    height: icon.height,
+    'aria-hidden': 'true',
+  });
+  el.append(...glyph(icon.parts));
+  return el;
+}
 
 /** The cited sources as a short line: each source's in-text label, with its pages. */
 export function citationLine(project: Project, citations: Citation[] | undefined): string | null {
@@ -109,7 +124,7 @@ export class CardsView {
       h(
         'div',
         { class: 'cd-card' },
-        h('span', { class: 'cd-index' }, String(i + 1).padStart(2, '0')),
+        c.icon ? iconElement(c.icon) : h('span', { class: 'cd-index' }, String(i + 1).padStart(2, '0')),
         h(
           'div',
           { class: 'cd-text' },

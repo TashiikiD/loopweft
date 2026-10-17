@@ -9,6 +9,7 @@
 // guessing. Nothing is invented: a value the deck does not have stays out.
 import { loopPolarity } from '../loops.ts';
 import {
+  type CardIcon,
   type Citation,
   FORMAT,
   FORMAT_VERSION,
@@ -176,6 +177,8 @@ export interface PolycrisisDeck {
   visuals: DeckVisuals;
   /** src/map/graph.ts HUB_NODES: drawn larger. */
   hubNodes: string[];
+  /** src/map/graph.ts buildGraph(): the bend the deck draws each link with, by link id. */
+  bends: Record<string, number>;
   /** The assembled deck (src/scenes/index.ts DECK): scenes and their builds, in order. */
   scenes: DeckScene[];
 }
@@ -195,6 +198,12 @@ export interface Cleanup {
   dropTone: string[];
   /** Speaker-note lines reworded, by scene id: [deck line, new line]. Applies to tone, guided notes and key facts. */
   rewordNotes: Record<string, [string, string][]>;
+  /**
+   * Links whose curve is written into the layout as the deck draws it, because Loopweft's crossing refinement
+   * would otherwise re-bend them (the example keeps the deck's curves; a test in @loopweft/layout checks that
+   * the refinement then leaves every link alone).
+   */
+  deckBends: string[];
   /** Words that must not appear anywhere in the result (compared in lower case). */
   banned: string[];
 }
@@ -251,6 +260,7 @@ export const POLYCRISIS_CLEANUP: Cleanup = {
       ],
     ],
   },
+  deckBends: ['E005', 'E015', 'E016', 'E017', 'E030', 'E041', 'E045', 'E059', 'E106', 'E116', 'E119', 'E131'],
   banned: [
     'fake title',
     'fake slide',
@@ -292,6 +302,20 @@ const MECHANISMS: Record<string, { name: string; description?: string }> = {
 
 /** Card sets credit their source by name; these are the source ids they mean. */
 const CARD_SOURCES: Record<string, string> = { 'Søgaard Jørgensen et al. 2023': 'J' };
+
+/**
+ * Card sets whose cards the deck drew with an icon instead of a number, in card order; later cards take the
+ * last icon (src/viz/cards.ts depthGlyph: a broken link, a balancing loop, then roots).
+ */
+const CARD_SET_ICONS: Record<string, CardIcon[]> = { depth: ['broken-link', 'balancing', 'root'] };
+
+/** The deck's icon for each way crises become entangled (src/viz/legend.ts mechanismGlyph). */
+const MECHANISM_ICONS: Record<string, CardIcon> = {
+  stress: 'common-stress',
+  trigger: 'common-trigger',
+  domino: 'domino',
+  feedback: 'feedback',
+};
 
 /** The deck's own visuals for one talk, which stay in the deck (see the plan). */
 export const ONE_OFF_VISUALS: ReadonlySet<string> = new Set([
@@ -481,25 +505,35 @@ function convertViz(
         const source = cards.source === undefined ? undefined : CARD_SOURCES[cards.source];
         if (cards.source !== undefined && source === undefined)
           throw new Error(`${key}: unknown card source ${cards.source}`);
+        const icons = CARD_SET_ICONS[set];
         overlays.push({
           type: 'cards',
           title: cards.title,
-          items: cards.items.map((item) => ({ title: item.title, ...(item.sub ? { sub: item.sub } : {}) })),
+          items: cards.items.map((item, i) => ({
+            title: item.title,
+            ...(item.sub ? { sub: item.sub } : {}),
+            ...(icons ? { icon: (icons[i] ?? icons[icons.length - 1]) as CardIcon } : {}),
+          })),
           ...(active ? { active: [...active] } : {}),
           ...(source ? { citations: [{ source }] } : {}),
         });
         break;
       }
       case 'mechanisms': {
-        // The grammar of crisis interactions: four named mechanisms, one lit. In Loopweft, cards in a compact
-        // grid at the top right, where the deck's panel sat (the map below shows the whole network).
+        // The grammar of crisis interactions: four named mechanisms with their icons, one lit. In Loopweft,
+        // cards in a compact grid at the top right, where the deck's panel sat (the map below shows the whole
+        // network).
         const { active } = s as { active: string };
         const items = deck.visuals.mechanisms.items;
         const index = items.findIndex((m) => m.id === active);
         if (index < 0) throw new Error(`${key}: unknown mechanism ${active}`);
         overlays.push({
           type: 'cards',
-          items: items.map((m) => ({ title: m.title })),
+          items: items.map((m) => {
+            const icon = MECHANISM_ICONS[m.id];
+            if (!icon) throw new Error(`${key}: no icon for the mechanism ${m.id}`);
+            return { title: m.title, icon };
+          }),
           active: [index],
           place: 'top-right',
           citations: [cite(deck.visuals.mechanisms.source)],
@@ -737,6 +771,15 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
   const unused = rules.filter((r) => !used.has(r));
   if (unused.length) throw new Error(`Clean-up rules that no longer match the deck: ${unused.join('; ')}`);
 
+  // Curves kept as the deck draws them (see Cleanup.deckBends).
+  const keptBends: Record<string, number> = {};
+  for (const id of cleanup.deckBends) {
+    const bend = deck.bends[id];
+    if (bend === undefined)
+      throw new Error(`Clean-up rules that no longer match the deck: no link ${id} to keep`);
+    keptBends[id] = bend;
+  }
+
   const project = ProjectSchema.parse({
     format: FORMAT,
     version: FORMAT_VERSION,
@@ -770,7 +813,7 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
         ]),
       ),
       groups,
-      bends: { ...(layout.bends ?? {}) },
+      bends: { ...(layout.bends ?? {}), ...keptBends },
     },
     loops,
     sources,
@@ -810,6 +853,11 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
     ...[...dropped.visuals].map(
       ([kind, keys]) => `Left out the one-off visual "${kind}" (it stays in the deck) on ${keys.join(', ')}.`,
     ),
+    ...(cleanup.deckBends.length
+      ? [
+          `Kept the deck's curves for ${cleanup.deckBends.length} links that crossing refinement would re-bend: ${cleanup.deckBends.join(', ')}.`,
+        ]
+      : []),
     'Title page: kept the title and subtitle; left out the presenter, programme, course and university lines.',
     'Left out: the full scripts and bridges, the fake title page, pathways, the Fig. 9 stages, the Anthropocene trap layer, the authoring rules, revision notes, node scale (all "global"), and source file names and notes.',
   ];

@@ -376,9 +376,12 @@ describe('the polycrisis converter', () => {
     });
     expect(pulse?.overlays).toEqual([
       {
-        // The deck's panel of mechanisms: a compact grid at the top right, where the deck had it.
+        // The deck's panel of mechanisms, with their icons: a compact grid at the top right, as in the deck.
         type: 'cards',
-        items: [{ title: 'Common stresses' }, { title: 'Domino effects' }],
+        items: [
+          { title: 'Common stresses', icon: 'common-stress' },
+          { title: 'Domino effects', icon: 'domino' },
+        ],
         active: [1],
         place: 'top-right',
         citations: [{ source: 'A', pages: '2' }],
@@ -395,8 +398,27 @@ describe('the polycrisis converter', () => {
     expect(side?.map.links).toEqual({ base: 'ghost', ghost: ['E4'], focus: ['E3'] });
     expect(side?.overlays).toEqual([
       { type: 'statement', lines: ['A line.'], style: 'note', place: 'bottom-left' },
+      {
+        // Leverage at depth: the deck drew icons in place of numbers, later cards taking the last one.
+        type: 'cards',
+        title: 'Depth',
+        items: [
+          { title: 'Break', icon: 'broken-link' },
+          { title: 'Balance', icon: 'balancing' },
+          { title: 'Root', icon: 'root' },
+          { title: 'Deeper', icon: 'root' },
+        ],
+      },
       { type: 'caption' },
     ]);
+  });
+
+  it("keeps the deck's curve for the links the clean-up names, beside the bends it set by hand", () => {
+    expect(project.layout.bends).toEqual({ E2: 0.18, E4: -0.2 });
+    expect(notes).toContain("Kept the deck's curves for 1 links that crossing refinement would re-bend: E2.");
+    expect(() => convertPolycrisis(miniDeck(), { ...MINI_CLEANUP, deckBends: ['E9'] })).toThrow(
+      'Clean-up rules that no longer match the deck: no link E9 to keep',
+    );
   });
 
   it('says what it left out and reworded', () => {

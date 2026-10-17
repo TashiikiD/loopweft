@@ -49,7 +49,11 @@ export async function readDeck(folder: string): Promise<PolycrisisDeck> {
       })[];
     };
   };
-  const { HUB_NODES } = (await module('src/map/graph.ts')) as { HUB_NODES: Set<string> };
+  const { HUB_NODES, buildGraph } = (await module('src/map/graph.ts')) as {
+    HUB_NODES: Set<string>;
+    // Pure: the deck's map geometry from its own content files.
+    buildGraph: () => { edges: Map<string, { bend: number }> };
+  };
   // Only the parts the converter reads, as plain data.
   const scenes: DeckScene[] = DECK.scenes.map((s) => ({
     id: s.id,
@@ -74,6 +78,7 @@ export async function readDeck(folder: string): Promise<PolycrisisDeck> {
     narration: json('content/narration.json'),
     visuals: json('content/visuals.json'),
     hubNodes: [...HUB_NODES],
+    bends: Object.fromEntries([...buildGraph().edges].map(([id, e]) => [id, e.bend])),
     scenes,
   });
 }

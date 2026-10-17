@@ -1369,6 +1369,10 @@
                   "sub": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "icon": {
+                    "description": "A small icon in place of the card’s number.",
+                    "$ref": "#/$defs/CardIcon"
                   }
                 },
                 "required": [
@@ -1413,7 +1417,7 @@
             "items"
           ],
           "additionalProperties": false,
-          "description": "A row of cards."
+          "description": "Cards: a column beside the map, or a compact grid above or below it."
         },
         {
           "type": "object",
@@ -1506,6 +1510,31 @@
         }
       ],
       "description": "Something drawn over the map. Overlays draw in list order, later ones on top."
+    },
+    "CardIcon": {
+      "type": "string",
+      "enum": [
+        "circle",
+        "ring",
+        "square",
+        "rounded-square",
+        "octagon",
+        "diamond",
+        "triangle",
+        "hexagon",
+        "increases",
+        "decreases",
+        "conditional",
+        "feedback",
+        "reinforcing",
+        "balancing",
+        "common-stress",
+        "common-trigger",
+        "domino",
+        "broken-link",
+        "root"
+      ],
+      "description": "A small built-in icon: a role shape, a link or loop mark, or a way crises become entangled."
     }
   }
 }

@@ -733,14 +733,53 @@
   margin-top: 4px;
 }
 
-/* Cards in the top or bottom band: a compact grid of two columns, out of the map's way (as the deck's panel
-   of the four ways crises entangle). */
+/* A card's icon, in place of its number. */
+.lw-stage .cd-icon {
+  flex: none;
+  color: var(--lw-glow);
+  overflow: visible;
+}
+
+.lw-stage .cd-icon .ic-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lw-stage .cards .cd-icon .ic-fill,
+.lw-stage .cards .cd-icon .node-core,
+.lw-stage .cards .cd-icon .node-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.lw-stage .cards .cd-icon .node-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+}
+
+.lw-stage .cd-icon .ic-text {
+  fill: var(--lw-text);
+  font-family: var(--lw-font-sans);
+  font-weight: 700;
+}
+
+/* Cards in the top or bottom band: a light panel of two columns out of the map's way, as the deck's panel of
+   the four ways crises become entangled. */
 .lw-stage .cards.compact {
   width: auto;
   max-width: 920px;
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap: 10px 14px;
+  gap: 14px 36px;
+}
+
+.lw-stage .cards.compact.place-top-left,
+.lw-stage .cards.compact.place-top,
+.lw-stage .cards.compact.place-top-right {
+  top: 66px;
 }
 
 .lw-stage .compact .cd-head,
@@ -749,11 +788,15 @@
   margin: 0;
 }
 
-.lw-stage .cards.compact .cd-card {
+.lw-stage .cards.compact .cd-card,
+.lw-stage .cards.compact .cd-card.on {
   margin: 0;
-  padding: 7px 16px;
-  gap: 12px;
-  border-radius: 12px;
+  padding: 0;
+  gap: 14px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .lw-stage .cards.compact .cd-index {
@@ -763,18 +806,24 @@
 
 .lw-stage .cards.compact .cd-title {
   font-size: 26px;
+  font-weight: 400;
+}
+
+.lw-stage .cards.compact .cd-card.on .cd-title {
+  font-weight: 600;
+}
+
+.lw-stage .cards.compact .cd-icon {
+  color: var(--lw-muted);
+}
+
+.lw-stage .cards.compact .cd-card.on .cd-icon {
+  color: var(--lw-glow);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lw-glow) 60%, transparent));
 }
 
 .lw-stage .cards.compact::before {
-  inset: -28px -48px;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--lw-ink) 85%, transparent),
-    color-mix(in srgb, var(--lw-ink) 55%, transparent) 70%,
-    transparent
-  );
-  -webkit-mask-image: none;
-  mask-image: none;
+  display: none;
 }
 
 /* ----- Title page ----- */
@@ -879,6 +928,7 @@
 .lw-stage .statement,
 .lw-stage .legend,
 .lw-stage .cards .cd-head,
+.lw-stage .cards.compact,
 .lw-stage .image figcaption {
   text-shadow:
     0 0 4px var(--lw-ink),
@@ -890,7 +940,8 @@
 .lw-stage.low-power .edge.active,
 .lw-stage.low-power .edge.carrying .edge-line,
 .lw-stage.low-power .node.active .node-core,
-.lw-stage.low-power .node.active .node-dot {
+.lw-stage.low-power .node.active .node-dot,
+.lw-stage.low-power .cards.compact .cd-card.on .cd-icon {
   filter: none;
 }
 

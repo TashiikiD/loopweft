@@ -6,8 +6,10 @@ import type { Trend } from '@loopweft/model';
 import type { Shape } from './graph.ts';
 
 export interface GlyphPart {
-  tag: 'circle' | 'rect' | 'polygon' | 'path';
+  tag: 'circle' | 'rect' | 'polygon' | 'path' | 'text';
   attrs: Record<string, string | number>;
+  /** A text part's characters. */
+  text?: string;
 }
 
 const f = (n: number) => n.toFixed(2);

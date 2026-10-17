@@ -28,7 +28,7 @@ JSON Schema at <https://tashiikid.github.io/loopweft/schema/v1.json>
 15. [writing a project: the canonical form](#15-the-canonical-form)
 16. [versions and migrations](#16-versions-and-migrations)
 17. [the shorthand](#17-the-shorthand)
-18. [decisions to confirm](#18-decisions-to-confirm)
+18. [decisions](#18-decisions)
 
 ## 1. A first look
 
@@ -371,9 +371,21 @@ Overlays are drawn over the map in list order, later ones on top. Each has a `ty
 | `caption` | none | The scene's caption band: its title and headline. |
 | `title` | `title` (required), `subtitle`, `lines` | A title page over the map. |
 | `statement` | `lines` (required), `kicker`, `style`, `place`, `citations` | Large type: a question, a closing line, a short title or a caveat. `style`: `hero`, `question`, `closing`, `title` or `note`. `kicker`: a small line above, e.g. "INTERVENTION A". |
-| `cards` | `items` (required: each a `title` and an optional `sub`), `title`, `active`, `place`, `citations` | A row of cards. `active`: the highlighted cards, counted from 0; the rest recede. |
+| `cards` | `items` (required: each a `title`, an optional `sub` and an optional `icon`), `title`, `active`, `place`, `citations` | Cards: a column beside the map (`left`, the default, or `right`), or a compact grid in the top or bottom band. `active`: the highlighted cards, counted from 0; the rest recede. A card shows its `icon` in place of its number. |
 | `legend` | `place`, `citations` | The project's roles and link styles. |
 | `image` | `asset` and `alt` (required), `caption`, `credit`, `place`, `citations` | An embedded image. `alt` says what it shows, for people who cannot see it. |
+
+### Card icons
+
+Small built-in icons, drawn in the card's text colour:
+
+- role shapes, as the map draws them: `circle`, `ring`, `square`, `rounded-square`, `octagon`, `diamond`,
+  `triangle`, `hexagon`;
+- link marks: `increases` (an arrowhead), `decreases` (a bar), `conditional` (a dashed line);
+- loop marks: `feedback` (a circular arrow), `reinforcing` (around R), `balancing` (around B);
+- ways crises become entangled: `common-stress` and `common-trigger` (a fan of arrows from a slow stress or a
+  trigger), `domino` (a chain);
+- leverage at depth: `broken-link`, `root`.
 
 ## 13. assets
 
@@ -463,9 +475,10 @@ Fertility -> Births (?, conf=M)
 - Values are read strictly: `weight=heavy` is an error, not text. A link that already exists is an error.
   Nothing changes if any line has an error, and every error is reported at once with its line and column.
 
-## 18. Decisions to confirm
+## 18. Decisions
 
-These choices refine the plan's sketch. Each can still change before version 1 is released.
+These choices refine the plan's sketch. Items 1–15 were confirmed at the Phase 0 checkpoint review and 16–18 at the
+Phase 1 checkpoint review; each can still change before version 1 is released.
 
 1. **`pinned` lives in the layout** (`layout.positions.<id>.pinned`), not on the variable, so all layout
    state is in one place.
@@ -491,6 +504,13 @@ These choices refine the plan's sketch. Each can still change before version 1 i
     and key facts in it.
 15. **The example leaves out the author and course** (`meta.author`, `meta.course`) and the presenter's
     lines on the title page; add them back if you want the example credited.
-16. **Roles can mark responses** (`response: true`; added in Phase 1, not yet confirmed). The deck coloured a
-    pulse arriving at an intervention as relief and started relief walks along an intervention's `-` links,
-    so the renderer needs to know which variables are responses. The example marks its intervention role.
+16. **Roles can mark responses** (`response: true`; added in Phase 1, confirmed at its checkpoint). The deck
+    coloured a pulse arriving at an intervention as relief and started relief walks along an intervention's
+    `-` links, so the renderer needs to know which variables are responses. The example marks its
+    intervention role.
+17. **Cards can carry small built-in icons** (`icon`; confirmed at the Phase 1 checkpoint), as the deck's
+    panels of the ways crises become entangled and of leverage at depth did. The icons are a fixed set, so
+    they always match the map's glyphs and the theme.
+18. **The example keeps the presentation's curves** (confirmed at the Phase 1 checkpoint): where Loopweft's
+    crossing refinement would re-bend a link of the example, its bend is written into `layout.bends`. Other
+    maps get the refinement.
