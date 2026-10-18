@@ -46,3 +46,25 @@ describe('the GitHub Pages site', () => {
     expect(script).toContain('"format": "loopweft"');
   });
 });
+
+describe('the Studio on the site', () => {
+  it('is published at studio/, with relative paths, its fonts, and nothing from other sites', () => {
+    const page = readFileSync(join(out, 'studio/index.html'), 'utf8');
+    expect(page).toContain('<title>Loopweft Studio</title>');
+    const assets = [...page.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1] as string);
+    expect(assets.some((a) => a.endsWith('.js'))).toBe(true);
+    expect(assets.some((a) => a.endsWith('.css'))).toBe(true);
+    for (const asset of assets) expect(existsSync(join(out, 'studio', asset)), asset).toBe(true);
+    expect(page).not.toMatch(/<script[^>]+src="https?:|<link[^>]+href="https?:/i);
+    const files = readdirSync(join(out, 'studio/assets'));
+    expect(files.some((f) => /^inter-latin-opsz-normal-.*\.woff2$/.test(f))).toBe(true);
+    const css = files
+      .filter((f) => f.endsWith('.css'))
+      .map((f) => readFileSync(join(out, 'studio/assets', f), 'utf8'));
+    expect(css.join('')).not.toMatch(/url\(\s*["']?https?:/);
+  });
+
+  it('is linked from the landing page', () => {
+    expect(readFileSync(join(root, 'site/index.html'), 'utf8')).toContain('href="studio/"');
+  });
+});

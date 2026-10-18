@@ -71,6 +71,11 @@ every pair and its difference at full width, in `review/phase1/`. All three take
 capture also takes `--only S04.2a,S05.2` and `--no-deck`. The stills include the presentation's own title
 page, so `review/` is git-ignored: keep them out of the repository.
 
+## Running the Studio
+
+`npm run studio` serves the Studio (`apps/studio`) on this machine; add `?example` to the address to start
+with the polycrisis example. The published copy is at <https://tashiikid.github.io/loopweft/studio/>.
+
 ## Viewing the example
 
 `npm run viewer` serves the viewer (`apps/viewer`) on this machine. It plays the example story; drop any

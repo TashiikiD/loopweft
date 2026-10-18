@@ -1,0 +1,245 @@
+/*
+ * The Studio's own layout, and the canvas. The canvas draws the map in its project's theme: the --lw-*
+ * variables come from @loopweft/render's theme tokens, set on .lw-canvas; glyph styles follow render.css so
+ * the map looks as it will when presented.
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+.lw-main {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: var(--app-shell-header-height, 56px);
+  box-sizing: border-box;
+}
+
+.lw-recovery {
+  padding: 8px 16px;
+  background: var(--mantine-color-yellow-light);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.lw-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.lw-side {
+  width: 360px;
+  flex: none;
+  border-left: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.lw-inspector {
+  flex: 1;
+  min-height: 0;
+}
+
+.lw-inspector-body {
+  padding: 14px 16px 24px;
+}
+
+.lw-status {
+  flex: none;
+  padding: 4px 14px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+/* ----- The canvas ----- */
+
+.lw-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--lw-bg);
+  color: var(--lw-text);
+  font-family: var(--lw-font-sans);
+}
+
+.lw-canvas svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lw-canvas-bg {
+  fill: var(--lw-bg);
+}
+
+.lw-canvas .lw-halo {
+  pointer-events: none;
+}
+
+.lw-edge .line {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+.lw-edge.style-dashed .line,
+.lw-edge.conditional .line {
+  stroke-dasharray: 7 6;
+}
+
+.lw-edge.style-dotted .line {
+  stroke-dasharray: 1.5 6;
+}
+
+.lw-edge .head {
+  fill: var(--c);
+  opacity: 0.85;
+}
+
+.lw-edge.optional .line,
+.lw-edge.optional .head {
+  opacity: 0.35;
+}
+
+.lw-edge .hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.lw-edge .unknown-sign {
+  fill: var(--lw-mixed);
+  font-size: 16px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--lw-ink);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+
+.lw-edge.selected .line {
+  opacity: 1;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px var(--c));
+}
+
+.lw-edge.selected .head {
+  opacity: 1;
+}
+
+.lw-node {
+  cursor: pointer;
+}
+
+.lw-node .hit {
+  fill: transparent;
+}
+
+.lw-node .node-core {
+  fill: var(--c);
+  stroke: color-mix(in srgb, var(--lw-ink) 95%, transparent);
+  stroke-width: 2.5;
+}
+
+.lw-node .node-ring {
+  fill: var(--lw-ring-fill);
+  stroke: var(--c);
+  stroke-width: 3;
+}
+
+.lw-node .node-dot {
+  fill: var(--c);
+}
+
+.lw-node .ring {
+  fill: none;
+  stroke: var(--lw-glow);
+  stroke-width: 2.5px;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 3;
+}
+
+.lw-node .pin {
+  fill: var(--lw-glow);
+  stroke: var(--lw-ink);
+  stroke-width: 1.5;
+}
+
+.lw-label {
+  fill: var(--lw-text);
+  paint-order: stroke;
+  stroke: var(--lw-ink);
+  stroke-linejoin: round;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.lw-group-label {
+  fill: var(--c);
+  opacity: 0.75;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.lw-canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: var(--lw-muted);
+  pointer-events: none;
+  font-size: 15px;
+}
+
+.lw-canvas-empty p {
+  margin: 4px 0;
+}
+
+.lw-canvas-tools {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.lw-canvas-tool {
+  font: 500 13px / 1 var(--lw-font-sans);
+  color: var(--lw-text);
+  background: color-mix(in srgb, var(--lw-surface) 88%, transparent);
+  border: 1px solid var(--lw-line-strong);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.lw-canvas-tool:focus-visible {
+  outline: 2px solid var(--lw-glow);
+  outline-offset: 2px;
+}
+
+.lw-canvas-zoom {
+  font: 12px / 1 var(--lw-font-sans);
+  color: var(--lw-muted);
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Builds the GitHub Pages site: the landing page in site/, files published from the repository, and the
-// viewer (apps/viewer) playing the example story at demo/.
+// Builds the GitHub Pages site: the landing page in site/, files published from the repository, the viewer
+// (apps/viewer) playing the example story at demo/, and the Studio (apps/studio) at studio/.
 //
 //   node scripts/build-site.mjs [out-dir]     (default: _site)
 
@@ -23,9 +23,15 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 for (const [from, to] of FILES) cpSync(resolve(root, from), resolve(out, to), { recursive: true });
 
-await build({
-  root: resolve(root, 'apps/viewer'),
-  logLevel: 'warn',
-  build: { outDir: resolve(out, 'demo'), emptyOutDir: true },
-});
+for (const [app, path] of [
+  ['apps/viewer', 'demo'],
+  ['apps/studio', 'studio'],
+]) {
+  await build({
+    root: resolve(root, app),
+    configFile: resolve(root, app, 'vite.config.ts'),
+    logLevel: 'warn',
+    build: { outDir: resolve(out, path), emptyOutDir: true },
+  });
+}
 process.stdout.write(`site built in ${out}\n`);

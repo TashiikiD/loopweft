@@ -45,6 +45,7 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
+| `apps/studio` | The Studio, where maps are drawn and edited ([try it](https://tashiikid.github.io/loopweft/studio/)) |
 | `apps/viewer` | The viewer that plays a project's story ([the example](https://tashiikid.github.io/loopweft/demo/)) |
 | `packages/player` | A placeholder for Phase 5 |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
