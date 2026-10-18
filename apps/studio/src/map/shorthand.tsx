@@ -51,7 +51,11 @@ export function previewShorthand(project: Project, text: string): Preview | null
       error instanceof ShorthandError
         ? error.issues
         : [{ severity: 'error' as const, line: 1, column: 1, message: (error as Error).message }];
-    const warnings = parseShorthand(text).issues.filter((i) => i.severity === 'warning');
+    // A line with an error adds nothing, so a warning about it (a missing sign) is not shown as well.
+    const errorLines = new Set(errors.map((e) => e.line));
+    const warnings = parseShorthand(text).issues.filter(
+      (i) => i.severity === 'warning' && !errorLines.has(i.line),
+    );
     return { issues: [...errors, ...warnings].sort(byPosition) };
   }
 }
