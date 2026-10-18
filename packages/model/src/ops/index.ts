@@ -21,6 +21,7 @@ export {
   setLoop,
 } from './loops.ts';
 export { type MetaChanges, setMeta, setTheme, type ThemeChanges } from './meta.ts';
+export { addPalette, type PaletteChanges, type PaletteInput, removePalette, setPalette } from './palettes.ts';
 export { pruneMap, pruneMentions, type Removed, stepKey, stepsMentioning } from './story-refs.ts';
 export {
   ensureValid,

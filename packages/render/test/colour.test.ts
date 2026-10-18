@@ -1,7 +1,7 @@
 // The colour-vision tests are DataViz's (packages/render-kit/test/cvd.test.ts @ efcdbe2, TashiikiD/DataViz,
 // private), copied for Loopweft with its import paths; the palette and category checks are Loopweft's.
 
-import { PALETTE_IDS } from '@loopweft/model';
+import { PALETTE_IDS, PALETTES } from '@loopweft/model';
 import { describe, expect, it } from 'vitest';
 import { checkColors, colorDifference, deltaE2000, simulateVision, VISIONS } from '../src/colour/cvd.ts';
 import { categoryColours, checkCategories, checkPalette, MIN_CONTRAST } from '../src/index.ts';
@@ -114,7 +114,7 @@ describe('palette presets', () => {
     const measured = Object.fromEntries(
       PALETTE_IDS.flatMap((id) =>
         (['cinematic-dark', 'light', 'high-contrast'] as const).map((base) => {
-          const check = checkPalette(id, base);
+          const check = checkPalette(PALETTES[id].colours, base);
           const low = check.lowContrast.map((l) => l.key).join(',') || 'none';
           return [`${id} on ${base}`, `${check.colourblindSafe ? 'safe' : 'not safe'}; low contrast: ${low}`];
         }),
@@ -136,12 +136,15 @@ describe('palette presets', () => {
       'tol-muted on light': 'safe; low contrast: 2,3,5,6',
       'tol-muted on high-contrast': 'safe; low contrast: 1,8',
     });
-    for (const id of PALETTE_IDS) expect(checkPalette(id, 'cinematic-dark').greyscaleSafe).toBe(false);
+    for (const id of PALETTE_IDS)
+      expect(checkPalette(PALETTES[id].colours, 'cinematic-dark').greyscaleSafe).toBe(false);
   });
 
   it('gives a contrast ratio cut to one decimal, so one just under the limit never reads as the limit', () => {
     expect(MIN_CONTRAST).toBe(3);
-    expect(checkPalette('tol-bright', 'cinematic-dark').lowContrast).toEqual([{ key: '6', ratio: 2.9 }]);
+    expect(checkPalette(PALETTES['tol-bright'].colours, 'cinematic-dark').lowContrast).toEqual([
+      { key: '6', ratio: 2.9 },
+    ]);
   });
 });
 
@@ -158,6 +161,14 @@ describe("a project's categories", () => {
       ['a', '#E69F00'],
       ['b', '#123456'],
       ['c', '#009E73'],
+    ]);
+    // A palette the project holds itself works the same way, cycling when it runs out.
+    p.theme.palettes = [{ id: 'pair', name: 'Pair', colours: ['#B2182B', '#2166AC'] }];
+    p.theme.palette = 'pair';
+    expect([...categoryColours(p)]).toEqual([
+      ['a', '#B2182B'],
+      ['b', '#123456'],
+      ['c', '#B2182B'],
     ]);
   });
 

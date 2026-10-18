@@ -169,6 +169,52 @@ describe('the Look panel', () => {
     ).toBeTruthy();
   });
 
+  it("makes a palette of the map's own from the chosen one, recolours it, and removes it only after asking", async () => {
+    const { store, user } = await openPanel('Look');
+    const theme = () => store.getState().project.theme;
+    const own = () => theme().palettes?.[0];
+    await user.click(screen.getByRole('radio', { name: /Okabe–Ito/ }));
+    await user.click(screen.getByRole('button', { name: 'New palette from this one' }));
+    expect(own()).toMatchObject({
+      name: 'Okabe–Ito (copy)',
+      colours: ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7'],
+    });
+    // The map uses the copy at once, and the copy is listed as the map's own, checked like a preset.
+    expect(theme().palette).toBe(own()?.id);
+    expect(
+      screen.getByRole('radio', { name: /Okabe–Ito \(copy\)/ }).closest('.lw-palette')?.textContent,
+    ).toContain('Apart for typical vision and the three colour-vision deficiencies');
+
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    await user.clear(name);
+    await user.type(name, 'Mine{Enter}');
+    expect(own()?.name).toBe('Mine');
+    await user.click(screen.getByRole('button', { name: 'Move colour 2 up' }));
+    expect(own()?.colours.slice(0, 2)).toEqual(['#56B4E9', '#E69F00']);
+    await user.click(screen.getByRole('button', { name: 'Take out colour 1' }));
+    expect(own()?.colours).toHaveLength(6);
+    // Pasted as text, colours replace them all; two are the fewest a palette has.
+    const text = screen.getByRole('textbox', { name: 'Colours as text' });
+    await user.clear(text);
+    await user.type(text, '#b2182b, #2166ac');
+    await user.tab();
+    expect(own()?.colours).toEqual(['#B2182B', '#2166AC']);
+    expect((screen.getByRole('button', { name: 'Take out colour 1' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await user.click(screen.getByRole('button', { name: 'Remove this palette' }));
+    expect(confirm).toHaveBeenLastCalledWith(
+      'Remove the palette "Mine" from this map? The map goes back to the Loopweft palette.',
+    );
+    expect(theme().palettes).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Remove this palette' }));
+    expect(theme().palettes).toBeUndefined();
+    expect(theme().palette).toBeUndefined();
+    confirm.mockRestore();
+  });
+
   it('names fonts, and clears them', async () => {
     const { store, user } = await openPanel('Look');
     await user.type(screen.getByRole('textbox', { name: 'Headings' }), 'Lora{Enter}');

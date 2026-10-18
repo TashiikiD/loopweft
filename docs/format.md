@@ -135,7 +135,8 @@ every section.
 | Field | Meaning |
 |---|---|
 | `base` | The look: `cinematic-dark` (the default), `light` or `high-contrast`. |
-| `palette` | The colour preset for categories that name no colour of their own (below). Left out: `loopweft`. |
+| `palette` | The palette for categories that name no colour of their own: a preset (below) or one of `palettes`. Left out: `loopweft`. |
+| `palettes` | The project's own palettes, beside the presets (below). |
 | `fonts` | `heading` and `body` font families, e.g. `Fraunces` and `Inter`. |
 
 A category without a `colour` takes the colour of its place in the category list from the palette, starting
@@ -147,6 +148,17 @@ again at the first after the last, so a colour that a category names never shift
 | `okabe-ito` | Okabe and Ito's Color Universal Design colours, without black, which would vanish on a dark stage (7). |
 | `tol-bright` | Paul Tol's bright qualitative scheme (7). |
 | `tol-muted` | Paul Tol's muted qualitative scheme (9). |
+
+A project can hold palettes of its own in `palettes`, so the file looks the same wherever it is opened:
+
+| Field | Meaning |
+|---|---|
+| `id`, `name` | **Required.** The id cannot be a preset's. |
+| `colours` | **Required.** Two or more `#rrggbb` colours, in the order categories take them. |
+| `description` | What the palette is, e.g. where its colours come from. |
+
+`palette` names a preset or one of these; a name that is neither is an error, never a quiet fallback. The
+Studio makes one from any palette (Look, "New palette from this one"), to rename and recolour.
 
 Loopweft measures how a project's category colours look to people with the three common colour-vision
 deficiencies (protanopia, deuteranopia, tritanopia) and in greyscale, names the pairs that become hard to tell
@@ -425,7 +437,8 @@ The last finds **warnings**: the project is valid, but something should be looke
    `unknownLoop`, `unknownSource`, `unknownCategory`, `unknownRole`, `unknownLinkType`, `unknownField`,
    `unknownAsset`, `unknownElement`, `fieldNotApplicable`, `invalidFieldValue`, `brokenLoop` (a loop's links
    do not form a closed chain), `partOfCycle`, `invalidRange` (a `[min, max]` the wrong way round),
-   `cardOutOfRange`.
+   `cardOutOfRange`, `unknownPalette` (`theme.palette` names neither a preset nor one of `theme.palettes`),
+   `presetPaletteId` (a project's palette under a preset's id).
 4. **Evidence and story (warnings):**
 
 | Code | Means |
@@ -535,9 +548,11 @@ item says when it was added and confirmed. Each can still change before version 
 19. **An optional home view in the layout** (`layout.home`; added in Phase 2, as agreed at the Phase 1 checkpoint
     review): the whole-map camera, set from the Studio's canvas. The example takes the presentation's own
     (centre 960, 478; zoom 0.9), so its whole-map steps are framed as the presentation framed them.
-20. **Palettes are named presets** (`theme.palette`; added in Phase 2, to be confirmed at its checkpoint review): an
-    unknown name is an error, never a quiet fallback, and a category's own colour always wins. The colour checks
-    are advice, not validation.
+20. **Palettes are named presets, and a project can hold its own** (`theme.palette`, `theme.palettes`; added in
+    Phase 2, its own palettes asked for and confirmed at its checkpoint review): a name that is neither a preset
+    nor one of the project's palettes is an error, never a quiet fallback; a project's palette never takes a
+    preset's id; a category's own colour always wins. The project holds every palette it uses, so its file
+    renders the same anywhere. The colour checks are advice, not validation.
 21. **Brackets at the end of a shorthand line hold the link's details** (confirmed at the Phase 2 checkpoint
     review): anything else in them is an error, so a name that ends in brackets is quoted. DataViz's parser reads
     such brackets as part of the name, with a warning; that let a mistyped sign become part of a variable's name.

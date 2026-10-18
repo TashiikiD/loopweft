@@ -309,8 +309,8 @@ describe('meta and theme', () => {
     });
     expect(result).toEqual({ changed: ['base', 'palette', 'fonts'] });
     expect(project.theme).toEqual({ base: 'cinematic-dark', palette: 'okabe-ito' });
-    expect(refused(() => setTheme(richProject(), { palette: 'neon' as never })).issues[0]).toMatchObject({
-      code: 'invalidValue',
+    expect(refused(() => setTheme(richProject(), { palette: 'neon' })).issues[0]).toMatchObject({
+      code: 'unknownPalette',
       path: ['theme', 'palette'],
     });
   });

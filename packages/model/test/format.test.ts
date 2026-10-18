@@ -203,12 +203,27 @@ describe('schema errors', () => {
     });
     expect(icon.message).toMatch(/^Expected one of "circle", .*"balancing", .*"root"; got "loop"\.$/);
 
-    // A palette is one of the presets: an unknown name is an error, never a quiet fallback.
+    // A palette is a preset or one of the project's own: an unknown name is an error, never a quiet fallback.
     const palette = firstIssue(parseChanged({ 'theme.palette': 'rainbow' }));
-    expect(palette).toMatchObject({ code: 'invalidValue', path: ['theme', 'palette'] });
+    expect(palette).toMatchObject({ code: 'unknownPalette', path: ['theme', 'palette'] });
     expect(palette.message).toBe(
-      'Expected one of "loopweft", "okabe-ito", "tol-bright", "tol-muted"; got "rainbow".',
+      `No palette "rainbow": name a preset (loopweft, okabe-ito, tol-bright, tol-muted) or one of the project's own palettes (theme.palettes), or add it there.`,
     );
+  });
+
+  it("reads a project's own palettes: named by the theme, never under a preset's id, two colours or more", () => {
+    const rainbow = { id: 'rainbow', name: 'Rainbow', colours: ['#E40303', '#FF8C00', '#008026'] };
+    const own = parseChanged({ 'theme.palettes': [rainbow], 'theme.palette': 'rainbow' });
+    expect(own.ok && own.project.theme).toMatchObject({ palette: 'rainbow', palettes: [rainbow] });
+    expect(problems(parseChanged({ 'theme.palettes': [{ ...rainbow, id: 'okabe-ito' }] }))).toEqual([
+      'presetPaletteId theme.palettes.0.id',
+    ]);
+    expect(problems(parseChanged({ 'theme.palettes': [rainbow, { ...rainbow, name: 'Again' }] }))).toEqual([
+      'duplicateId theme.palettes.1.id',
+    ]);
+    expect(problems(parseChanged({ 'theme.palettes': [{ ...rainbow, colours: ['#E40303'] }] }))).toEqual([
+      'tooFew theme.palettes.0.colours',
+    ]);
   });
 
   it('reads a home view: a centre and a zoom above 0', () => {

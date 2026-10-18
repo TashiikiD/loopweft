@@ -1,7 +1,11 @@
-// The colour presets a project's theme can name (`theme.palette`). A category without a colour of its own
-// takes the colour of its place in the category list, cycling through the preset; a colour a category
-// names never shifts the others. How well a preset's colours stay apart for colour-vision deficiencies and
-// in greyscale, and against each theme's stage, is measured by @loopweft/render's checks, never claimed here.
+// The palettes a project's theme can name (`theme.palette`): Loopweft's presets, and palettes the project
+// defines itself (`theme.palettes`), so a person can make their own and the file still renders the same
+// anywhere. A category without a colour of its own takes the colour of its place in the category list,
+// cycling through the palette; a colour a category names never shifts the others. How well a palette's
+// colours stay apart for colour-vision deficiencies and in greyscale, and against each theme's stage, is
+// measured by @loopweft/render's checks, never claimed here.
+
+import type { Theme } from './schema.ts';
 
 export interface PalettePreset {
   id: string;
@@ -74,6 +78,47 @@ export const PALETTES: Readonly<Record<PaletteId, PalettePreset>> = {
   },
 };
 
-/** The preset a theme names, else the default. */
-export const paletteOf = (theme: { palette?: PaletteId | undefined }): PalettePreset =>
-  PALETTES[theme.palette ?? DEFAULT_PALETTE_ID];
+export const isPresetId = (id: string): id is PaletteId => (PALETTE_IDS as readonly string[]).includes(id);
+
+/** A palette a theme can name: a preset, or one of the project's own. */
+export interface ThemePalette {
+  id: string;
+  name: string;
+  /** Colours in the order categories take them. */
+  colours: readonly string[];
+  /** Where a preset's colours come from, or what the project says of its own palette. */
+  about?: string;
+  /** True for a palette the project defines (`theme.palettes`). */
+  own: boolean;
+}
+
+type PaletteTheme = Pick<Theme, 'palette' | 'palettes'>;
+
+/** The palettes a theme can name: the presets, then the project's own, in its order. */
+export function themePalettes(theme: PaletteTheme): ThemePalette[] {
+  return [
+    ...PALETTE_IDS.map((id) => {
+      const { name, colours, source } = PALETTES[id];
+      return { id, name, colours, about: source, own: false };
+    }),
+    ...(theme.palettes ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      colours: p.colours,
+      ...(p.description ? { about: p.description } : {}),
+      own: true,
+    })),
+  ];
+}
+
+/** The palette an id names in a theme, if any. */
+export const findPalette = (theme: PaletteTheme, id: string): ThemePalette | undefined =>
+  themePalettes(theme).find((p) => p.id === id);
+
+/** The palette a theme uses: the one it names, else the default. A name it cannot find is an error. */
+export function paletteOf(theme: PaletteTheme): ThemePalette {
+  const id = theme.palette ?? DEFAULT_PALETTE_ID;
+  const found = findPalette(theme, id);
+  if (!found) throw new Error(`No palette "${id}" in this theme.`);
+  return found;
+}

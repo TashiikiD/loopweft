@@ -1,6 +1,7 @@
 // Reference checks: every id a project names must exist, and ids must be unique. These are errors: a
 // project that fails them cannot be drawn or presented. (integrity.ts adds the evidence and story checks.)
 import { formatPath, type Issue } from './issues.ts';
+import { isPresetId, PALETTE_IDS } from './palettes.ts';
 import {
   type Citation,
   type FieldValue,
@@ -56,6 +57,7 @@ export function checkReferences(project: Project): Issue[] {
     unique(listed(f.options ?? [], ['types', 'fields', i, 'options']), `Field ${f.id} option`);
   });
   unique(listed(project.sources, ['sources']), 'Source');
+  unique(listed(project.theme.palettes ?? [], ['theme', 'palettes']), 'Palette');
   unique(listed(project.layout.groups, ['layout', 'groups']), 'Group');
   unique(listed(project.story.scenes, ['story', 'scenes']), 'Scene');
   project.story.scenes.forEach((s, i) => {
@@ -79,6 +81,26 @@ export function checkReferences(project: Project): Issue[] {
       if (!pool.has(id)) error(code, path, `${who}: no ${what} "${id}"${didYouMean(id, names)}.`);
     };
   };
+  // ----- the theme's palettes: the presets, and the project's own (never under a preset's id) -----
+  const own = project.theme.palettes ?? [];
+  own.forEach((p, i) => {
+    if (isPresetId(p.id)) {
+      error(
+        'presetPaletteId',
+        ['theme', 'palettes', i, 'id'],
+        `Palette id "${p.id}" is a preset's; give the project's own palette another id.`,
+      );
+    }
+  });
+  const chosen = project.theme.palette;
+  if (chosen !== undefined && !isPresetId(chosen) && !own.some((p) => p.id === chosen)) {
+    error(
+      'unknownPalette',
+      ['theme', 'palette'],
+      `No palette "${chosen}"${didYouMean(chosen, [...PALETTE_IDS, ...own.map((p) => p.id)])}: name a preset (${PALETTE_IDS.join(', ')}) or one of the project's own palettes (theme.palettes), or add it there.`,
+    );
+  }
+
   const variable = known('variable', variables, 'unknownVariable');
   const link = known('link', links, 'unknownLink');
   const loop = known('loop', loops, 'unknownLoop');

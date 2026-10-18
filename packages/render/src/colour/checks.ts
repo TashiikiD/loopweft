@@ -1,7 +1,8 @@
-// Colour checks for a project's categories and for the palette presets: which colours become hard to tell
-// apart for the three common colour-vision deficiencies and in greyscale (DataViz's check, cvd.ts), and
-// which stand out too little from the theme's stage. Pure, so the Studio and the command line agree.
-import { PALETTES, type PaletteId, type Project } from '@loopweft/model';
+// Colour checks for a project's categories and for palettes (the presets and a project's own): which colours
+// become hard to tell apart for the three common colour-vision deficiencies and in greyscale (DataViz's
+// check, cvd.ts), and which stand out too little from the theme's stage. Pure, so the Studio and the command
+// line agree.
+import type { Project } from '@loopweft/model';
 import { categoryColours, THEMES, type ThemeBase } from '../theme.ts';
 import { contrastRatio } from './color.ts';
 import { checkColors, type VisionCheck } from './cvd.ts';
@@ -53,10 +54,10 @@ export function checkCategories(project: Project): ColourCheck {
   );
 }
 
-/** A palette preset's colours, slot by slot, checked against a theme's stage. */
-export function checkPalette(id: PaletteId, base: ThemeBase): ColourCheck {
+/** A palette's colours (a preset's, or one of a project's own), slot by slot, checked against a theme's stage. */
+export function checkPalette(colours: readonly string[], base: ThemeBase): ColourCheck {
   return checkColourSet(
-    PALETTES[id].colours.map((colour, i) => ({ key: String(i + 1), label: String(i + 1), colour })),
+    colours.map((colour, i) => ({ key: String(i + 1), label: String(i + 1), colour })),
     THEMES[base].bg,
   );
 }

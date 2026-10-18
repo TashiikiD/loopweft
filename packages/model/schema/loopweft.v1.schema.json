@@ -147,14 +147,15 @@
           ]
         },
         "palette": {
-          "description": "The colour preset for categories that name no colour of their own. Absent: loopweft.",
-          "type": "string",
-          "enum": [
-            "loopweft",
-            "okabe-ito",
-            "tol-bright",
-            "tol-muted"
-          ]
+          "description": "The palette for categories that name no colour of their own: a preset (loopweft, okabe-ito, tol-bright, tol-muted) or the id of one of `palettes`. Absent: loopweft.",
+          "$ref": "#/$defs/Id"
+        },
+        "palettes": {
+          "description": "The project's own palettes, beside the presets.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Palette"
+          }
         },
         "fonts": {
           "description": "Font families for headings and body text.",
@@ -174,6 +175,51 @@
       },
       "additionalProperties": false,
       "description": "How the project looks."
+    },
+    "Id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[\\p{L}\\p{N}_-]+$",
+      "description": "An identifier: letters, digits, \"_\" and \"-\"."
+    },
+    "Palette": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Not a preset's id.",
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "colours": {
+          "minItems": 2,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Colour"
+          },
+          "description": "The colours categories take, in order."
+        },
+        "description": {
+          "description": "What the palette is, e.g. where its colours come from.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "colours"
+      ],
+      "additionalProperties": false,
+      "description": "A palette the project holds itself, beside Loopweft's presets."
+    },
+    "Colour": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "A colour as #rrggbb."
     },
     "Types": {
       "type": "object",
@@ -235,18 +281,6 @@
       ],
       "additionalProperties": false,
       "description": "A category of variables, drawn in its colour (e.g. a domain such as \"Earth systems\")."
-    },
-    "Id": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 80,
-      "pattern": "^[\\p{L}\\p{N}_-]+$",
-      "description": "An identifier: letters, digits, \"_\" and \"-\"."
-    },
-    "Colour": {
-      "type": "string",
-      "pattern": "^#[0-9a-fA-F]{6}$",
-      "description": "A colour as #rrggbb."
     },
     "Role": {
       "type": "object",

@@ -1,7 +1,7 @@
 // Changing what a project says about itself (its title, description, author and course) and how it looks
-// (its base theme, palette and fonts).
+// (its base theme, palette and fonts). The project's own palettes are edited in palettes.ts.
 import { type Meta, MetaSchema, type Project, type Theme, ThemeSchema } from '../schema.ts';
-import { OpError, type OpOutput, parseElement, sameJson } from './support.ts';
+import { ensureValid, OpError, type OpOutput, parseElement, sameJson } from './support.ts';
 
 /** Changes to the meta: a value sets the field, `null` clears an optional one. */
 export type MetaChanges = { [K in keyof Meta]?: Meta[K] | null };
@@ -57,8 +57,11 @@ export function setTheme(project: Project, changes: ThemeChanges): OpOutput<{ ch
       summary: 'Nothing to change: the theme is already like that.',
     };
   }
+  const next = { ...structuredClone(project), theme };
+  // A palette the theme names must exist: a preset, or one of the project's own.
+  ensureValid(project, next);
   return {
-    project: { ...structuredClone(project), theme },
+    project: next,
     result: { changed: which },
     summary: `Changed the theme: ${which.join(', ')}.`,
   };

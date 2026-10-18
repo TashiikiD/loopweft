@@ -32,11 +32,15 @@ export { type JsonObject, MIGRATIONS, type MigrateResult, type Migration, migrat
 export * from './ops/index.ts';
 export {
   DEFAULT_PALETTE_ID,
+  findPalette,
+  isPresetId,
   PALETTE_IDS,
   PALETTES,
   type PaletteId,
   type PalettePreset,
   paletteOf,
+  type ThemePalette,
+  themePalettes,
 } from './palettes.ts';
 export { createProject } from './project.ts';
 export {

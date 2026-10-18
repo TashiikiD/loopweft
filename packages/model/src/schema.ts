@@ -89,16 +89,26 @@ export const MetaSchema = z
   .meta({ id: 'Meta', description: 'About the project.' });
 export type Meta = z.infer<typeof MetaSchema>;
 
+export const PaletteSchema = z
+  .strictObject({
+    id: IdSchema.describe("Not a preset's id."),
+    name: Text,
+    colours: z.array(ColourSchema).min(2).describe('The colours categories take, in order.'),
+    description: Text.optional().describe('What the palette is, e.g. where its colours come from.'),
+  })
+  .meta({ id: 'Palette', description: "A palette the project holds itself, beside Loopweft's presets." });
+export type Palette = z.infer<typeof PaletteSchema>;
+
 export const ThemeSchema = z
   .strictObject({
     base: z
       .enum(['cinematic-dark', 'light', 'high-contrast'])
       .default('cinematic-dark')
       .describe('The look the map is drawn in.'),
-    palette: z
-      .enum(PALETTE_IDS)
-      .optional()
-      .describe('The colour preset for categories that name no colour of their own. Absent: loopweft.'),
+    palette: IdSchema.optional().describe(
+      `The palette for categories that name no colour of their own: a preset (${PALETTE_IDS.join(', ')}) or the id of one of \`palettes\`. Absent: loopweft.`,
+    ),
+    palettes: z.array(PaletteSchema).optional().describe("The project's own palettes, beside the presets."),
     fonts: z
       .strictObject({
         heading: Text.optional(),
