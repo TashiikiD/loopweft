@@ -67,6 +67,29 @@ describe("a project's own palettes", () => {
     expect(errorsIn(validateProject(used))).toEqual([]);
   });
 
+  it('makes an id of at most 80 characters from a long name, numbered when taken; a given id stays as given', () => {
+    const name = `Colours ${'very '.repeat(30)}warm`;
+    const first = addPalette(richProject(), { name, colours: WARM });
+    const firstId = first.result.id;
+    expect(firstId.length).toBeLessThanOrEqual(80);
+    expect(firstId.startsWith('colours_very_very')).toBe(true);
+    const second = addPalette(first.project, { name, colours: WARM });
+    expect(second.result.id).toMatch(/_2$/);
+    expect(second.result.id.length).toBeLessThanOrEqual(80);
+    expect(second.result.id).not.toBe(firstId);
+    expect(errorsIn(validateProject(second.project))).toEqual([]);
+    // A name whose id is exactly 80 characters still leaves room for the number.
+    const eighty = 'a'.repeat(80);
+    const exact = addPalette(addPalette(richProject(), { name: eighty, colours: WARM }).project, {
+      name: eighty,
+      colours: WARM,
+    });
+    expect(exact.result.id).toBe(`${'a'.repeat(78)}_2`);
+    expect(
+      refused(() => addPalette(richProject(), { id: 'b'.repeat(81), name: 'Mine', colours: WARM })).kind,
+    ).toBe('invalid');
+  });
+
   it('refuses a taken id, fewer than two colours and a colour it cannot read', () => {
     expect(
       refused(() => addPalette(richProject(), { id: 'tol-muted', name: 'Mine', colours: WARM })).kind,

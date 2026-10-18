@@ -1,7 +1,7 @@
 // The Types and Look panels in jsdom: categories, roles, link types and fields edited one step at a time,
 // a type in use removed only after asking, and the theme, palette and fonts with their colour checks.
-import { createProject, type Project, setVariable } from '@loopweft/model';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { createProject, type Project, paletteOf, setVariable } from '@loopweft/model';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -213,6 +213,69 @@ describe('the Look panel', () => {
     expect(theme().palettes).toBeUndefined();
     expect(theme().palette).toBeUndefined();
     confirm.mockRestore();
+  });
+
+  it('counts a picked colour at once, and moves one colour on with the keyboard', async () => {
+    const { store, user } = await openPanel('Look');
+    const own = () => store.getState().project.theme.palettes?.[0];
+    await user.click(screen.getByRole('radio', { name: /Okabe–Ito/ }));
+    await user.click(screen.getByRole('button', { name: 'New palette from this one' }));
+    // Picking leaves the focus in the field; the colour counts before it is left.
+    const first = screen.getByRole('textbox', { name: 'Colour 1' });
+    await user.click(first);
+    const saturation = screen.getAllByRole('slider')[0] as HTMLElement;
+    fireEvent.keyDown(saturation, { key: 'ArrowDown' });
+    await waitFor(() => expect(own()?.colours[0]).not.toBe('#E69F00'));
+    expect(document.activeElement).toBe(first);
+    expect(own()?.colours[0]).toMatch(/^#[0-9A-F]{6}$/);
+    // Typing waits for Enter, so #abc on the way to #abcdef is never saved.
+    await user.clear(first);
+    await user.type(first, '#abc');
+    expect(own()?.colours[0]).not.toBe('#AABBCC');
+    await user.type(first, 'def{Enter}');
+    expect(own()?.colours[0]).toBe('#ABCDEF');
+
+    // Moved up twice from the keyboard, the third colour becomes the first.
+    const third = own()?.colours[2];
+    screen.getByRole('button', { name: 'Move colour 3 up' }).focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Move colour 2 up');
+    await user.keyboard('{Enter}');
+    expect(own()?.colours[0]).toBe(third);
+    expect(own()?.colours.slice(1, 3)).toEqual(['#ABCDEF', '#56B4E9']);
+    // At the top, the focus goes to the colour's other button.
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Move colour 1 down');
+  });
+
+  it('keeps a palette’s description in its copy, and an unsaved colour with its own palette', async () => {
+    const { store, user } = await openPanel('Look');
+    const theme = () => store.getState().project.theme;
+    await user.click(screen.getByRole('radio', { name: /Okabe–Ito/ }));
+    await user.click(screen.getByRole('button', { name: 'New palette from this one' }));
+    const preset = paletteOf({ palette: 'okabe-ito' });
+    expect(theme().palettes?.[0]?.description).toBe(preset.about);
+    const about = screen.getByRole('textbox', { name: 'About' });
+    await user.clear(about);
+    await user.type(about, 'Picked for the print run.');
+    await user.tab();
+    // A long name still makes a copy, its id cut to fit.
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    await user.clear(name);
+    await user.type(name, `Mine ${'and more '.repeat(12)}{Enter}`);
+    await user.click(screen.getByRole('button', { name: 'New palette from this one' }));
+    const [a, b] = theme().palettes ?? [];
+    expect(b).toMatchObject({ description: 'Picked for the print run.' });
+    expect(b?.id.length).toBeLessThanOrEqual(80);
+    expect(theme().palette).toBe(b?.id);
+
+    // A colour typed for one palette and not added stays with it.
+    await user.type(screen.getByRole('textbox', { name: 'A colour to add' }), '#123456');
+    // The original is listed before its copy, whose name starts the same.
+    await user.click(screen.getAllByRole('radio', { name: /^Mine and more/ })[0] as HTMLElement);
+    expect(theme().palette).toBe(a?.id);
+    expect((screen.getByRole('textbox', { name: 'A colour to add' }) as HTMLInputElement).value).toBe('');
+    expect((screen.getByRole('button', { name: 'Add colour' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(theme().palettes?.[0]?.colours).not.toContain('#123456');
   });
 
   it('names fonts, and clears them', async () => {

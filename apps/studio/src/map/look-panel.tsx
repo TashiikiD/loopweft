@@ -86,9 +86,20 @@ function verdicts(check: ColourCheck, noun: string): string[] {
   ];
 }
 
+/**
+ * The most colours a palette may have to be checked and shown in full here: the check compares every pair,
+ * five times over. A larger palette is valid, and the map uses all of it.
+ */
+export const CHECKED_COLOURS = 48;
+
 function PaletteChoice({ palette, base }: { palette: ThemePalette; base: Theme['base'] }) {
-  const check = useMemo(() => checkPalette(palette.colours, base), [palette.colours, base]);
-  const safe = check.colourblindSafe && check.greyscaleSafe && check.lowContrast.length === 0;
+  const large = palette.colours.length > CHECKED_COLOURS;
+  const check = useMemo(
+    () => (large ? null : checkPalette(palette.colours, base)),
+    [large, palette.colours, base],
+  );
+  const safe = check?.colourblindSafe && check.greyscaleSafe && check.lowContrast.length === 0;
+  const shown = large ? palette.colours.slice(0, CHECKED_COLOURS) : palette.colours;
   return (
     <Radio.Card value={palette.id} radius="sm" p="xs" className="lw-palette">
       <Group gap="xs" wrap="nowrap" align="flex-start">
@@ -98,22 +109,34 @@ function PaletteChoice({ palette, base }: { palette: ThemePalette; base: Theme['
             {palette.name}
           </Text>
           <Group gap={3}>
-            {palette.colours.map((colour, i) => (
+            {shown.map((colour, i) => (
               // A palette may repeat a colour, so its place keys it.
               // biome-ignore lint/suspicious/noArrayIndexKey: the place is what tells the swatches apart
               <ColorSwatch key={i} color={colour} size={14} radius={3} aria-hidden />
             ))}
+            {large && (
+              <Text size="xs" c="dimmed">
+                and {plural(palette.colours.length - shown.length, 'more colour')}
+              </Text>
+            )}
           </Group>
           {palette.about && (
             <Text size="xs" c="dimmed">
               {palette.about}
             </Text>
           )}
-          <List size="xs" spacing={0} c={safe ? 'teal' : 'yellow.7'}>
-            {verdicts(check, 'colour').map((line) => (
-              <List.Item key={line}>{line}</List.Item>
-            ))}
-          </List>
+          {check ? (
+            <List size="xs" spacing={0} c={safe ? 'teal' : 'yellow.7'}>
+              {verdicts(check, 'colour').map((line) => (
+                <List.Item key={line}>{line}</List.Item>
+              ))}
+            </List>
+          ) : (
+            <Text size="xs" c="yellow.7">
+              Not checked: {plural(palette.colours.length, 'colour')}, more than the {CHECKED_COLOURS} checked
+              here. The map's own categories are still checked below.
+            </Text>
+          )}
         </Stack>
       </Group>
     </Radio.Card>
@@ -138,8 +161,14 @@ function PaletteColour({
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  const input = useRef<HTMLInputElement>(null);
+  // Typing gives a colour at every valid step (#abc on the way to #abcdef): it counts when the field is left
+  // or Enter is pressed. A colour picked counts at once (picking leaves the focus in the field): the picker
+  // places a click on the next frame but may say it is done before, so the colour it last gave counts, a
+  // frame later.
+  const typing = useRef(false);
+  const latest = useRef(value);
   const commit = (next: string) => {
+    typing.current = false;
     const colour = next.trim();
     if (!COLOUR.test(colour)) {
       setDraft(value);
@@ -151,20 +180,26 @@ function PaletteColour({
   return (
     <Group gap={2} wrap="nowrap">
       <ColorInput
-        ref={input}
         size="xs"
         format="hex"
         value={draft}
         aria-label={`Colour ${index + 1}`}
         style={{ flex: 1 }}
-        onChange={setDraft}
-        // A colour picked counts at once; one being typed, when the field is left.
-        onChangeEnd={(next) => {
-          if (document.activeElement !== input.current) commit(next);
+        onChange={(next) => {
+          latest.current = next;
+          setDraft(next);
+        }}
+        onChangeEnd={() => {
+          if (!typing.current) requestAnimationFrame(() => commit(latest.current));
         }}
         onBlur={() => commit(draft)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') commit(draft);
+          else if (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete')
+            typing.current = true;
+        }}
+        onPaste={() => {
+          typing.current = true;
         }}
         popoverProps={{ withinPortal: true }}
       />
@@ -205,6 +240,20 @@ function OwnPalette({ palette }: { palette: Palette }) {
   const [adding, setAdding] = useState('');
   const set = (changes: PaletteChanges) => edit((p) => setPalette(p, palette.id, changes));
   const colours = palette.colours;
+  // Rows are known by their place, so after a move the focus goes with the colour moved, to its new place:
+  // pressing the same button again moves the same colour on.
+  const rows = useRef<HTMLDivElement>(null);
+  const [follow, setFollow] = useState<{ at: number; way: 'up' | 'down' } | null>(null);
+  useEffect(() => {
+    if (!follow) return;
+    const button = (way: 'up' | 'down') =>
+      rows.current?.querySelector<HTMLButtonElement>(
+        `button[aria-label="Move colour ${follow.at + 1} ${way}"]`,
+      );
+    const same = button(follow.way);
+    (same && !same.disabled ? same : button(follow.way === 'up' ? 'down' : 'up'))?.focus();
+    setFollow(null);
+  }, [follow]);
   const moved = (index: number, by: number) => {
     const next = [...colours];
     const [colour] = next.splice(index, 1);
@@ -232,25 +281,34 @@ function OwnPalette({ palette }: { palette: Palette }) {
   return (
     <Stack gap="xs" className="lw-own-palette" aria-label={`The palette ${palette.name}`}>
       <CommitText label="Name" value={palette.name} required onCommit={(name) => name && set({ name })} />
-      <Stack gap={4}>
+      <Stack gap={4} ref={rows}>
         <Text size="sm" fw={500}>
           Colours
         </Text>
         <Text size="xs" c="dimmed">
           Categories take them in this order, from the first again after the last.
         </Text>
-        {colours.map((colour, index) => (
-          <PaletteColour
-            // biome-ignore lint/suspicious/noArrayIndexKey: a colour is known by its place in the palette
-            key={index}
-            value={colour}
-            index={index}
-            count={colours.length}
-            onChange={(next) => set({ colours: colours.map((c, i) => (i === index ? next : c)) })}
-            onMove={(by) => set({ colours: moved(index, by) })}
-            onRemove={() => set({ colours: colours.filter((_, i) => i !== index) })}
-          />
-        ))}
+        {colours.length > CHECKED_COLOURS && (
+          <Text size="xs" c="yellow.7">
+            {plural(colours.length, 'colour')}: too many to edit one by one here. Edit them as text, below.
+          </Text>
+        )}
+        {colours.length <= CHECKED_COLOURS &&
+          colours.map((colour, index) => (
+            <PaletteColour
+              // biome-ignore lint/suspicious/noArrayIndexKey: a colour is known by its place in the palette
+              key={index}
+              value={colour}
+              index={index}
+              count={colours.length}
+              onChange={(next) => set({ colours: colours.map((c, i) => (i === index ? next : c)) })}
+              onMove={(by) => {
+                set({ colours: moved(index, by) });
+                setFollow({ at: index + by, way: by < 0 ? 'up' : 'down' });
+              }}
+              onRemove={() => set({ colours: colours.filter((_, i) => i !== index) })}
+            />
+          ))}
         <Group gap={4} wrap="nowrap" align="flex-end">
           <ColorInput
             size="xs"
@@ -432,7 +490,11 @@ export function LookPanel() {
   const copy = () => {
     const from = paletteOf(project.theme);
     edit((p) => {
-      const added = addPalette(p, { name: copyName(p.theme, from.name), colours: [...from.colours] });
+      const added = addPalette(p, {
+        name: copyName(p.theme, from.name),
+        colours: [...from.colours],
+        ...(from.about ? { description: from.about } : {}),
+      });
       const used = setTheme(added.project, { palette: added.result.id });
       return { ...used, result: added.result, summary: `${added.summary} The map uses it.` };
     }, 'New palette');
@@ -489,7 +551,7 @@ export function LookPanel() {
               A copy of the chosen palette, held by this map, to rename and recolour.
             </Text>
           </Stack>
-          {ownChosen && <OwnPalette palette={ownChosen} />}
+          {ownChosen && <OwnPalette key={ownChosen.id} palette={ownChosen} />}
           <Stack gap={4}>
             <Text size="sm" fw={500}>
               The map's categories, as people see them
