@@ -44,8 +44,8 @@ The ripple also names what it cannot settle by signs alone:
 A conditional link (drawn dashed) is followed as if its condition holds, and a delayed link as if the delay
 has passed.
 
-`loopweft ripple` tells the ripple by the variables' names, each way in words beside its mark (`▲ Deaths
-rises`); its `--json` data names them by id. Stopped by `--max-steps`, it says so (`capped`) whenever there
+`loopweft ripple` tells the ripple by the variables' names, each way in words beside its mark (`▲ Deaths:
+rising`); its `--json` data names them by id. Stopped by `--max-steps`, it says so (`capped`) whenever there
 is more past the cap: a variable to reach, feedback to the start, or a push the other way.
 
 The ripple follows the rule of the polycrisis deck's own ripples, whose ▲/▼ badges were carried along the

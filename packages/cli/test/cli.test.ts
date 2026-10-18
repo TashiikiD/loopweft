@@ -463,10 +463,10 @@ describe('ripple', () => {
     );
     const out = await run('ripple', 'prices.loopweft', 'food_prices', 'up');
     expect(out.out.split('\n')).toEqual([
-      'If Food prices rises, the change reaches 3 variables in 2 steps: 1 rises ▲, 1 falls ▼, 1 is pushed both ways ±.',
-      '  step 1  ▼ Buying power falls, via L2',
-      '  step 1  ▲ Farm income rises, via L1',
-      '  step 2  ± Rural spending is pushed both ways, via L4, L3',
+      'For a rise in Food prices, the change reaches 3 variables in 2 steps: 1 variable rising ▲, 1 variable falling ▼, 1 variable pushed both ways ±.',
+      '  step 1  ▼ Buying power: falling, via L2',
+      '  step 1  ▲ Farm income: rising, via L1',
+      '  step 2  ± Rural spending: pushed both ways, via L4, L3',
       '± (pushed both ways) where opposing pushes arrive together: the signs alone cannot tell which wins, so the ripple goes no further from there.',
       "Directions only, from the links' signs: not how much or how soon.",
       '',
@@ -477,6 +477,16 @@ describe('ripple', () => {
     expect((data.doc.reached as unknown[])[0]).toMatchObject({ variable: 'buying_power', trend: 'down' });
   });
 
+  it('names the links it would not cross from the last variables --max-steps reaches', async () => {
+    await run('new', 'unknown.loopweft', '--title', 'Unknown');
+    await run('add', 'unknown.loopweft', '--shorthand', 'Rain -> River level (+)\\nRiver level -> Fish (?)');
+    const short = await json('ripple', 'unknown.loopweft', 'Rain', 'up', '--max-steps', '1');
+    expect(short.doc).toMatchObject({ unknownLinks: ['L2'], capped: false });
+    expect((await run('ripple', 'unknown.loopweft', 'Rain', 'up', '--max-steps', '1')).out).toContain(
+      'Not crossed: 1 link of unknown sign (L2).',
+    );
+  });
+
   it('says it stopped when only feedback lies past --max-steps', async () => {
     await run('new', 'loop.loopweft', '--title', 'Loop');
     await run('add', 'loop.loopweft', '--shorthand', 'Stock -> Outflow (+)\\nOutflow -> Stock (-)');
@@ -485,7 +495,7 @@ describe('ripple', () => {
     const text = await run('ripple', 'loop.loopweft', 'Stock', 'up', '--max-steps', '1');
     expect(text.out).toContain('Stopped after 1 step (--max-steps): there is more to the change.');
     expect((await run('ripple', 'loop.loopweft', 'Stock', 'up')).out).toContain(
-      'Back to Stock at step 2 along L2: ▼ it falls, the other way, so the loop counters it.',
+      'Back to Stock at step 2 along L2: ▼ falling, the other way, so the loop counters it.',
     );
   });
 });
