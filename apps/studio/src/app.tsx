@@ -8,8 +8,10 @@ import { notifications } from '@mantine/notifications';
 import { useEffect, useState } from 'react';
 import { exampleProject, mayDiscard, openFile, openText, saveFile } from './actions.ts';
 import { StudioContext, useStudioStore } from './context.tsx';
+import { ImportWizard } from './import/wizard.tsx';
 import { MapWorkspace } from './map/workspace.tsx';
 import { Providers } from './providers.tsx';
+import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
 import { StatusBar } from './shell/status-bar.tsx';
 import { browserRecovery, type RecoveryCopy, type RecoveryStore, watchRecovery } from './state/recovery.ts';
@@ -64,6 +66,9 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
   const [store] = useState(() => given ?? startStore());
   const [recovery] = useState(() => givenRecovery ?? browserRecovery());
   const [offer, setOffer] = useState<RecoveryCopy | null>(null);
+  const [dialog, setDialog] = useState<'new' | 'import' | null>(null);
+  // A table, Kumu or DataViz file dropped on the window: the import wizard starts with it.
+  const [dropped, setDropped] = useState<File | null>(null);
 
   // A copy that survived the last session is offered back, once; then the copy follows this session.
   useEffect(() => {
@@ -89,14 +94,21 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [store]);
 
-  // A .loopweft file dropped on the window opens.
+  // A .loopweft file dropped on the window opens; a file to import opens the import wizard with it.
   useEffect(() => {
     const over = (event: DragEvent) => {
       if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
     };
     const drop = (event: DragEvent) => {
       const file = event.dataTransfer?.files[0];
-      if (!file || !/\.loopweft$/i.test(file.name)) return;
+      if (!file) return;
+      if (/\.(csv|tsv|txt|xlsx|json)$/i.test(file.name)) {
+        event.preventDefault();
+        setDropped(file);
+        setDialog('import');
+        return;
+      }
+      if (!/\.loopweft$/i.test(file.name)) return;
       event.preventDefault();
       if (!mayDiscard(store)) return;
       void file.text().then((text) => openText(store, text, { name: file.name }));
@@ -115,7 +127,14 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
         <Shortcuts store={store} />
         <AppShell header={{ height: 56 }} padding={0}>
           <AppShell.Header>
-            <Header workspace="map" />
+            <Header
+              workspace="map"
+              onNew={() => setDialog('new')}
+              onImport={() => {
+                setDropped(null);
+                setDialog('import');
+              }}
+            />
           </AppShell.Header>
           <AppShell.Main className="lw-main">
             {offer && <RecoveryOffer copy={offer} onDone={() => setOffer(null)} />}
@@ -123,6 +142,8 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
             <StatusBar />
           </AppShell.Main>
         </AppShell>
+        <TemplateGallery opened={dialog === 'new'} onClose={() => setDialog(null)} />
+        <ImportWizard opened={dialog === 'import'} file={dropped} onClose={() => setDialog(null)} />
       </StudioContext.Provider>
     </Providers>
   );

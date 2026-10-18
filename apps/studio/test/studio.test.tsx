@@ -139,13 +139,17 @@ describe('the Studio', () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await user.click(screen.getByRole('button', { name: 'File' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Fixes that fail' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New from a template…' }));
+    const gallery = screen.getByRole('dialog', { name: 'New map' });
+    // The blank map, the eight archetypes and the polycrisis example, each with a picture.
+    expect(within(gallery).getAllByRole('img', { name: /^A picture of / })).toHaveLength(10);
+    await user.click(within(gallery).getByRole('button', { name: 'Fixes that fail' }));
     expect(confirm).toHaveBeenCalledWith('“Small map” has unsaved changes. Discard them?');
     expect(store.getState().project.meta.title).toBe('Small map');
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole('button', { name: 'File' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Fixes that fail' }));
+    await user.click(within(gallery).getByRole('button', { name: 'Fixes that fail' }));
     expect(store.getState().project.meta.title).toBe('Fixes that fail');
+    expect(screen.queryByRole('dialog', { name: 'New map' })).toBeNull();
     expect(store.getState().project.variables.map((v) => v.label)).toEqual([
       'Problem symptom',
       'Fix',

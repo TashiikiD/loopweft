@@ -1,6 +1,6 @@
 // The Studio's top bar: the map's title (click to rename), where it is saved, the five workspaces, and the
 // File menu, Save and Undo / Redo.
-import { setMeta, TEMPLATES } from '@loopweft/model';
+import { setMeta } from '@loopweft/model';
 import {
   ActionIcon,
   Badge,
@@ -124,7 +124,7 @@ function UndoRedo() {
   );
 }
 
-function FileMenu({ onImport }: { onImport?: () => void }) {
+function FileMenu({ onNew, onImport }: { onNew?: () => void; onImport?: () => void }) {
   const store = useStudioStore();
   return (
     <Menu position="bottom-end" withinPortal shadow="md">
@@ -134,16 +134,10 @@ function FileMenu({ onImport }: { onImport?: () => void }) {
         </Button>
       </Menu.Target>
       <Menu.Dropdown>
-        <Menu.Label>New map</Menu.Label>
         <Menu.Item leftSection={<IconFile size={16} aria-hidden />} onClick={() => startMap(store, 'blank')}>
-          Blank map
+          New blank map
         </Menu.Item>
-        {TEMPLATES.filter((t) => t.id !== 'blank').map((t) => (
-          <Menu.Item key={t.id} onClick={() => startMap(store, t.id)}>
-            {t.name}
-          </Menu.Item>
-        ))}
-        <Menu.Item onClick={() => startMap(store, 'polycrisis')}>The polycrisis example</Menu.Item>
+        {onNew && <Menu.Item onClick={onNew}>New from a template…</Menu.Item>}
         <Menu.Divider />
         <Menu.Item
           leftSection={<IconFolderOpen size={16} aria-hidden />}
@@ -194,7 +188,15 @@ function SchemeMenu() {
   );
 }
 
-export function Header({ workspace, onImport }: { workspace: string; onImport?: () => void }) {
+export function Header({
+  workspace,
+  onNew,
+  onImport,
+}: {
+  workspace: string;
+  onNew?: () => void;
+  onImport?: () => void;
+}) {
   const store = useStudioStore();
   return (
     <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="md">
@@ -221,7 +223,7 @@ export function Header({ workspace, onImport }: { workspace: string; onImport?: 
         </Tabs.List>
       </Tabs>
       <Group gap="xs" wrap="nowrap">
-        <FileMenu {...(onImport ? { onImport } : {})} />
+        <FileMenu {...(onNew ? { onNew } : {})} {...(onImport ? { onImport } : {})} />
         <Button
           variant="filled"
           size="compact-md"
