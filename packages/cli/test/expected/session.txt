@@ -65,17 +65,17 @@ Named loop B1 ("Deaths"): 2 links, balancing.
 [exit 0]
 
 $ loopweft ripple pop.loopweft Births up
-If Births rises, the change reaches 2 variables in 2 steps: 2 rise ▲.
-  step 1  ▲ Population rises, via L1
-  step 2  ▲ Deaths rises, via L3
-Back to Births at step 2 along L2: ▲ it rises, the same way, so the loop reinforces the change.
+For a rise in Births, the change reaches 2 variables in 2 steps: 2 variables rising ▲.
+  step 1  ▲ Population: rising, via L1
+  step 2  ▲ Deaths: rising, via L3
+Back to Births at step 2 along L2: ▲ rising, the same way, so the loop reinforces the change.
 Pushed the other way later, round a loop or by a longer way: Population (L4).
 Directions only, from the links' signs: not how much or how soon.
 [exit 0]
 
 $ loopweft ripple pop.loopweft deaths down --max-steps 1
-If Deaths falls, the change reaches 1 variable in 1 step: 1 rises ▲.
-  step 1  ▲ Population rises, via L4
+For a fall in Deaths, the change reaches 1 variable in 1 step: 1 variable rising ▲.
+  step 1  ▲ Population: rising, via L4
 Stopped after 1 step (--max-steps): there is more to the change.
 Directions only, from the links' signs: not how much or how soon.
 [exit 0]

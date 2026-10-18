@@ -90,6 +90,12 @@ export function ripple(
 
   for (let k = 1; frontier.length; k++) {
     if (k > maxSteps) {
+      // The last variables reached still name the links the ripple would not cross from them.
+      for (const v of frontier)
+        for (const l of outOf.get(v) ?? []) {
+          if (isLeftOut(l)) optionalLinks.push(l.id);
+          else if (l.sign === '?') unknownLinks.push(l.id);
+        }
       // More to tell past the cap: a variable not yet reached, feedback to the start, or a push the other way.
       capped = frontier.some((v) =>
         (outOf.get(v) ?? []).some((l) => {
