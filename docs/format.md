@@ -559,5 +559,10 @@ item says when it was added and confirmed. Each can still change before version 
     such brackets as part of the name, with a warning; that let a mistyped sign become part of a variable's name.
 22. **The example keeps the presentation's category colours** (confirmed at the Phase 2 checkpoint review), as
     it was built and presented, although some pairs are hard to tell apart for colour-blind viewers and in
-    greyscale on the dark stage; the Look panel names them. A map of one's own can take a palette that passes
-    more of the checks.
+    greyscale on the dark stage. The Look panel lists the closest of those pairs to whoever edits the map:
+    advice while editing, not a remedy for an audience, which sees only the colours (the example names
+    categories in only two of its steps). Each of the example's categories has a colour of its own, which wins
+    over the palette, so choosing another palette changes none of them; only new category colours would. On a
+    map whose categories take the palette's colours, a palette that passes more of the checks does help.
+    Before v1.0, the viewer gets a mode that names each shown variable's category in words, so membership
+    never rests on colour alone (Phase 5, with the presenter).

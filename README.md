@@ -42,14 +42,16 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | 2 | Map workspace | The editor: canvas, table view, shorthand box, types, themes, palettes, loops, templates, import; CLI basics |
 | 3 | Sources | Reference library, DOI lookup, citations with pages and strength, APA list, uncited warnings; a path finder between two variables and the most-connected variables |
 | 4 | Story | Scenes and steps, record view, reveals, pulses, overlays, notes and script, preview, validation |
-| 5 | Present + HTML | Presenter console and audience window; one-file HTML export |
+| 5 | Present + HTML | Presenter console and audience window; one-file HTML export; a viewing mode that names each variable's category in words, for viewers who cannot tell the colours apart |
 | 6 | Exports | PNG, SVG, PDFs, MP4 and GIF |
 | 7 | Agent support | `loopweft guide`, the full CLI reference, live reload of edited files |
 | 8 | Desktop apps | Windows installer and macOS app |
 | 9 | v1.0 | Web app and docs on GitHub Pages, example gallery, release |
 
-After v1.0: a DataViz project's citations come across as sources with full references; until then they
-come across as text, in the custom field "DataViz sources".
+Planned for v2.0, after v1.0: a DataViz project's citations become Loopweft sources, but only where a full
+reference is given by the user or looked up and confirmed (by its DOI, for instance); DataViz itself holds
+only the citation and its locator. Until then, and wherever no full reference is found, they come across as
+text, in the custom field "DataViz sources".
 
 ## Repository
 
