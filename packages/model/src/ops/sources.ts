@@ -68,11 +68,15 @@ export function resolveSource(project: Project, ref: string): { index: number; s
 const sameDoi = (a: string | undefined, b: string | undefined) =>
   a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
 
-/** Refuses a source that repeats another's DOI or reference. */
+/**
+ * Refuses a source that repeats another's DOI or reference. A supplement may share its work's DOI (one
+ * published with the work often has none of its own), so a work and its supplements are not compared by DOI.
+ */
 function ensureDistinct(project: Project, source: Source, except?: string): void {
+  const related = (other: Source) => other.partOf === source.id || source.partOf === other.id;
   for (const other of project.sources) {
     if (other.id === except) continue;
-    if (sameDoi(other.doi, source.doi)) {
+    if (sameDoi(other.doi, source.doi) && !related(other)) {
       throw new OpError(`Source ${other.id} already has the DOI ${other.doi}.`, 'conflict');
     }
     if (other.apa.trim() === source.apa.trim()) {
@@ -122,7 +126,9 @@ export function setSource(
       summary: `Nothing to change: source ${source.id} already has those values.`,
     };
   }
-  ensureDistinct(project, updated, source.id);
+  if (changed.some((key) => key === 'doi' || key === 'apa' || key === 'partOf')) {
+    ensureDistinct(project, updated, source.id);
+  }
   const next = structuredClone(project);
   next.sources[index] = updated;
   ensureValid(project, next);

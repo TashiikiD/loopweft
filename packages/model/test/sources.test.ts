@@ -6,6 +6,7 @@ import {
   evidenceCoverage,
   findCitation,
   OpError,
+  readProject,
   removeCitation,
   removeSource,
   resolveCitable,
@@ -15,7 +16,13 @@ import {
   suggestSourceId,
   validateProject,
 } from '../src/index.ts';
-import { richProject } from './helpers.ts';
+import { repoFile, richProject } from './helpers.ts';
+
+function repoProject(path: string) {
+  const read = readProject(repoFile(path));
+  if (!read.ok) throw new Error(`${path} does not read`);
+  return read.project;
+}
 
 function refused(run: () => unknown): OpError {
   try {
@@ -94,6 +101,18 @@ describe('sources', () => {
     expect(error.message).toBe('Write the bare DOI, e.g. 10.1017/sus.2024.1. Got "https://doi.org/10.1/x".');
     expect(refused(() => addSource(richProject(), { apa: NEW_APA, partOf: 'nobody' })).issues[0]).toEqual(
       expect.objectContaining({ code: 'unknownSource' }),
+    );
+  });
+
+  it("lets a supplement share its work's DOI, as the example's does", () => {
+    const shared = addSource(richProject(), { apa: NEW_APA, doi: '10.1234/test.1', partOf: 'T' });
+    expect(shared.result.id).toBe('other2021');
+    const example = repoProject('examples/polycrisis.loopweft');
+    expect(setSource(example, 'RIS', { summary: 'The diagrams behind Fig. 5.' }).result.changed).toEqual([
+      'summary',
+    ]);
+    expect(refused(() => setSource(example, 'RIS', { partOf: null })).message).toBe(
+      'Source RI already has the DOI 10.1007/s10584-021-02957-w.',
     );
   });
 

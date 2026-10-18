@@ -20,7 +20,8 @@ A source is one work: an article, a book, a chapter, a report, a web page. It ho
   web address, the licence it states, a summary of what the map draws from it, and the work it is a
   supplement of.
 
-Two sources cannot share a DOI (DOIs are compared ignoring case) or the same reference text.
+Two sources cannot share a DOI (DOIs are compared ignoring case) or the same reference text. A supplement
+may share its work's DOI, since one published with the work often has none of its own.
 
 A source that is still cited is not removed, unless you ask for its citations to go with it (`cascade`):
 then every citation of it, on the map and in the story, and every scene's listing of it go too. A work that
