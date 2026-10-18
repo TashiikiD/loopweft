@@ -371,7 +371,14 @@ describe('import', () => {
     expect(rush.project.meta.title).toBe('Morning rush');
     expect(rush.project.layout.positions.customers).toEqual({ x: 560, y: 540, pinned: true });
     expect(Object.keys(rush.project.layout.positions)).toHaveLength(5);
+    expect(rush.project.layout.positions.service_speed).not.toEqual({ x: 2160, y: 540 });
     expect(rush.project.loops.map((l) => l.id)).toEqual(['B1', 'B2']);
+    // Not laid out, the map keeps every place Kumu gives, floating ones too; Reviews has none.
+    await json('import', 'kumu-export.json', '-o', 'rush-as-is.loopweft', '--layout', 'none');
+    const asIs = readProject(readFileSync(join(dir, 'rush-as-is.loopweft'), 'utf8'));
+    if (!asIs.ok) throw new Error('not valid');
+    expect(asIs.project.layout.positions.service_speed).toEqual({ x: 2160, y: 540 });
+    expect(Object.keys(asIs.project.layout.positions)).toHaveLength(4);
   });
 
   it('writes nothing on a dry run or when the output exists, and stops at what it cannot read', async () => {
