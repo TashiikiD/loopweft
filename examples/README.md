@@ -40,6 +40,9 @@ The talk was one person's presentation; the example is for anyone. So:
   notes that spoke to the talk's own audience ("this room knows each one", "the class knows the notation",
   "speak to the room", "without deflating the room"), so they suit any audience.
 - **Renumbered:** with the fake page gone, the title page is step 1 of its scene.
+- **Corrected:** the year of Søgaard Jørgensen et al. (source J) is 2024, the year of its issue (379(1893),
+  January 2024), as APA 7 gives it and as the example already did for Delannoy et al.; the talk had 2023, the
+  year it was published online. Agreed at the Phase 3 checkpoint review.
 
 ### What stays in the talk
 

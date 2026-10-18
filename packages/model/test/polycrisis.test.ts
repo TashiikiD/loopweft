@@ -437,6 +437,39 @@ describe('the polycrisis converter', () => {
     expect(notes).toContain('Left out the one-off visual "counter" (it stays in the deck) on S01.3.');
   });
 
+  it('corrects a source as agreed, only while the deck still has the text it corrects', () => {
+    const cleanup = {
+      ...MINI_CLEANUP,
+      correctSources: {
+        A: {
+          apa: [
+            'A, B. (2020). *A made-up source*. Test Press.',
+            'A, B. (2021). *A made-up source*. Test Press.',
+          ],
+          label: ['A (2020)', 'A (2021)'],
+          why: 'a test correction',
+        },
+      },
+    } satisfies typeof MINI_CLEANUP;
+    const corrected = convertPolycrisis(miniDeck(), cleanup);
+    expect(corrected.project.sources[0]).toMatchObject({
+      label: 'A (2021)',
+      apa: 'A, B. (2021). *A made-up source*. Test Press.',
+    });
+    expect(corrected.notes).toContain('Corrected the reference and label of source A: a test correction.');
+    const changed = miniDeck();
+    (changed.narration.sources.A as { citation: string }).citation = 'A et al. (2020)';
+    expect(() => convertPolycrisis(changed, cleanup)).toThrow(
+      'Source A: the label to correct has changed: A et al. (2020)',
+    );
+    expect(() =>
+      convertPolycrisis(miniDeck(), {
+        ...MINI_CLEANUP,
+        correctSources: { Z: { label: ['Z', 'Y'], why: 'none' } },
+      }),
+    ).toThrow('Clean-up rules that no longer match the deck: source Z label');
+  });
+
   it('gives the same bytes for the same deck', () => {
     expect(serializeProject(convertPolycrisis(miniDeck(), MINI_CLEANUP).project)).toBe(
       serializeProject(project),

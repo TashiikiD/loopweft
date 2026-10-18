@@ -144,8 +144,8 @@ describe('references from Crossref', () => {
     }
     expect(compared).toEqual({
       L: 'same',
-      // The issue's year (January 2024); the example gives the year it was published online (2023).
-      J: read.project.sources.find((s) => s.id === 'J')?.apa.replace('(2023)', '(2024)'),
+      // The year of its issue, 2024 (the talk had 2023; corrected at the Phase 3 checkpoint review).
+      J: 'same',
       C: 'not recorded',
       G: 'same',
       S: 'same',

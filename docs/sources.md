@@ -117,3 +117,18 @@ and each with the scenes that draw on it.
   Loops panel does the same for a named loop.
 
 On the command line, `loopweft source`, `cite` and `references` do the same ([the CLI](../packages/cli/README.md)).
+
+## Decisions
+
+Confirmed at the Phase 3 checkpoint review:
+
+1. **A journal article's year is its issue's** once it is in an issue, as APA 7 gives it; before that, the
+   year it was published online. The polycrisis example's Søgaard Jørgensen et al. (J) was corrected to 2024
+   accordingly (the talk had 2023, the year it went online).
+2. **Capitals and quotation marks are kept as Crossref writes them**, with a note to correct them by hand.
+   Converting a title to APA's sentence case would need to know which words are proper nouns ("Anthropocene"),
+   so Loopweft does not try.
+3. **An uncited link is a warning; an uncited variable or loop is not.** Both are counted in Coverage. A
+   variable's definition, or a loop made of cited links, often needs no source of its own.
+4. **Loopweft never rates evidence.** A citation's strength is the author's judgement, "not rated" until
+   given, and never carried over from one citation to the next. The example's citations stay unrated.

@@ -289,5 +289,6 @@ export const MINI_CLEANUP: Cleanup = {
   dropTone: ['S00'],
   rewordNotes: { S01: [['This room knows it.', 'Say what it is.']] },
   deckBends: ['E2'],
+  correctSources: {},
   banned: ['fake', 'deadpan', 'this room'],
 };

@@ -206,6 +206,11 @@ export interface Cleanup {
    * the refinement then leaves every link alone).
    */
   deckBends: string[];
+  /**
+   * Sources corrected, by id: [deck text, new text] for the reference and the in-text label, each with the
+   * reason. Only for a correction agreed at a checkpoint review, never a reformatting.
+   */
+  correctSources: Record<string, { apa?: [string, string]; label?: [string, string]; why: string }>;
   /** Words that must not appear anywhere in the result (compared in lower case). */
   banned: string[];
 }
@@ -263,6 +268,16 @@ export const POLYCRISIS_CLEANUP: Cleanup = {
     ],
   },
   deckBends: ['E005', 'E015', 'E016', 'E017', 'E030', 'E041', 'E045', 'E059', 'E106', 'E116', 'E119', 'E131'],
+  correctSources: {
+    J: {
+      apa: [
+        'Søgaard Jørgensen, P., Jansen, R. E. V., Avila Ortega, D. I., Wang-Erlandsson, L., Donges, J. F., Österblom, H., Olsson, P., Nyström, M., Lade, S. J., Hahn, T., Folke, C., Peterson, G. D., & Crépin, A.-S. (2023). Evolution of the polycrisis: Anthropocene traps that challenge global sustainability. *Philosophical Transactions of the Royal Society B: Biological Sciences*, *379*(1893), Article 20220261. https://doi.org/10.1098/rstb.2022.0261',
+        'Søgaard Jørgensen, P., Jansen, R. E. V., Avila Ortega, D. I., Wang-Erlandsson, L., Donges, J. F., Österblom, H., Olsson, P., Nyström, M., Lade, S. J., Hahn, T., Folke, C., Peterson, G. D., & Crépin, A.-S. (2024). Evolution of the polycrisis: Anthropocene traps that challenge global sustainability. *Philosophical Transactions of the Royal Society B: Biological Sciences*, *379*(1893), Article 20220261. https://doi.org/10.1098/rstb.2022.0261',
+      ],
+      label: ['Søgaard Jørgensen et al. (2023)', 'Søgaard Jørgensen et al. (2024)'],
+      why: 'the year of its issue, 379(1893), January 2024, as APA 7 gives it (the deck had 2023, the year it was published online; agreed at the Phase 3 checkpoint review)',
+    },
+  },
   banned: [
     'fake title',
     'fake slide',
@@ -679,10 +694,25 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
 
   const sources: Source[] = Object.entries(narration.sources).map(([id, s]) => {
     const doi = s.doi?.startsWith('https://doi.org/') ? s.doi.slice('https://doi.org/'.length) : s.doi;
+    // A correction agreed at a review applies only while the deck still has the text it corrects.
+    const fix = cleanup.correctSources[id];
+    let apa = s.apa;
+    let citation = s.citation;
+    if (fix?.apa) {
+      if (apa !== fix.apa[0]) throw new Error(`Source ${id}: the reference to correct has changed: ${apa}`);
+      apa = fix.apa[1];
+      used.add(`source ${id} apa`);
+    }
+    if (fix?.label) {
+      if (citation !== fix.label[0])
+        throw new Error(`Source ${id}: the label to correct has changed: ${citation}`);
+      citation = fix.label[1];
+      used.add(`source ${id} label`);
+    }
     return {
       id,
-      ...(s.citation ? { label: s.citation } : {}),
-      apa: s.apa,
+      ...(citation ? { label: citation } : {}),
+      apa,
       ...(doi ? { doi } : {}),
       ...(s.url ? { url: s.url } : {}),
       ...(s.license ? { licence: s.license } : {}),
@@ -769,6 +799,10 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
     ...Object.entries(cleanup.rewordNotes).flatMap(([scene, pairs]) =>
       pairs.map(([deck]) => `reword ${scene} ${deck}`),
     ),
+    ...Object.entries(cleanup.correctSources).flatMap(([id, fix]) => [
+      ...(fix.apa ? [`source ${id} apa`] : []),
+      ...(fix.label ? [`source ${id} label`] : []),
+    ]),
   ];
   const unused = rules.filter((r) => !used.has(r));
   if (unused.length) throw new Error(`Clean-up rules that no longer match the deck: ${unused.join('; ')}`);
@@ -850,6 +884,10 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
         `Left out ${starts.length} speaker-note line(s) of ${scene} about the fake title page and the presenter.`,
     ),
     ...cleanup.dropTone.map((scene) => `Left out the tone note of ${scene}.`),
+    ...Object.entries(cleanup.correctSources).map(
+      ([id, fix]) =>
+        `Corrected the ${[fix.apa ? 'reference' : '', fix.label ? 'label' : ''].filter(Boolean).join(' and ')} of source ${id}: ${fix.why}.`,
+    ),
     ...Object.entries(cleanup.rewordNotes).map(
       ([scene, pairs]) =>
         `Reworded ${pairs.length} speaker-note line(s) of ${scene} that addressed the talk's own audience.`,
