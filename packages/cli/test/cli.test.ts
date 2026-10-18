@@ -369,7 +369,7 @@ describe('import', () => {
     const rush = readProject(readFileSync(join(dir, 'rush.loopweft'), 'utf8'));
     if (!rush.ok) throw new Error('not valid');
     expect(rush.project.meta.title).toBe('Morning rush');
-    expect(rush.project.layout.positions.customers).toEqual({ x: 160, y: 540, pinned: true });
+    expect(rush.project.layout.positions.customers).toEqual({ x: 560, y: 540, pinned: true });
     expect(Object.keys(rush.project.layout.positions)).toHaveLength(5);
     expect(rush.project.loops.map((l) => l.id)).toEqual(['B1', 'B2']);
   });

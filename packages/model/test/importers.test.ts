@@ -374,12 +374,12 @@ describe("Kumu's JSON export", () => {
 
   it('places what the map places, scaled to fill the view, and names its loops from their labels', async () => {
     const { project } = await exported();
-    // Kumu's (-400…400, -210…210) fill 160…1760 across and 120…960 down; Reviews floats, unplaced.
+    // Reviews has no place, so the map is laid out around the pins, and only they are kept: Kumu's
+    // (-400…0, -210…210) fill 120…960 down, twice as large, in the middle across. Service speed floats.
     expect(project.layout.positions).toEqual({
-      customers: { x: 160, y: 540, pinned: true },
-      queue_length: { x: 960, y: 120, pinned: true },
-      service_speed: { x: 1760, y: 540 },
-      staff_on_shift: { x: 960, y: 960, pinned: true },
+      customers: { x: 560, y: 540, pinned: true },
+      queue_length: { x: 1360, y: 120, pinned: true },
+      staff_on_shift: { x: 1360, y: 960, pinned: true },
     });
     expect(project.loops).toEqual([
       {
@@ -410,7 +410,7 @@ describe("Kumu's JSON export", () => {
       `Left out Kumu's loop "Not a loop": its connections do not make one closed loop.`,
       "Named 2 loops from Kumu's loops, by their labels: B1, B2.",
       `By their links' signs, B2 ("R") is balancing, whatever the label says: check the label or the signs.`,
-      `Placed 4 variables where the map "Rush hour" draws them, scaled to fill Loopweft's view (3 pinned); the others are laid out automatically.`,
+      `Placed and pinned 3 variables where the map "Rush hour" pins them, scaled to fill Loopweft's view; the others float in Kumu, so they are laid out automatically.`,
       "Not carried across: Kumu's perspectives (colours, sizes, filters), the look given to single elements, connection curves, where loop labels sit. Loopweft draws the map in its own look (the Look panel).",
     ]);
   });
@@ -473,6 +473,31 @@ describe("Kumu's JSON export", () => {
     });
     expect(shared(sheets.project)).toEqual(shared(json.project));
     expect(sheets.notes).toContain('Kept as custom fields: "degree", "Label", "Confidence".');
+  });
+
+  it('keeps floating places only when every element has one, so no layout moves them', async () => {
+    const doc = JSON.parse(
+      readFileSync(new URL('./fixtures/import/kumu-export.json', import.meta.url), 'utf8'),
+    );
+    const speed = doc.maps[0].elements.find((e: { element: string }) => e.element === 'elem-speed');
+    speed.position = { x: 4000, y: 0 };
+    const farOff = importSource(await readImportFile(text('far.json', JSON.stringify(doc))));
+    // Service speed floats far off, but Reviews has no place: the pins are scaled as if it were not there.
+    expect(farOff.project.layout.positions).toEqual((await exported()).project.layout.positions);
+
+    const reviews = doc.maps[0].elements.find((e: { element: string }) => e.element === 'elem-reviews');
+    reviews.position = { x: 0, y: 0 };
+    const all = importSource(await readImportFile(text('all.json', JSON.stringify(doc))));
+    // Kumu's (-400…4000, -210…210) fill 160…1760 across.
+    expect(all.project.layout.positions).toMatchObject({
+      customers: { x: 160, pinned: true },
+      service_speed: { x: 1760 },
+      reviews: { x: 305 },
+    });
+    expect(all.project.layout.positions.service_speed).not.toHaveProperty('pinned');
+    expect(all.notes).toContain(
+      `Placed 5 variables where the map "Rush hour" draws them, scaled to fill Loopweft's view (3 pinned).`,
+    );
   });
 
   it('stops at an element on the map without a label, and at a direction it cannot read', async () => {
