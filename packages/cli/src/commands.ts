@@ -10,8 +10,11 @@ import {
   addType,
   addVariable,
   applyShorthand,
+  CONNECTED_CAVEAT,
+  connectedness,
   evidenceCoverage,
   findLoops,
+  findPaths,
   flipSign,
   type Issue,
   issueLines,
@@ -791,6 +794,103 @@ export function rippleCommand(
     "Directions only, from the links' signs: not how much or how soon.",
   ];
   return { text: lines.join('\n'), data: { ...result } };
+}
+
+/** A whole number of at least `min` from an option. */
+function count(text: string | undefined, option: string, min = 1): number | undefined {
+  if (text === undefined) return undefined;
+  const value = number(text, option);
+  if (!(Number.isInteger(value) && value >= min))
+    throw new OpError(`--${option} must be a whole number, ${min} or more, not "${text}".`, 'usage');
+  return value;
+}
+
+const SIGN_WORDS = { '+': 'same direction', '-': 'opposite direction', '?': 'unknown' } as const;
+
+/** The paths from one variable to another: the model's path finder (the Studio's Paths panel runs the same). */
+export function pathsCommand(
+  file: string,
+  from: string,
+  to: string,
+  o: { maxLength?: string; limit?: string; includeOptional?: boolean },
+): CommandResult {
+  const project = loadProject(file);
+  const maxLength = count(o.maxLength, 'max-length');
+  const limit = count(o.limit, 'limit', 0);
+  const result = findPaths(project, from, to, {
+    includeOptional: o.includeOptional === true,
+    ...(maxLength !== undefined ? { maxLength } : {}),
+    ...(limit !== undefined ? { limit } : {}),
+  });
+  const labels = new Map(project.variables.map((v) => [v.id, v.label.replace(/\s+/g, ' ')]));
+  const name = (id: string) => labels.get(id) || id;
+  const counted = `${result.complete ? '' : 'at least '}${result.count.toLocaleString('en')}`;
+  const bySign = (['+', '-', '?'] as const)
+    .filter((s) => result.signs[s])
+    .map((s) => `${result.signs[s].toLocaleString('en')} ${signText(s)} (${SIGN_WORDS[s]})`)
+    .join(', ');
+  const lines =
+    result.count === 0
+      ? [
+          `No path leads from ${name(result.from)} to ${name(result.to)}${o.maxLength ? ` in ${result.maxLength} links or fewer` : ''}.`,
+        ]
+      : [
+          `${counted} ${result.count === 1 ? 'path leads' : 'paths lead'} from ${name(result.from)} to ${name(result.to)}${
+            o.maxLength ? ` in ${result.maxLength} links or fewer` : ''
+          }: ${bySign}. The shortest has ${plural(result.shortest ?? 0, 'link')}.`,
+          ...result.paths.map(
+            (p) => `  ${signText(p.sign)}  ${p.variables.map(name).join(' → ')}  (${p.links.join(', ')})`,
+          ),
+          ...(result.count > result.paths.length
+            ? [`Listed: the ${result.paths.length} shortest; --limit lists more.`]
+            : []),
+          ...(result.signs['+'] && result.signs['-']
+            ? [
+                'Paths of both signs: along some a rise pushes the end the same way, along others the opposite way. The signs alone cannot tell which wins.',
+              ]
+            : []),
+          ...(result.complete
+            ? []
+            : ['Counting stopped there: the map has more paths than that between them.']),
+        ];
+  if (result.optionalLeftOut.length) {
+    lines.push(
+      `Left out: ${plural(result.optionalLeftOut.length, 'link')} of optional types (${result.optionalLeftOut.join(', ')}); --include-optional follows them.`,
+    );
+  }
+  return { text: lines.join('\n'), data: { ...result } };
+}
+
+/** The most-connected variables, with the caveat that connected does not mean leverage. */
+export function connectedCommand(
+  file: string,
+  o: { limit?: string; includeOptional?: boolean },
+): CommandResult {
+  const project = loadProject(file);
+  const limit = count(o.limit, 'limit') ?? 10;
+  const result = connectedness(project, { includeOptional: o.includeOptional === true });
+  const shown = result.variables.filter((v) => v.links > 0).slice(0, limit);
+  const width = Math.max(8, ...shown.map((v) => v.label.length));
+  const lines = shown.length
+    ? [
+        `The ${plural(shown.length, 'most-connected variable')}, by links in and out:`,
+        `  ${'variable'.padEnd(width)}  links   in  out  neighbours  named loops`,
+        ...shown.map(
+          (v) =>
+            `  ${v.label.replace(/\s+/g, ' ').padEnd(width)}  ${String(v.links).padStart(5)}  ${String(v.in).padStart(3)}  ${String(v.out).padStart(3)}  ${String(v.neighbours).padStart(10)}  ${String(v.namedLoops).padStart(11)}`,
+        ),
+        CONNECTED_CAVEAT,
+      ]
+    : ['No variable has a link yet.'];
+  if (result.optionalLeftOut.length) {
+    lines.push(
+      `Left out: ${plural(result.optionalLeftOut.length, 'link')} of optional types; --include-optional counts them.`,
+    );
+  }
+  return {
+    text: lines.join('\n'),
+    data: { variables: shown, caveat: CONNECTED_CAVEAT, optionalLeftOut: result.optionalLeftOut },
+  };
 }
 
 // ----- layout -----

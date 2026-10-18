@@ -1,8 +1,9 @@
-# Loops and ripples
+# Loops, ripples, paths and connections
 
-The Studio's Loops and Ripple panels, and `loopweft loops list` and `loopweft ripple` on the command line,
-read a map's structure: its variables, its links and their signs. They never use amounts, rates or timing,
-because a causal map has none. What they find is a property of the map as drawn, not a forecast.
+The Studio's Loops and Ripple panels, and `loopweft loops list`, `ripple`, `paths` and
+`connected` on the command line, read a map's structure: its variables, its links and their signs. They
+never use amounts, rates or timing, because a causal map has none. What they find is a property of the map
+as drawn, not a forecast.
 
 ## Loops
 
@@ -50,3 +51,32 @@ is more past the cap: a variable to reach, feedback to the start, or a push the 
 
 The ripple follows the rule of the polycrisis deck's own ripples, whose ▲/▼ badges were carried along the
 lit links by their signs. A ripple is reached by the same steps every time for the same map.
+
+## Paths
+
+A path from one variable to another follows links in their direction without passing a variable twice. It
+shows how a change in the first can reach the second.
+
+- Each path has a **sign**: **+** when it has an even number of − links (a rise at the start pushes the end
+  up), **−** when the number is odd (it pushes the end down), and **?** when a link of it has an unknown sign.
+- Paths are listed **shortest first**, then in the order of the map's links; up to 100 are listed and all are
+  counted up to 100,000, past which the count is a lower bound ("at least"). *Up to how many links* narrows
+  the search.
+- When paths of **both signs** lead from one variable to the other, the map alone cannot tell which way a
+  change at the start moves the end: that depends on the strength and timing of each, which the map does not
+  hold.
+- Links of optional types are left out unless followed too, as in the loop counts. A path from a variable
+  back to itself is a loop: the loop search finds those.
+
+The search is the same every time for the same map: it reads no clock and stops only at the count limit (or
+a fixed budget of steps on a very large map).
+
+## Most-connected variables
+
+For each variable: the links into it and out of it, the other variables it links with, and the named loops
+it is part of. The list puts the most links first.
+
+**Connected does not mean leverage.** A variable with many links is not, for that reason, a good place to
+intervene: how much a change there matters depends on what a count of links cannot show, such as how strong
+each influence is, its delays, which loops dominate, and what can actually be changed. The Studio and the
+command line say so wherever they show the list.

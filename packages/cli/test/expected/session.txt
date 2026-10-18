@@ -155,6 +155,24 @@ Stopped after 1 step (--max-steps): there is more to the change.
 Directions only, from the links' signs: not how much or how soon.
 [exit 0]
 
+$ loopweft paths pop.loopweft Fertility Deaths
+1 path leads from Fertility to Deaths: 1 + (same direction). The shortest has 3 links.
+  +  Fertility → Births → Population → Deaths  (L5, L1, L3)
+[exit 0]
+
+$ loopweft paths pop.loopweft deaths fertility
+No path leads from Deaths to Fertility.
+[exit 0]
+
+$ loopweft connected pop.loopweft --limit 3
+The 3 most-connected variables, by links in and out:
+  variable    links   in  out  neighbours  named loops
+  Population      4    2    2           2            2
+  Births          3    2    1           2            1
+  Deaths          2    1    1           1            1
+Connected does not mean leverage. A variable with many links is not, for that reason, a good place to intervene: how much a change there matters depends on what a count of links cannot show, such as how strong each influence is, its delays, which loops dominate, and what can actually be changed.
+[exit 0]
+
 $ loopweft layout pop.loopweft --auto constellation --seed 2 --pin fertility
 Laid out the map as a constellation by category (seed 2): moved 4 variables; added 1 group halo.
 Pinned fertility.

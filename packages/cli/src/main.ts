@@ -10,6 +10,7 @@ import { Command, CommanderError } from 'commander';
 import {
   addCommand,
   type CommandResult,
+  connectedCommand,
   infoCommand,
   layoutCommand,
   linkAddCommand,
@@ -22,6 +23,7 @@ import {
   loopSetCommand,
   loopsListCommand,
   newCommand,
+  pathsCommand,
   rippleCommand,
   TEMPLATE_IDS,
   TYPE_KINDS,
@@ -321,6 +323,23 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .action((file: string, variable: string, direction: string, o) =>
       run(() => rippleCommand(file, variable, direction, o))(),
     );
+
+  program
+    .command('paths <file> <from> <to>')
+    .description(
+      'the paths from one variable to another along the links, shortest first, with the sign of each',
+    )
+    .option('--max-length <n>', 'only paths of at most this many links')
+    .option('--limit <n>', 'list at most this many paths (default 100); all are counted, up to 100,000')
+    .option('--include-optional', 'follow links of optional types too')
+    .action((file: string, from: string, to: string, o) => run(() => pathsCommand(file, from, to, o))());
+
+  program
+    .command('connected <file>')
+    .description('the most-connected variables (connected does not mean leverage)')
+    .option('--limit <n>', 'show at most this many (default 10)')
+    .option('--include-optional', 'count links of optional types too')
+    .action((file: string, o) => run(() => connectedCommand(file, o))());
 
   const source = program
     .command('source')

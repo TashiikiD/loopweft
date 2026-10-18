@@ -38,6 +38,8 @@ run can be repeated byte for byte).
 | `loops list <file> [--max-length n] [--limit n] [--include-optional]` | The loops the map makes, R or B by their signs, and which are named |
 | `loops add\|set\|rm` | Named loops: `add <file> --links L1,L2 --name "<n>" [--archetype]` |
 | `ripple <file> <variable> up\|down [--include-optional] [--max-steps n]` | What if a variable rises or falls: which way the change pushes each variable it reaches, by the links' signs, and where it stops ([loops and ripples](../../docs/analysis.md)) |
+| `paths <file> <from> <to> [--max-length n] [--limit n] [--include-optional]` | The paths from one variable to another, shortest first, each + or − by its signs; counted up to 100,000 ([paths](../../docs/analysis.md#paths)) |
+| `connected <file> [--limit n] [--include-optional]` | The most-connected variables: links in and out, neighbours, named loops. Connected does not mean leverage, and it says so |
 | `source list\|show <file> [source]` | The sources, with how often each is cited; `show`: one source in full and everything that cites or lists it |
 | `source lookup <doi>` | Looks a DOI up at Crossref and prints the APA reference it drafts, with notes on what is missing or needs checking, without adding it |
 | `source add <file> --apa "<reference>" [--doi] [--id] [--label] [--url] [--licence] [--summary] [--part-of]` | Adds a source by hand (no network) |

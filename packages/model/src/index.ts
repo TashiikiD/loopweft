@@ -70,6 +70,19 @@ export {
   type ThemePalette,
   themePalettes,
 } from './palettes.ts';
+export {
+  CONNECTED_CAVEAT,
+  type ConnectednessResult,
+  type Connection,
+  connectedness,
+  DEFAULT_PATH_COUNT_LIMIT,
+  DEFAULT_PATH_LIMIT,
+  type FoundPath,
+  findPaths,
+  type PathOptions,
+  type PathResult,
+  pathSign,
+} from './paths.ts';
 export { createProject } from './project.ts';
 export {
   citedIn,
