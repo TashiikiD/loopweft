@@ -39,6 +39,8 @@ export interface StudioState {
   selection: Selection;
   /** Counts the projects opened, so views can start afresh for each. */
   generation: number;
+  /** Counts requests to show the whole map, e.g. after an automatic layout moved it. */
+  fit: number;
   /** Runs one operation as one undoable step and returns its output; an OpError leaves everything as it was. */
   edit<R>(run: (project: Project) => OpOutput<R>, label?: string): OpOutput<R>;
   /** Several operations as one undoable step, e.g. removing everything selected. */
@@ -51,6 +53,8 @@ export interface StudioState {
   /** After a save: the project as written (with its new `modified` date) and where. */
   markSaved(project: Project, file: FileRef): void;
   select(selection: Partial<Selection>): void;
+  /** Asks the canvas to show the whole map. */
+  requestFit(): void;
 }
 
 export type StudioStore = StoreApi<StudioState>;
@@ -95,6 +99,7 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
       file,
       selection: NOTHING,
       generation: 0,
+      fit: 0,
 
       edit(run, label) {
         const out = run(get().project);
@@ -155,6 +160,10 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
       select(selection) {
         const state = get();
         set({ selection: valid({ ...state.selection, ...selection }, state.project) });
+      },
+
+      requestFit() {
+        set({ fit: get().fit + 1 });
       },
     };
   });

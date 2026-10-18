@@ -48,6 +48,13 @@ export {
   sceneList,
 } from './references.ts';
 export { checkReferences, elementIds } from './refs.ts';
+export {
+  type RippleDirection,
+  type RippleOptions,
+  type RippleReach,
+  type RippleResult,
+  ripple,
+} from './ripple.ts';
 export * from './schema.ts';
 export { canonicalize, serializeProject } from './serialize.ts';
 export {

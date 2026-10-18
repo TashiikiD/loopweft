@@ -377,6 +377,7 @@ function SelectedLinkKeys({ id }: { id: string }) {
 /** The canvas's pan and zoom, kept by the workspace while the table is shown. */
 export interface CanvasMemory {
   generation: number;
+  fit: number;
   view: View;
 }
 
@@ -384,19 +385,22 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
   const project = useStudio((s) => s.project);
   const selection = useStudio((s) => s.selection);
   const generation = useStudio((s) => s.generation);
+  const fit = useStudio((s) => s.fit);
   const store = useStudioStore();
   const edit = useEdit();
   const graph = useGraph(project);
   const variables = useMemo(() => themeVariables(themeTokens(project)), [project]);
   const host = useRef<HTMLDivElement>(null);
   const size = useSize(host);
-  // Coming back from the table, the canvas shows what it showed; a map opened meanwhile is shown whole.
-  const kept = memory?.current?.generation === generation ? memory.current : null;
+  // Coming back from the table, the canvas shows what it showed, unless a map was opened or the whole map
+  // asked for (after an automatic layout) meanwhile.
+  const kept =
+    memory?.current?.generation === generation && memory.current.fit === fit ? memory.current : null;
   const [view, setView] = useState<View | null>(kept?.view ?? null);
-  const fitted = useRef(kept ? generation : -1);
+  const fitted = useRef(kept ? `${generation}:${fit}` : '');
   useEffect(() => {
-    if (memory && view) memory.current = { generation, view };
-  }, [memory, view, generation]);
+    if (memory && view) memory.current = { generation, fit, view };
+  }, [memory, view, generation, fit]);
   const gesture = useRef<Gesture>(null);
   const [drag, setDrag] = useState<Moves | null>(null);
   const [band, setBand] = useState<Frame | null>(null);
@@ -416,14 +420,16 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
 
   const shown = useMemo(() => (drag ? previewMove(graph, drag) : graph), [graph, drag]);
 
-  // A newly opened map is shown whole; a resized canvas keeps the same map point at its centre.
+  // A newly opened map is shown whole, as is the map after an automatic layout; a resized canvas keeps the
+  // same map point at its centre.
   const lastSize = useRef<Size | null>(null);
   useEffect(() => {
     if (!size || size.w === 0) return;
     const before = lastSize.current;
     lastSize.current = size;
-    if (fitted.current !== generation) {
-      fitted.current = generation;
+    const key = `${generation}:${fit}`;
+    if (fitted.current !== key) {
+      fitted.current = key;
       setView(fitView(mapBounds(graph), size));
       setFraming(false);
       return;
@@ -433,7 +439,7 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
         v ? { k: v.k, dx: v.dx + (size.w - before.w) / 2, dy: v.dy + (size.h - before.h) / 2 } : v,
       );
     }
-  }, [generation, size, graph]);
+  }, [generation, fit, size, graph]);
 
   // Scrolling zooms about the pointer (a native listener, so the page itself does not scroll).
   useEffect(() => {

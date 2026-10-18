@@ -1,18 +1,32 @@
 // The panel beside the canvas or the table, with a rail to switch it: the inspector, the shorthand box, the
-// map's types and its look.
+// map's types and its look, its layout, its loops and the what-if ripple.
 import { Tabs } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconCursorText, IconPalette, IconTags } from '@tabler/icons-react';
+import {
+  IconAdjustmentsHorizontal,
+  IconCursorText,
+  IconLayoutDashboard,
+  IconPalette,
+  IconRepeat,
+  IconRipple,
+  IconTags,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import { Inspector } from './inspector.tsx';
+import { LayoutPanel } from './layout-panel.tsx';
 import { LookPanel } from './look-panel.tsx';
+import { LoopsPanel } from './loops-panel.tsx';
+import { RipplePanel } from './ripple-panel.tsx';
 import { ShorthandPanel } from './shorthand.tsx';
 import { TypesPanel } from './types-panel.tsx';
 
 const PANELS = [
-  { id: 'inspector', label: 'Inspector', Icon: IconAdjustmentsHorizontal },
-  { id: 'shorthand', label: 'Shorthand', Icon: IconCursorText },
-  { id: 'types', label: 'Types', Icon: IconTags },
-  { id: 'look', label: 'Look', Icon: IconPalette },
+  { id: 'inspector', label: 'Inspector', Icon: IconAdjustmentsHorizontal, Panel: Inspector },
+  { id: 'shorthand', label: 'Shorthand', Icon: IconCursorText, Panel: ShorthandPanel },
+  { id: 'types', label: 'Types', Icon: IconTags, Panel: TypesPanel },
+  { id: 'look', label: 'Look', Icon: IconPalette, Panel: LookPanel },
+  { id: 'layout', label: 'Layout', Icon: IconLayoutDashboard, Panel: LayoutPanel },
+  { id: 'loops', label: 'Loops', Icon: IconRepeat, Panel: LoopsPanel },
+  { id: 'ripple', label: 'Ripple', Icon: IconRipple, Panel: RipplePanel },
 ] as const;
 
 export type PanelId = (typeof PANELS)[number]['id'];
@@ -36,18 +50,11 @@ export function SidePanel() {
             </Tabs.Tab>
           ))}
         </Tabs.List>
-        <Tabs.Panel value="inspector">
-          <Inspector />
-        </Tabs.Panel>
-        <Tabs.Panel value="shorthand">
-          <ShorthandPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="types">
-          <TypesPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="look">
-          <LookPanel />
-        </Tabs.Panel>
+        {PANELS.map(({ id, Panel }) => (
+          <Tabs.Panel key={id} value={id}>
+            <Panel />
+          </Tabs.Panel>
+        ))}
       </Tabs>
     </aside>
   );

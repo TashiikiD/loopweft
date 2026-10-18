@@ -41,7 +41,7 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | Path | What it holds |
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
-| `docs/` | The format specification, how imports work, and the templates |
+| `docs/` | The format specification, how imports work, the templates, and what loops and ripples mean |
 | `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
