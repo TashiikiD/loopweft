@@ -1,15 +1,16 @@
-// The Sources workspace: the references library (every source, and the chosen one to read and change) and the
-// APA reference list made from it.
+// The Sources workspace: the references library (every source, and the chosen one to read and change), the
+// coverage of the map by its evidence (what cites nothing, to cite in one go), and the APA reference list.
 import { plural } from '@loopweft/model';
 import { Button, SegmentedControl, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useStudio } from '../context.tsx';
 import { AddSourceDialog } from './add-source.tsx';
+import { Coverage } from './coverage.tsx';
 import { SourceEditor, SourceList } from './library.tsx';
 import { ReferenceList } from './reference-list.tsx';
 
-type View = 'library' | 'references';
+type View = 'library' | 'coverage' | 'references';
 
 export function SourcesWorkspace() {
   const [view, setView] = useState<View>('library');
@@ -28,6 +29,7 @@ export function SourcesWorkspace() {
             onChange={(next) => setView(next as View)}
             data={[
               { value: 'library', label: 'Library' },
+              { value: 'coverage', label: 'Coverage' },
               { value: 'references', label: 'Reference list' },
             ]}
             aria-label="Show the sources as"
@@ -58,6 +60,8 @@ export function SourcesWorkspace() {
               )}
             </div>
           </div>
+        ) : view === 'coverage' ? (
+          <Coverage />
         ) : (
           <div className="lw-library-detail">
             <ReferenceList />

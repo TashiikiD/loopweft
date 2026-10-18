@@ -100,3 +100,20 @@ made of cited links often needs no source of its own. A source that nothing cite
 The reference list is made from the sources, never typed separately: alphabetical by first author as APA
 orders it (italics marks ignored; accented names sort with their letter), each supplement under its work,
 and each with the scenes that draw on it.
+
+## In the Studio
+
+- **Sources** workspace:
+  - **Library**: every source in reference-list order, with how often it is cited; the chosen source's
+    fields, a check of its reference against Crossref, and everything that cites it, each one click from the
+    map. **Add a source** looks up a DOI (the draft and its notes are shown, to correct before adding) or
+    takes a reference by hand.
+  - **Coverage**: how many links, variables and named loops cite a source, the citations by strength, and
+    the list of what cites nothing; choose rows and cite a source on all of them at once, or select them on
+    the map.
+  - **Reference list**: the APA list, to copy as plain text or with its italics.
+- **Map** workspace: the inspector shows a variable's or link's citations, to change (pages, strength,
+  note) or remove, and cites a source on it; with several selected, it cites one source on all of them. The
+  Loops panel does the same for a named loop.
+
+On the command line, `loopweft source`, `cite` and `references` do the same ([the CLI](../packages/cli/README.md)).

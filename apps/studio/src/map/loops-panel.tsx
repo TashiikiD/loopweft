@@ -18,6 +18,7 @@ import {
 import {
   Badge,
   Button,
+  Divider,
   Group,
   NumberInput,
   Paper,
@@ -34,6 +35,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type LoopAnswer, type LoopSearch, searchLoops } from '../analysis/loop-search.ts';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
+import { CitationsEditor, CiteForm } from '../sources/citations.tsx';
 import { CommitText } from './inputs.tsx';
 
 /** How many loops a search lists (all are counted). */
@@ -157,6 +159,10 @@ function NamedLoop({ loop, open, onToggle }: { loop: Loop; open: boolean; onTogg
               multiline
               onCommit={(caution) => edit((p) => setLoop(p, loop.id, { caution }))}
             />
+            <Divider label="Sources" labelPosition="left" />
+            <CitationsEditor element={loop.id} citations={loop.citations} />
+            <CiteForm elements={[loop.id]} />
+            <Divider />
             <Button size="xs" variant="default" color="red" w="fit-content" onClick={remove}>
               Remove the name
             </Button>

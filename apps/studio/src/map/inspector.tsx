@@ -1,7 +1,6 @@
 // What is selected, to read and change: a variable, a link, several of them, or (with nothing selected) the
 // project itself and the problems its checks find. Every change is one of the model's operations.
 import {
-  type Citation,
   type Field,
   type FieldValue,
   formatPath,
@@ -37,6 +36,7 @@ import {
 } from '@mantine/core';
 import { useMemo } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
+import { CitationsEditor, CiteForm } from '../sources/citations.tsx';
 import { useGraph } from './canvas.tsx';
 import { type Alignment, alignment, pinWhereDrawn } from './edit.ts';
 import { ChoiceInput, CommitText, FieldInput, NumberValue } from './inputs.tsx';
@@ -52,32 +52,6 @@ function withField(values: Record<string, FieldValue> | undefined, field: Field,
   if (value === null) delete next[field.id];
   else next[field.id] = value;
   return Object.keys(next).length ? next : null;
-}
-
-function Citations({ citations, project }: { citations: Citation[]; project: Project }) {
-  if (citations.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No source cited yet.
-      </Text>
-    );
-  }
-  return (
-    <Stack gap={4}>
-      {citations.map((c, i) => {
-        const source = project.sources.find((s) => s.id === c.source);
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: citations of one element, in their order
-          <Text key={i} size="sm">
-            {source?.label ?? c.source}
-            {c.pages ? `, p. ${c.pages}` : ''}
-            {c.note ? ` (${c.note})` : ''}
-            {c.strength ? ` · ${c.strength}` : ''}
-          </Text>
-        );
-      })}
-    </Stack>
-  );
 }
 
 function VariableInspector({ variable }: { variable: Variable }) {
@@ -189,7 +163,8 @@ function VariableInspector({ variable }: { variable: Variable }) {
         </Group>
       )}
       <Divider label="Sources" labelPosition="left" />
-      <Citations citations={variable.citations} project={project} />
+      <CitationsEditor element={variable.id} citations={variable.citations} />
+      <CiteForm elements={[variable.id]} />
     </Stack>
   );
 }
@@ -339,7 +314,8 @@ function LinkInspector({ link }: { link: Link }) {
         />
       </Stack>
       <Divider label="Sources" labelPosition="left" />
-      <Citations citations={link.citations} project={project} />
+      <CitationsEditor element={link.id} citations={link.citations} />
+      <CiteForm elements={[link.id]} />
     </Stack>
   );
 }
@@ -522,6 +498,11 @@ function SeveralInspector({ variables, links }: { variables: string[]; links: st
           {allPinned ? 'Unpin them' : 'Pin them where they are'}
         </Button>
       )}
+      <Divider label="Sources" labelPosition="left" />
+      <CiteForm
+        elements={[...variables, ...links]}
+        what={`all ${variables.length + links.length} selected`}
+      />
       <Text size="xs" c="dimmed">
         Delete removes the selection (with the links of its variables); Ctrl+Z brings it back.
       </Text>

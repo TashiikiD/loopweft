@@ -592,3 +592,26 @@ body {
 .lw-reference-parts {
   margin: 8px 0 0 2em;
 }
+
+.lw-coverage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--mantine-color-body);
+}
+
+.lw-coverage-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 20px;
+}
+
+.lw-coverage-side {
+  width: 360px;
+  flex: none;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--mantine-color-default-border);
+  overflow: auto;
+}
