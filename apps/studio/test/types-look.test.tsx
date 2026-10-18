@@ -234,15 +234,22 @@ describe('the Look panel', () => {
     expect(own()?.colours[0]).not.toBe('#AABBCC');
     await user.type(first, 'def{Enter}');
     expect(own()?.colours[0]).toBe('#ABCDEF');
+    // An unfinished colour typed, then one picked: the picked one counts, the focus still in the field.
+    await user.clear(first);
+    await user.type(first, '#12');
+    fireEvent.keyDown(screen.getAllByRole('slider')[0] as HTMLElement, { key: 'ArrowDown' });
+    await waitFor(() => expect(own()?.colours[0]).not.toBe('#ABCDEF'));
+    expect(own()?.colours[0]).toBe((first as HTMLInputElement).value.toUpperCase());
+    expect(document.activeElement).toBe(first);
 
     // Moved up twice from the keyboard, the third colour becomes the first.
-    const third = own()?.colours[2];
+    const [firstColour, , third] = own()?.colours ?? [];
     screen.getByRole('button', { name: 'Move colour 3 up' }).focus();
     await user.keyboard('{Enter}');
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Move colour 2 up');
     await user.keyboard('{Enter}');
     expect(own()?.colours[0]).toBe(third);
-    expect(own()?.colours.slice(1, 3)).toEqual(['#ABCDEF', '#56B4E9']);
+    expect(own()?.colours.slice(1, 3)).toEqual([firstColour, '#56B4E9']);
     // At the top, the focus goes to the colour's other button.
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Move colour 1 down');
   });
