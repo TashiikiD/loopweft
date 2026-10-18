@@ -74,4 +74,18 @@ describe('a Kumu map', () => {
     const blueprint = await readImportFile({ name: 'b.json', bytes: fixture('kumu-blueprint.json') });
     expect(hasOwnTitle(blueprint)).toBe(false);
   });
+
+  it('offers no field that holds only spaces, as the import makes no field of it', async () => {
+    const doc = JSON.parse(fixture('kumu-export.json').toString('utf8'));
+    for (const c of doc.connections) c.attributes.polarity = '   ';
+    doc.connections[0].attributes.weight = 0;
+    const source = await readImportFile({
+      name: 'spaces.json',
+      bytes: new TextEncoder().encode(JSON.stringify(doc)),
+    });
+    if (source.format !== 'kumu') throw new Error('not Kumu');
+    const offered = kumuConnectionFields(source.data).map((f) => f.value);
+    expect(offered).not.toContain('polarity');
+    expect(offered).toContain('weight');
+  });
 });

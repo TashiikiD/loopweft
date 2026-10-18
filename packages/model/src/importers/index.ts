@@ -117,7 +117,7 @@ export function importSource(
 
 export { ImportError, type ImportOutcome, type ImportProblem } from './build.ts';
 export { importDataViz, isDataVizJson } from './dataviz.ts';
-export { importKumu, isKumuJson, type KumuData, kumuFromJson } from './kumu.ts';
+export { importKumu, isKumuJson, type KumuData, kumuFromJson, kumuHasValue } from './kumu.ts';
 export {
   type ColumnMapping,
   type ColumnTarget,

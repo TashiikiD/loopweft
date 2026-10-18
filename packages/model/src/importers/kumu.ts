@@ -96,6 +96,9 @@ function valueText(value: unknown): string {
   return cleanText(String(value));
 }
 
+/** True when a value reads as something: what makes a field of it (spaces, an empty list or null do not). */
+export const kumuHasValue = (value: unknown): boolean => valueText(value) !== '';
+
 /** Kumu's id for a record: `_id` in an export, `id` in a blueprint. */
 const kumuId = (record: KumuRecord): string => valueText(record._id) || valueText(record.id);
 
@@ -410,12 +413,12 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
       const at = data.map?.positions[kumu];
       return at ? [{ id, at }] : [];
     });
-    // An element without a place means an automatic layout, which keeps only pinned places: then only those
-    // are kept and scaled, so that a floating element far off cannot squeeze the pins and then move anyway.
-    pinsOnly = all.length < builder.project.variables.length;
-    const places = pinsOnly ? all.filter((p) => p.at.pinned) : all;
-    const view = intoView(places.map((p) => p.at));
-    for (const { id, at } of places) {
+    // An element without a place means an automatic layout (unless none is chosen), which keeps only pinned
+    // places: then the pins alone are scaled to fill the view, so that a floating element far off cannot
+    // squeeze them and then move anyway. Every place is kept, for a map that is not laid out.
+    pinsOnly = all.length < builder.project.variables.length && all.some((p) => p.at.pinned);
+    const view = intoView((pinsOnly ? all.filter((p) => p.at.pinned) : all).map((p) => p.at));
+    for (const { id, at } of all) {
       builder.project.layout.positions[id] = { ...view(at), ...(at.pinned ? { pinned: true } : {}) };
       placed++;
       if (at.pinned) pinned++;
@@ -427,8 +430,13 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
   let noDirection = 0;
   let reversed = 0;
   let delayed = 0;
+  let delayedLinks = 0;
   let rationales = 0;
   const linksOf = new Map<string, string[]>();
+  // Kumu's export names a connection's ends by element id: an id that names no element of the export is an
+  // error, never a new variable (a blueprint or a spreadsheet may name its ends by label instead).
+  const elementId = elements.roles.get('id');
+  const known = new Set(data.elements.map((e) => (elementId === undefined ? '' : valueText(e[elementId]))));
   data.connections.forEach((connection, index) => {
     const get = (role: string) => {
       const key = connections.roles.get(role);
@@ -453,6 +461,17 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
     if (turned.kind !== 'ok') {
       builder.problem(`${where}, reversed`, `reversed must be true or false, not "${get('reversed')}".`);
       return;
+    }
+    if (data.layout === 'export') {
+      const lost = (['from', 'to'] as const).filter((e) => !get(e) || !known.has(get(e)));
+      for (const e of lost)
+        builder.problem(
+          `${where}, ${e}`,
+          get(e)
+            ? `No element of the export has the Kumu id "${get(e)}": export the map from Kumu again.`
+            : 'The connection names no element here: export the map from Kumu again.',
+        );
+      if (lost.length) return;
     }
     const reverse = turned.value && direction !== 'mutual';
     if (reverse) reversed++;
@@ -496,7 +515,9 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
       }
     }
     if (direction === 'mutual') mutual++;
-    if (made.some((id) => builder.project.links.find((l) => l.id === id)?.delay)) delayed++;
+    const late = made.filter((id) => builder.project.links.find((l) => l.id === id)?.delay).length;
+    if (late) delayed++;
+    delayedLinks += late;
     if (made.length && get('rationale')) rationales++;
     if (get('id')) linksOf.set(get('id'), made);
   });
@@ -552,7 +573,7 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
     );
   if (delayed)
     notes.push(
-      `${count(delayed, 'delayed connection')} became ${delayed === 1 ? 'a delayed link' : 'delayed links'}.`,
+      `${count(delayed, 'delayed connection')} became ${delayedLinks === 1 ? 'a delayed link' : `${delayedLinks} delayed links`}.`,
     );
   if (rationales) notes.push("Kumu's connection descriptions became the links' rationales.");
   const kept = [...elementCustom, ...connectionCustom];
@@ -622,12 +643,13 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
 
   if (data.map) {
     const them = placed === 1 ? 'it' : 'them';
+    const unplaced = project.variables.length - placed;
     notes.push(
       placed === 0
         ? `The map "${data.map.name}" fixes no element's place: the map is laid out automatically.`
-        : pinsOnly
-          ? `Placed and pinned ${count(placed, 'variable')} where the map "${data.map.name}" pins ${them}, scaled to fill Loopweft's view; the others float in Kumu, so they are laid out automatically.`
-          : `Placed ${count(placed, 'variable')} where the map "${data.map.name}" draws ${them}, scaled to fill Loopweft's view${pinned ? ` (${pinned} pinned)` : ''}.`,
+        : unplaced === 0
+          ? `Placed ${count(placed, 'variable')} where the map "${data.map.name}" draws ${them}, scaled to fill Loopweft's view${pinned ? ` (${pinned} pinned)` : ''}.`
+          : `Placed ${count(placed, 'variable')} where the map "${data.map.name}" draws ${them}${pinned ? ` (${pinned} pinned)` : ''}, scaled so that ${pinsOnly ? 'the pinned ones fill' : `${them} fill`} Loopweft's view; ${count(unplaced, 'variable has', 'variables have')} no place. An automatic layout moves every variable that is not pinned.`,
     );
     if (data.maps > 1) notes.push(`The export has ${data.maps} maps: the places come from its default map.`);
   } else {
