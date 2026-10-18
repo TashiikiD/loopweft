@@ -20,6 +20,9 @@ export interface Selection {
 
 export const NOTHING: Selection = { variables: [], links: [], loop: null };
 
+/** The Studio's five workspaces; Story, Present and Export arrive in later phases. */
+export type WorkspaceId = 'map' | 'sources' | 'story' | 'present' | 'export';
+
 /** A project to go back (or forward) to, what the step between was, and what was selected there. */
 interface Entry {
   project: Project;
@@ -46,6 +49,10 @@ export interface StudioState {
   generation: number;
   /** Counts requests to show the whole map, e.g. after an automatic layout moved it. */
   fit: number;
+  /** The workspace shown. */
+  workspace: WorkspaceId;
+  /** The source chosen in the Sources workspace's library. */
+  source: string | null;
   /** Runs one operation as one undoable step and returns its output; an OpError leaves everything as it was. */
   edit<R>(run: (project: Project) => OpOutput<R>, label?: string): OpOutput<R>;
   /** Several operations as one undoable step, e.g. removing everything selected. */
@@ -63,6 +70,9 @@ export interface StudioState {
   select(selection: Partial<Selection>): void;
   /** Asks the canvas to show the whole map. */
   requestFit(): void;
+  showWorkspace(workspace: WorkspaceId): void;
+  /** Chooses a source in the library (null: none). */
+  selectSource(id: string | null): void;
 }
 
 export type StudioStore = StoreApi<StudioState>;
@@ -115,6 +125,8 @@ export function createStudioStore(
       selection: NOTHING,
       generation: 0,
       fit: 0,
+      workspace: 'map',
+      source: null,
 
       edit(run, label) {
         const out = run(get().project);
@@ -163,6 +175,7 @@ export function createStudioStore(
           fresh: options.fresh === true,
           file: nextFile,
           selection: NOTHING,
+          source: null,
           generation: get().generation + 1,
         });
       },
@@ -180,6 +193,14 @@ export function createStudioStore(
 
       requestFit() {
         set({ fit: get().fit + 1 });
+      },
+
+      showWorkspace(workspace) {
+        set({ workspace });
+      },
+
+      selectSource(id) {
+        set({ source: id });
       },
     };
   });

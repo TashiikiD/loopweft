@@ -7,13 +7,15 @@ import { useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useEffect, useState } from 'react';
 import { exampleProject, mayDiscard, openFile, openText, saveFile } from './actions.ts';
-import { StudioContext, useStudioStore } from './context.tsx';
+import { StudioContext, useStudio, useStudioStore } from './context.tsx';
 import { ImportWizard } from './import/wizard.tsx';
 import { MapWorkspace } from './map/workspace.tsx';
 import { Providers } from './providers.tsx';
 import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
 import { StatusBar } from './shell/status-bar.tsx';
+import { crossrefLookup, type Lookup, LookupContext } from './sources/lookup.tsx';
+import { SourcesWorkspace } from './sources/workspace.tsx';
 import { browserRecovery, type RecoveryCopy, type RecoveryStore, watchRecovery } from './state/recovery.ts';
 import { createStudioStore, hasUnsavedWork, type StudioStore } from './state/store.ts';
 
@@ -23,6 +25,14 @@ export interface AppProps {
   recovery?: RecoveryStore;
   /** `test`: Mantine without transitions or portals (component tests in jsdom). */
   env?: 'default' | 'test';
+  /** The DOI lookup (tests give one that answers from recorded replies); default: Crossref's. */
+  lookup?: Lookup;
+}
+
+/** The workspace shown: Map or Sources (Story, Present and Export arrive in later phases). */
+function Workspace() {
+  const workspace = useStudio((s) => s.workspace);
+  return workspace === 'sources' ? <SourcesWorkspace /> : <MapWorkspace />;
 }
 
 /** The map the Studio opens with: the polycrisis example with ?example in the address, else a blank one. */
@@ -62,7 +72,7 @@ function RecoveryOffer({ copy, onDone }: { copy: RecoveryCopy; onDone(): void })
   );
 }
 
-export function App({ store: given, recovery: givenRecovery, env = 'default' }: AppProps) {
+export function App({ store: given, recovery: givenRecovery, env = 'default', lookup }: AppProps) {
   const [store] = useState(() => given ?? startStore());
   const [recovery] = useState(() => givenRecovery ?? browserRecovery());
   const [offer, setOffer] = useState<RecoveryCopy | null>(null);
@@ -124,26 +134,27 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
   return (
     <Providers env={env}>
       <StudioContext.Provider value={store}>
-        <Shortcuts store={store} />
-        <AppShell header={{ height: 56 }} padding={0}>
-          <AppShell.Header>
-            <Header
-              workspace="map"
-              onNew={() => setDialog('new')}
-              onImport={() => {
-                setDropped(null);
-                setDialog('import');
-              }}
-            />
-          </AppShell.Header>
-          <AppShell.Main className="lw-main">
-            {offer && <RecoveryOffer copy={offer} onDone={() => setOffer(null)} />}
-            <MapWorkspace />
-            <StatusBar />
-          </AppShell.Main>
-        </AppShell>
-        <TemplateGallery opened={dialog === 'new'} onClose={() => setDialog(null)} />
-        <ImportWizard opened={dialog === 'import'} file={dropped} onClose={() => setDialog(null)} />
+        <LookupContext.Provider value={lookup ?? crossrefLookup}>
+          <Shortcuts store={store} />
+          <AppShell header={{ height: 56 }} padding={0}>
+            <AppShell.Header>
+              <Header
+                onNew={() => setDialog('new')}
+                onImport={() => {
+                  setDropped(null);
+                  setDialog('import');
+                }}
+              />
+            </AppShell.Header>
+            <AppShell.Main className="lw-main">
+              {offer && <RecoveryOffer copy={offer} onDone={() => setOffer(null)} />}
+              <Workspace />
+              <StatusBar />
+            </AppShell.Main>
+          </AppShell>
+          <TemplateGallery opened={dialog === 'new'} onClose={() => setDialog(null)} />
+          <ImportWizard opened={dialog === 'import'} file={dropped} onClose={() => setDialog(null)} />
+        </LookupContext.Provider>
       </StudioContext.Provider>
     </Providers>
   );

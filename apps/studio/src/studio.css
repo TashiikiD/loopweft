@@ -503,3 +503,92 @@ body {
   font-weight: 500;
   color: var(--mantine-color-dimmed);
 }
+
+/* ----- the Sources workspace ----- */
+
+.lw-library {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.lw-library-list {
+  width: 380px;
+  flex: none;
+  min-height: 0;
+  padding: 12px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.lw-library-detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 24px 32px;
+  box-sizing: border-box;
+  background: var(--mantine-color-body);
+}
+
+.lw-library-detail > * {
+  max-width: 52rem;
+}
+
+.lw-source-row {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--mantine-radius-sm);
+  box-sizing: border-box;
+}
+
+.lw-source-row:hover {
+  background: var(--mantine-color-default-hover);
+}
+
+.lw-source-row[data-active] {
+  background: var(--mantine-primary-color-light);
+}
+
+.lw-source-row[data-part] {
+  padding-left: 26px;
+}
+
+.lw-reference-preview {
+  padding: 8px 12px;
+  border-left: 3px solid var(--mantine-primary-color-filled);
+  background: var(--mantine-color-default-hover);
+  border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
+}
+
+.lw-reference a {
+  color: var(--mantine-color-anchor);
+  word-break: break-all;
+}
+
+.lw-references {
+  height: 100%;
+}
+
+.lw-reference-list,
+.lw-reference-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lw-reference-list > li {
+  margin: 0 0 12px;
+}
+
+/* APA's hanging indent: the first line of each reference starts further left than the rest. */
+.lw-reference-list .lw-reference {
+  padding-left: 2em;
+  text-indent: -2em;
+}
+
+.lw-reference-parts {
+  margin: 8px 0 0 2em;
+}

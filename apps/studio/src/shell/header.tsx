@@ -27,11 +27,11 @@ import {
 import { openFile, saveFile, startMap } from '../actions.ts';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { EditableText } from '../editable-text.tsx';
-import { isDirty } from '../state/store.ts';
+import { isDirty, type WorkspaceId } from '../state/store.ts';
 
 export const WORKSPACES = [
   { id: 'map', label: 'Map', ready: true, note: '' },
-  { id: 'sources', label: 'Sources', ready: false, note: 'References and citations arrive in Phase 3.' },
+  { id: 'sources', label: 'Sources', ready: true, note: '' },
   { id: 'story', label: 'Story', ready: false, note: 'Scenes and steps arrive in Phase 4.' },
   { id: 'present', label: 'Present', ready: false, note: 'The presenter arrives in Phase 5.' },
   { id: 'export', label: 'Export', ready: false, note: 'Exports arrive in Phase 6.' },
@@ -188,16 +188,9 @@ function SchemeMenu() {
   );
 }
 
-export function Header({
-  workspace,
-  onNew,
-  onImport,
-}: {
-  workspace: string;
-  onNew?: () => void;
-  onImport?: () => void;
-}) {
+export function Header({ onNew, onImport }: { onNew?: () => void; onImport?: () => void }) {
   const store = useStudioStore();
+  const workspace = useStudio((s) => s.workspace);
   return (
     <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="md">
       <Group gap="sm" wrap="nowrap" miw={0}>
@@ -205,7 +198,13 @@ export function Header({
         <MapTitle />
         <SaveState />
       </Group>
-      <Tabs value={workspace} variant="pills" radius="sm" aria-label="Workspaces">
+      <Tabs
+        value={workspace}
+        onChange={(next) => next && store.getState().showWorkspace(next as WorkspaceId)}
+        variant="pills"
+        radius="sm"
+        aria-label="Workspaces"
+      >
         <Tabs.List>
           {WORKSPACES.map((w) =>
             w.ready ? (
