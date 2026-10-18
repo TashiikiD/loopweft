@@ -12,12 +12,12 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 2: the Map workspace**, awaiting its checkpoint review. [The Studio](https://tashiikid.github.io/loopweft/studio/)
-runs in Chrome or Edge:
+**Phase 2: the Map workspace**, reviewed at its checkpoint; Phase 3 (Sources) comes next.
+[The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
-- categories, roles, link types and custom fields; themes and palettes, checked for colour-vision
-  deficiencies and contrast;
+- categories, roles, link types and custom fields; themes, and palettes (presets or the map's own),
+  checked for colour-vision deficiencies and contrast;
 - automatic layouts, the map's feedback loops (found, counted and named) and a what-if ripple;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
   CSV or Excel tables, Kumu or DataViz;
@@ -40,13 +40,16 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | 0 | Foundations | Repository, licence checks, CI on Windows, macOS and Linux; the `.loopweft` format, validation, operations, shorthand, loops and integrity checks; the polycrisis example |
 | 1 | Engine | The animation engine, the SVG renderer and automatic layouts; the example renders and animates |
 | 2 | Map workspace | The editor: canvas, table view, shorthand box, types, themes, palettes, loops, templates, import; CLI basics |
-| 3 | Sources | Reference library, DOI lookup, citations with pages and strength, APA list, uncited warnings |
+| 3 | Sources | Reference library, DOI lookup, citations with pages and strength, APA list, uncited warnings; a path finder between two variables and the most-connected variables |
 | 4 | Story | Scenes and steps, record view, reveals, pulses, overlays, notes and script, preview, validation |
 | 5 | Present + HTML | Presenter console and audience window; one-file HTML export |
 | 6 | Exports | PNG, SVG, PDFs, MP4 and GIF |
 | 7 | Agent support | `loopweft guide`, the full CLI reference, live reload of edited files |
 | 8 | Desktop apps | Windows installer and macOS app |
 | 9 | v1.0 | Web app and docs on GitHub Pages, example gallery, release |
+
+After v1.0: a DataViz project's citations come across as sources with full references; until then they
+come across as text, in the custom field "DataViz sources".
 
 ## Repository
 

@@ -556,3 +556,7 @@ item says when it was added and confirmed. Each can still change before version 
 21. **Brackets at the end of a shorthand line hold the link's details** (confirmed at the Phase 2 checkpoint
     review): anything else in them is an error, so a name that ends in brackets is quoted. DataViz's parser reads
     such brackets as part of the name, with a warning; that let a mistyped sign become part of a variable's name.
+22. **The example keeps the presentation's category colours** (confirmed at the Phase 2 checkpoint review), as
+    it was built and presented, although some pairs are hard to tell apart for colour-blind viewers and in
+    greyscale on the dark stage; the Look panel names them. A map of one's own can take a palette that passes
+    more of the checks.

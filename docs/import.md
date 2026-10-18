@@ -100,7 +100,7 @@ A DataViz project (`.dataviz.json`, format version 1):
 | custom columns | custom fields (dates as text; categorical and ordinal columns as choices) |
 | rubric dimensions | a choice field each |
 | relation labels | the custom field "DataViz label" (Loopweft links have no labels) |
-| relation sources (citation and locator) | the custom field "DataViz sources", as DataViz wrote them |
+| relation sources (citation and locator) | the custom field "DataViz sources", as DataViz wrote them (turning them into sources is planned after version 1.0) |
 | the first CLD view's pinned variables | positions, pinned |
 
 An entity id that Loopweft cannot use (with a dot or a space) gets a new one, named in the notes. Left out,
