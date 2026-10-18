@@ -38,6 +38,7 @@ run can be repeated byte for byte).
 | `loops list <file> [--max-length n] [--limit n] [--include-optional]` | The loops the map makes, R or B by their signs, and which are named |
 | `loops add\|set\|rm` | Named loops: `add <file> --links L1,L2 --name "<n>" [--archetype]` |
 | `layout <file> [--auto constellation\|force\|flow [--seed n]] [--move id=x,y] [--pin …] [--unpin …] [--label-side id=side] [--bend link=v] [--clear-bends [links…]] [--home x,y,zoom] [--clear-home]` | Shows the layout, or changes it (in that order) |
+| `import <file> -o <project> [--format tables\|kumu\|dataviz] [--title] [--sheet Name=variables\|links\|ignore] [--header-row n] [--map Column=target] [--sign-field <field>] [--layout force\|constellation\|flow\|none]` | Makes a project from tables (CSV, TSV, Excel), a Kumu map or a DataViz project, and prints what it could not carry across (see [importing](../../docs/import.md)) |
 
 Variables are named by id or by label (ignoring case and spacing); a name that matches two is refused.
 Values are read strictly: `--weight heavy`, or a field value that is not one of its choices, is refused,

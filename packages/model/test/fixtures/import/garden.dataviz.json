@@ -1,0 +1,142 @@
+{
+  "format": "dataviz.project",
+  "formatVersion": 1,
+  "id": "garden-test",
+  "title": "Garden (test data)",
+  "description": "Made up for Loopweft's importer tests.",
+  "settings": {
+    "vocabularies": {
+      "sign": {
+        "label": "Link sign",
+        "ordered": false,
+        "open": false,
+        "values": [{ "value": "+" }, { "value": "-" }, { "value": "?" }]
+      },
+      "confidence": {
+        "label": "Confidence",
+        "ordered": true,
+        "open": false,
+        "values": [
+          { "value": "L", "label": "Low", "score": 1 },
+          { "value": "M", "label": "Medium", "score": 2 },
+          { "value": "H", "label": "High", "score": 3 }
+        ]
+      },
+      "group": {
+        "label": "Group",
+        "ordered": false,
+        "open": true,
+        "values": [{ "value": "soil", "label": "Soil life", "color": "#8C6D46" }, { "value": "Plants" }]
+      },
+      "custom.season": {
+        "label": "Season",
+        "ordered": false,
+        "open": true,
+        "values": [{ "value": "spring" }, { "value": "summer" }]
+      },
+      "scale_1_3": {
+        "label": "Score (1-3)",
+        "ordered": true,
+        "open": false,
+        "values": [
+          { "value": "1", "label": "Weak", "score": 1 },
+          { "value": "2", "label": "Fair", "score": 2 },
+          { "value": "3", "label": "Strong", "score": 3 }
+        ]
+      }
+    },
+    "rubric": {
+      "confidenceVocabulary": "confidence",
+      "mode": "manual",
+      "dimensions": [{ "id": "empirical", "label": "Empirical support", "vocabulary": "scale_1_3" }]
+    }
+  },
+  "raw": [
+    {
+      "id": "t1",
+      "name": "garden.csv",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "columns": ["From", "To"],
+      "rows": [["Compost", "Soil life"]]
+    }
+  ],
+  "data": {
+    "entities": {
+      "customColumns": [
+        {
+          "key": "custom.season",
+          "label": "Season",
+          "type": { "kind": "categorical", "vocabulary": "custom.season" }
+        },
+        { "key": "custom.area", "label": "Area (m2)", "type": { "kind": "quantitative", "min": 0 } }
+      ],
+      "rows": [
+        { "id": "compost", "label": "Compost", "group": "soil", "custom.area": 2 },
+        {
+          "id": "soil_life",
+          "label": "Soil life",
+          "group": "soil",
+          "description": "Worms, fungi and microbes."
+        },
+        { "id": "growth", "label": "Plant growth", "group": "Plants", "custom.season": "spring" },
+        { "id": "weeds", "label": "Weeds", "group": "Plants", "custom.season": "summer" },
+        { "id": "weeding.time", "label": "Time spent weeding" }
+      ]
+    },
+    "relations": {
+      "customColumns": [{ "key": "custom.note", "label": "Note", "type": { "kind": "text" } }],
+      "rows": [
+        {
+          "id": "r1",
+          "from": "compost",
+          "to": "soil_life",
+          "sign": "+",
+          "confidence": "H",
+          "strength": 0.7,
+          "mechanism": "Compost feeds the soil life.",
+          "sources": [{ "citation": "Test 2020", "locator": "p. 4" }],
+          "rubric.empirical": "3"
+        },
+        {
+          "id": "r2",
+          "from": "soil_life",
+          "to": "growth",
+          "sign": "+",
+          "delay": true,
+          "delayLabel": "a season",
+          "confidence": "M"
+        },
+        {
+          "id": "r3",
+          "from": "growth",
+          "to": "compost",
+          "sign": "+",
+          "label": "clippings",
+          "custom.note": "test note"
+        },
+        { "id": "r4", "from": "weeds", "to": "growth", "sign": "-", "confidence": "L" },
+        { "id": "r5", "from": "weeding.time", "to": "weeds", "sign": "-" },
+        { "id": "r6", "from": "growth", "to": "weeds", "sign": "?" }
+      ]
+    }
+  },
+  "normalization": {
+    "log": [{ "id": "n1", "rule": "shorthand", "origin": "manual", "message": "Added rows.", "changes": [] }],
+    "pending": []
+  },
+  "views": [
+    {
+      "id": "cld",
+      "module": "cld",
+      "title": "Whole garden",
+      "filters": [],
+      "outputs": {},
+      "options": { "bends": { "r3": { "x": 400, "y": 120 } } },
+      "encodings": {},
+      "customization": {},
+      "pins": { "compost": { "x": 200.4, "y": 300 }, "soil_life": { "x": 420, "y": 310.6 } },
+      "annotationPositions": {}
+    }
+  ],
+  "customization": { "project": {}, "modules": {} }
+}

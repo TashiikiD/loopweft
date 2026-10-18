@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "label": "Workload",
+      "type": "Work",
+      "description": "Hours of work in a week.",
+      "tags": ["test", "made up"]
+    },
+    { "label": "Stress", "type": "Health" },
+    { "label": "Sleep quality", "type": "Health", "Owner": "Team" },
+    { "label": "Performance", "type": "Work" }
+  ],
+  "connections": [
+    { "from": "Workload", "to": "Stress", "direction": "directed", "Polarity": "+" },
+    {
+      "from": "Stress",
+      "to": "Sleep quality",
+      "direction": "directed",
+      "Polarity": "-",
+      "label": "keeps people awake"
+    },
+    { "from": "Sleep quality", "to": "Performance", "Polarity": "+" },
+    { "from": "Performance", "to": "Workload", "direction": "mutual", "Polarity": "-" },
+    { "from": "Stress", "to": "Performance", "direction": "undirected" }
+  ]
+}

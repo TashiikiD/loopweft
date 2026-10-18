@@ -9,6 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "papaparse": "5.7.0",
+    "read-excel-file": "9.3.10",
     "zod": "4.6.5"
   }
 }

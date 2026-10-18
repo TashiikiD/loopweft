@@ -1,0 +1,6 @@
+Cause,Effect,Polarity,Delay,Delay time,Confidence,Strength,Mechanism,Evidence,Notes
+Workload,Stress,+,,,,0.8,More work leaves less time to recover.,explicit,
+Stress,Sleep quality,-,,,M,,Stress keeps people awake.,synthesis,test row
+Sleep quality,Performance,+,yes,weeks,H,,,explicit,
+Performance,Workload,-,,,,,"Doing well clears the backlog, so less is left.",,
+Workload,Performance,,,,,,,,no sign given

@@ -2,7 +2,7 @@
 // transcript (expected/session.txt) and the project it leaves (expected/session.loopweft); the other tests
 // check the contract agents rely on: one JSON document, exit codes, dry runs, atomic writes with a backup.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,7 @@ const env = { today: '2026-10-18' };
 async function run(...args: string[]): Promise<{ code: number; out: string; err: string }> {
   let out = '';
   let err = '';
-  const file = (arg: string) => (arg.endsWith('.loopweft') || arg.endsWith('.txt') ? join(dir, arg) : arg);
+  const file = (arg: string) => (/\.(loopweft|txt|csv|json|xlsx)$/.test(arg) ? join(dir, arg) : arg);
   const code = await main(args.map(file), { out: (t) => (out += t), err: (t) => (err += t) }, env);
   const local = (text: string) =>
     text
@@ -259,6 +259,7 @@ describe('the contract for agents', () => {
       'info',
       'validate',
       'add',
+      'import',
       'var list',
       'var add',
       'var set',
@@ -290,5 +291,93 @@ describe('the contract for agents', () => {
       'loops rm',
       'layout',
     ]);
+  });
+});
+
+describe('import', () => {
+  const fixtures = new URL('../../model/test/fixtures/import/', import.meta.url);
+  for (const name of ['links.csv', 'kumu-blueprint.json', 'garden.dataviz.json']) {
+    copyFileSync(fileURLToPath(new URL(name, fixtures)), join(dir, name));
+  }
+
+  it('makes a map from a links table, lays it out and says what it did', async () => {
+    const { code, out } = await run('import', 'links.csv', '-o', 'from-csv.loopweft');
+    expect(code).toBe(0);
+    expect(out).toBe(
+      [
+        'Imported 4 variables, 5 links, 2 custom fields.',
+        '4 variables were made from link ends that named no variable: workload, stress, sleep_quality, performance.',
+        '1 link had no sign: recorded as unknown (?) and flagged; set it to + or -.',
+        'No link cites a source yet: Loopweft flags every uncited link.',
+        'Read links.csv as links.',
+        'Laid out the map with the force layout (seed 1337): moved 4 variables.',
+        'Wrote from-csv.loopweft.',
+        '',
+      ].join('\n'),
+    );
+    const made = readProject(readFileSync(join(dir, 'from-csv.loopweft'), 'utf8'));
+    expect(made.ok && made.project.meta).toEqual({
+      title: 'links',
+      created: '2026-10-18',
+      modified: '2026-10-18',
+    });
+    expect(made.ok && Object.keys(made.project.layout.positions)).toHaveLength(4);
+  });
+
+  it('takes a mapping, a title and no layout when asked', async () => {
+    const { doc } = await json(
+      'import',
+      'links.csv',
+      '-o',
+      'mapped.loopweft',
+      '--map',
+      'Notes=ignore',
+      '--map',
+      'Evidence=field:Evidence:text',
+      '--title',
+      'Workload',
+      '--layout',
+      'none',
+    );
+    expect(doc).toMatchObject({
+      ok: true,
+      format: 'tables',
+      counts: { variables: 4, links: 5 },
+      saved: true,
+    });
+    const made = readProject(readFileSync(join(dir, 'mapped.loopweft'), 'utf8'));
+    expect(made.ok && made.project.types.fields).toEqual([
+      { id: 'evidence', name: 'Evidence', kind: 'text', appliesTo: 'links' },
+    ]);
+    expect(made.ok && made.project.layout.positions).toEqual({});
+    expect((doc.notes as string[]).includes('Left out the column "Notes" of links.csv, as chosen.')).toBe(
+      true,
+    );
+  });
+
+  it('reads Kumu and DataViz files, keeping the variables DataViz pins where they are', async () => {
+    const kumu = await json('import', 'kumu-blueprint.json', '-o', 'kumu.loopweft', '--title', 'Workload');
+    expect(kumu.doc).toMatchObject({ ok: true, format: 'kumu', counts: { variables: 4, links: 5 } });
+    const dataviz = await json('import', 'garden.dataviz.json', '-o', 'garden.loopweft');
+    expect(dataviz.doc).toMatchObject({ ok: true, format: 'dataviz', counts: { variables: 5, links: 6 } });
+    const garden = readProject(readFileSync(join(dir, 'garden.loopweft'), 'utf8'));
+    expect(garden.ok && garden.project.layout.positions.compost).toEqual({ x: 200, y: 300, pinned: true });
+    expect(garden.ok && Object.keys(garden.project.layout.positions)).toHaveLength(5);
+  });
+
+  it('writes nothing on a dry run or when the output exists, and stops at what it cannot read', async () => {
+    const dry = await json('import', 'links.csv', '-o', 'dry.loopweft', '--dry-run');
+    expect(dry.doc).toMatchObject({ ok: true, saved: false, dryRun: true });
+    expect(existsSync(join(dir, 'dry.loopweft'))).toBe(false);
+    expect((await json('import', 'links.csv', '-o', 'from-csv.loopweft')).code).toBe(2);
+    writeFileSync(join(dir, 'bad.csv'), 'From,To,Sign\nA,B,maybe\n');
+    const bad = await json('import', 'bad.csv', '-o', 'bad.loopweft');
+    expect(bad.code).toBe(1);
+    expect(bad.doc.error).toMatchObject({
+      exitCode: 1,
+      issues: [{ code: 'importProblem', path: ['bad.csv, row 2, sign'] }],
+    });
+    expect((await json('import', 'links.csv', '-o', 'x.loopweft', '--sign-field', 'Polarity')).code).toBe(2);
+    expect((await json('import', 'links.csv', '-o', 'x.loopweft', '--map', 'Nope=from')).code).toBe(2);
   });
 });

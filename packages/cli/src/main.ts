@@ -33,6 +33,7 @@ import {
   varRemoveCommand,
   varSetCommand,
 } from './commands.ts';
+import { importCommand } from './import.ts';
 import type { Env } from './support.ts';
 
 export interface Io {
@@ -51,7 +52,7 @@ const VERSION = (
   JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 ).version;
 
-type Run = (handler: () => CommandResult) => () => void;
+type Run = (handler: () => CommandResult | Promise<CommandResult>) => () => Promise<void>;
 
 const DRY_RUN = 'show what would change, without saving';
 const collect = (value: string, previous: string[] = []) => [...previous, value];
@@ -90,6 +91,36 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--shorthand-file <file>', 'read the shorthand from a file')
     .option('--dry-run', DRY_RUN)
     .action((file: string, o) => run(() => addCommand(env(), file, o))());
+
+  program
+    .command('import <input>')
+    .description(
+      'make a .loopweft file from tables (CSV, TSV, Excel), a Kumu blueprint or spreadsheet, or a DataViz project',
+    )
+    .requiredOption('-o, --out <file>', 'the .loopweft file to write')
+    .option('--format <format>', 'tables, kumu or dataviz (default: worked out from the file)')
+    .option('--title <title>', 'the title of the map (default: from the file)')
+    .option(
+      '--sheet <name=kind>',
+      'tables: what a sheet holds: variables, links or ignore (repeatable)',
+      collect,
+    )
+    .option('--header-row <n|sheet=n>', 'tables: the row holding the column names (1 = first; none)', collect)
+    .option(
+      '--map <column=target>',
+      'tables: where a column goes: a field (from, to, sign, label…), ignore, or field:<name>[:<kind>]; Sheet:Column=… for one sheet (repeatable)',
+      collect,
+    )
+    .option('--sign-field <field>', 'kumu: the connection field that holds the signs')
+    .option(
+      '--layout <kind>',
+      'lay out what the file does not place: force (default), constellation, flow or none',
+    )
+    .option('--seed <n>', 'the layout seed (default 1337)')
+    .option('--encoding <name>', 'text files: utf-8, windows-1252, utf-16le or utf-16be (default: detected)')
+    .option('--force', 'replace the output file if it exists')
+    .option('--dry-run', 'read and check the file, without writing')
+    .action((input: string, o) => run(() => importCommand(env(), input, o))());
 
   const variable = program.command('var').description('variables: list, add, set, rm');
   variable
@@ -301,7 +332,7 @@ export function commandNames(): string[] {
     createProgram(
       silent,
       () => ({ today: '' }),
-      () => () => undefined,
+      () => async () => undefined,
     ),
     [],
   );
@@ -329,8 +360,8 @@ export async function main(argv: string[], io: Io = processIo, env?: Env): Promi
   let result: CommandResult | undefined;
   let json = argv.includes('--json');
   const environment = () => (env ??= { today: today() });
-  const program = createProgram(io, environment, (handler) => () => {
-    result = handler();
+  const program = createProgram(io, environment, (handler) => async () => {
+    result = await handler();
   });
 
   try {
