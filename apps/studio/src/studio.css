@@ -243,3 +243,86 @@ body {
   font: 12px / 1 var(--lw-font-sans);
   color: var(--lw-muted);
 }
+
+/* ----- Editing on the canvas ----- */
+
+/* The ring to drag from, to link a variable to another: shown on the variable under the pointer, and on
+   the selected one. */
+.lw-node .handle {
+  fill: none;
+  stroke: var(--lw-glow);
+  stroke-opacity: 0;
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+.lw-node:hover .handle,
+.lw-node.selected .handle {
+  stroke-opacity: 0.3;
+  pointer-events: stroke;
+}
+
+.lw-node .handle:hover {
+  stroke-opacity: 0.75;
+}
+
+.lw-canvas svg.linking .lw-node .handle {
+  pointer-events: none;
+}
+
+.lw-node.target .ring {
+  stroke: var(--lw-mixed);
+  stroke-dasharray: none;
+}
+
+.lw-edge .head-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.lw-link-draft {
+  stroke: var(--lw-glow);
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.lw-band {
+  fill: color-mix(in srgb, var(--lw-glow) 12%, transparent);
+  stroke: var(--lw-glow);
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+/* The stage's outline while the home view is framed, and the home view's outline on the map. */
+.lw-stage-frame,
+.lw-home-rect {
+  fill: none;
+  stroke: var(--lw-mixed);
+  pointer-events: none;
+}
+
+.lw-stage-frame {
+  stroke-width: 2;
+  stroke-dasharray: 10 6;
+}
+
+.lw-home-rect {
+  stroke-dasharray: 8 6;
+  opacity: 0.8;
+}
+
+.lw-floating {
+  position: absolute;
+  z-index: 5;
+}
+
+.lw-search {
+  left: 12px;
+  top: 12px;
+}
+
+.lw-framing {
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+}

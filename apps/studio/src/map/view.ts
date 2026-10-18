@@ -30,12 +30,20 @@ export function mapBounds(graph: Graph): Bounds | null {
   const xs: number[] = [];
   const ys: number[] = [];
   for (const n of graph.nodes.values()) {
-    // Room for the label on the side it goes.
+    // Room for the label on the side it goes, from its longest line (about 14 map units a letter at the
+    // whole-map zoom) and its lines.
+    const lines = n.label.split('\n');
+    const width = Math.max(...lines.map((l) => l.length)) * 14;
+    const height = lines.length * 30;
+    const side = n.labelSide;
     xs.push(
-      n.x - n.r - (n.labelSide === 'left' ? 150 : 75),
-      n.x + n.r + (n.labelSide === 'right' ? 150 : 75),
+      n.x - n.r - (side === 'left' ? width + 12 : side === 'right' ? 0 : width / 2),
+      n.x + n.r + (side === 'right' ? width + 12 : side === 'left' ? 0 : width / 2),
     );
-    ys.push(n.y - n.r - (n.labelSide === 'above' ? 55 : 25), n.y + n.r + (n.labelSide === 'below' ? 60 : 25));
+    ys.push(
+      n.y - n.r - (side === 'above' ? height + 12 : side === 'below' ? 0 : height / 2),
+      n.y + n.r + (side === 'below' ? height + 12 : side === 'above' ? 0 : height / 2),
+    );
   }
   for (const g of graph.groups) {
     if (!g.halo) continue;
@@ -79,4 +87,52 @@ export const centreOn = (view: View, size: Size, x: number, y: number): View => 
   k: view.k,
   dx: size.w / 2 - x * view.k,
   dy: size.h / 2 - y * view.k,
+});
+
+/** The stage an audience sees: 1920 × 1080 stage pixels. */
+export const STAGE = { w: 1920, h: 1080 };
+
+export interface Frame {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The stage's outline on the canvas: the largest 16:9 frame that fits, centred, with a margin. */
+export function stageFrame(size: Size, margin = 40): Frame {
+  const w = Math.max(16, Math.min(size.w - 2 * margin, ((size.h - 2 * margin) * STAGE.w) / STAGE.h));
+  const h = (w * STAGE.h) / STAGE.w;
+  return { x: (size.w - w) / 2, y: (size.h - h) / 2, w, h };
+}
+
+export interface Home {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+/** The home view the stage frame shows: the map point at its centre, and the stage's zoom. */
+export function homeFromView(view: View, size: Size): Home {
+  const frame = stageFrame(size);
+  const centre = toMap(view, size.w / 2, size.h / 2);
+  return {
+    x: Math.round(centre.x),
+    y: Math.round(centre.y),
+    zoom: Math.round(((STAGE.w * view.k) / frame.w) * 1000) / 1000,
+  };
+}
+
+/** The canvas view whose stage frame shows a home view. */
+export function viewForHome(home: Home, size: Size): View {
+  const k = (home.zoom * stageFrame(size).w) / STAGE.w;
+  return { k, dx: size.w / 2 - home.x * k, dy: size.h / 2 - home.y * k };
+}
+
+/** The part of the map a home view shows, in map units. */
+export const homeRect = (home: Home): Frame => ({
+  x: home.x - STAGE.w / home.zoom / 2,
+  y: home.y - STAGE.h / home.zoom / 2,
+  w: STAGE.w / home.zoom,
+  h: STAGE.h / home.zoom,
 });

@@ -7,6 +7,7 @@ import {
   formatPath,
   type Issue,
   type Link,
+  moveVariables,
   type Project,
   setBends,
   setLabelSide,
@@ -26,6 +27,7 @@ import {
   Group,
   ScrollArea,
   SegmentedControl,
+  SimpleGrid,
   Slider,
   Stack,
   Switch,
@@ -36,6 +38,7 @@ import {
 import { useMemo } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { useGraph } from './canvas.tsx';
+import { type Alignment, alignment, pinWhereDrawn } from './edit.ts';
 import { ChoiceInput, CommitText, FieldInput, NumberValue } from './inputs.tsx';
 
 const fieldsFor = (project: Project, carrier: 'variables' | 'links') =>
@@ -79,6 +82,7 @@ function Citations({ citations, project }: { citations: Citation[]; project: Pro
 
 function VariableInspector({ variable }: { variable: Variable }) {
   const project = useStudio((s) => s.project);
+  const graph = useGraph(project);
   const edit = useEdit();
   const set = (changes: Parameters<typeof setVariable>[2]) =>
     edit((p) => setVariable(p, variable.id, changes));
@@ -171,9 +175,18 @@ function VariableInspector({ variable }: { variable: Variable }) {
           />
         </>
       ) : (
-        <Text size="sm" c="dimmed">
-          Placed by an automatic layout until it is moved.
-        </Text>
+        <Group justify="space-between" wrap="nowrap">
+          <Text size="sm" c="dimmed">
+            Placed by an automatic layout until it is moved.
+          </Text>
+          <Button
+            size="compact-xs"
+            variant="default"
+            onClick={() => edit((p) => pinWhereDrawn(p, graph, [variable.id], true))}
+          >
+            Pin here
+          </Button>
+        </Group>
       )}
       <Divider label="Sources" labelPosition="left" />
       <Citations citations={variable.citations} project={project} />
@@ -444,14 +457,66 @@ function ProjectInspector() {
   );
 }
 
-function SeveralInspector({ variables, links }: { variables: number; links: number }) {
+const ALIGN: { how: Alignment; label: string }[] = [
+  { how: 'left', label: 'Left' },
+  { how: 'centre', label: 'Centre' },
+  { how: 'right', label: 'Right' },
+  { how: 'top', label: 'Top' },
+  { how: 'middle', label: 'Middle' },
+  { how: 'bottom', label: 'Bottom' },
+];
+
+function SeveralInspector({ variables, links }: { variables: string[]; links: string[] }) {
+  const project = useStudio((s) => s.project);
+  const graph = useGraph(project);
+  const edit = useEdit();
+  const align = (how: Alignment) => {
+    const moves = alignment(graph, variables, how);
+    if (Object.keys(moves).length) edit((p) => moveVariables(p, moves));
+  };
+  const allPinned = variables.every((id) => project.layout.positions[id]?.pinned);
   return (
     <Stack gap="sm">
       <Title order={2} size="h5">
         Selected
       </Title>
       <Text size="sm">
-        {variables} variable{variables === 1 ? '' : 's'} and {links} link{links === 1 ? '' : 's'}.
+        {variables.length} variable{variables.length === 1 ? '' : 's'} and {links.length} link
+        {links.length === 1 ? '' : 's'}.
+      </Text>
+      {variables.length >= 2 && (
+        <>
+          <Divider label="Line up" labelPosition="left" />
+          <SimpleGrid cols={3} spacing={6}>
+            {ALIGN.map(({ how, label }) => (
+              <Button key={how} size="compact-xs" variant="default" onClick={() => align(how)}>
+                {label}
+              </Button>
+            ))}
+          </SimpleGrid>
+          {variables.length >= 3 && (
+            <Group grow gap={6}>
+              <Button size="compact-xs" variant="default" onClick={() => align('across')}>
+                Space evenly across
+              </Button>
+              <Button size="compact-xs" variant="default" onClick={() => align('down')}>
+                Space evenly down
+              </Button>
+            </Group>
+          )}
+        </>
+      )}
+      {variables.length >= 1 && (
+        <Button
+          size="compact-sm"
+          variant="default"
+          onClick={() => edit((p) => pinWhereDrawn(p, graph, variables, !allPinned))}
+        >
+          {allPinned ? 'Unpin them' : 'Pin them where they are'}
+        </Button>
+      )}
+      <Text size="xs" c="dimmed">
+        Delete removes the selection (with the links of its variables); Ctrl+Z brings it back.
       </Text>
     </Stack>
   );
@@ -463,8 +528,7 @@ export function Inspector() {
   const count = selection.variables.length + selection.links.length;
   let body: React.ReactNode;
   if (count === 0) body = <ProjectInspector />;
-  else if (count > 1)
-    body = <SeveralInspector variables={selection.variables.length} links={selection.links.length} />;
+  else if (count > 1) body = <SeveralInspector variables={selection.variables} links={selection.links} />;
   else if (selection.variables.length === 1) {
     const variable = project.variables.find((v) => v.id === selection.variables[0]);
     body = variable ? <VariableInspector key={variable.id} variable={variable} /> : null;
