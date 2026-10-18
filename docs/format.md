@@ -487,7 +487,8 @@ Fertility -> Births (?, conf=M)
   label, `conf=` (`low`, `medium`, `high`, or `L`, `M`, `H`), `weight=` or `strength=`, and `field=value` for
   `type`, `conditional`, `rationale`, `delayLabel` or a custom field (by id or name).
 - Brackets at the end of a line always hold the link's details: anything else in them is an error, so an
-  effect whose name ends in brackets is quoted, `A -> "Temperature (Celsius)"`.
+  effect whose name ends in brackets is quoted, `A -> "Temperature (Celsius)"`. Empty brackets (or ones
+  holding only commas) and a bracket outside quotes that is never closed, or closes nothing, are errors too.
 - A line without a sign records `?`, with a warning. `@group name: A, B` puts variables in a category,
   making it if needed.
 - Values are read strictly: `weight=heavy` is an error, not text. A link that already exists is an error.
