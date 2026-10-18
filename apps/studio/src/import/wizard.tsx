@@ -336,7 +336,8 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
     onDone();
   };
 
-  const middle = source?.format === 'tables' ? 'Columns' : source?.format === 'kumu' ? 'Signs' : 'Choices';
+  const middle =
+    source?.format === 'tables' ? 'Columns' : source?.format === 'kumu' ? 'Signs' : 'Nothing to choose';
   const drop = (event: DragEvent<HTMLDivElement>) => {
     const picked = event.dataTransfer.files[0];
     if (!picked) return;
