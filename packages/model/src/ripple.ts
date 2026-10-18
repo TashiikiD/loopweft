@@ -47,7 +47,10 @@ export interface RippleResult {
   unknownLinks: string[];
   /** Links of optional types out of a variable the change reached, left out. */
   optionalLinks: string[];
-  /** True when it stopped at `maxSteps` with more to reach. */
+  /**
+   * True when it stopped at `maxSteps` with more to tell: a variable to reach, feedback to the start, or a
+   * push the other way.
+   */
   capped: boolean;
 }
 
@@ -87,7 +90,16 @@ export function ripple(
 
   for (let k = 1; frontier.length; k++) {
     if (k > maxSteps) {
-      capped = frontier.some((v) => (outOf.get(v) ?? []).some((l) => followed(l) && !step.has(l.to)));
+      // More to tell past the cap: a variable not yet reached, feedback to the start, or a push the other way.
+      capped = frontier.some((v) =>
+        (outOf.get(v) ?? []).some((l) => {
+          if (!followed(l)) return false;
+          if (l.to === origin || !step.has(l.to)) return true;
+          const push =
+            l.sign === '+' ? (trend.get(v) as RippleDirection) : flip(trend.get(v) as RippleDirection);
+          return trend.get(l.to) !== 'mixed' && trend.get(l.to) !== push;
+        }),
+      );
       break;
     }
     const arrivals = new Map<string, { link: string; push: RippleDirection }[]>();
