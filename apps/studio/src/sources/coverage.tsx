@@ -51,7 +51,7 @@ export function Coverage() {
     kind === 'link'
       ? project.links.map((l) => ({
           id: l.id,
-          name: `${elementName(project, 'link', l.id).replace(' → ', ` → ${signText(l.sign)} → `)}`,
+          name: `${elementName(project, 'link', l.id)} (${signText(l.sign)})`,
           citations: l.citations,
         }))
       : kind === 'variable'

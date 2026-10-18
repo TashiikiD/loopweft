@@ -64,7 +64,7 @@ async function citeChosen(page: Page, rows: string[], source: RegExp, pages: str
 const segment = (page: Page, label: string) =>
   page.locator('.mantine-SegmentedControl-label').getByText(label, { exact: true }).click();
 
-const link = (from: string, to: string) => `${from} → + → ${to}`;
+const link = (from: string, to: string) => `${from} → ${to} (+)`;
 
 test('cite a map end to end', async ({ page, context }) => {
   const example = readProject(readFileSync(EXAMPLE, 'utf8'));
