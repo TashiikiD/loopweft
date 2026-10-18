@@ -1,0 +1,132 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 87,
+    "publisher": "Springer Science and Business Media LLC",
+    "issue": "3",
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2025, 12, 29]],
+          "date-time": "2025-12-29T00:00:00Z",
+          "timestamp": 1766966400000
+        },
+        "content-version": "tdm",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      },
+      {
+        "start": {
+          "date-parts": [[2025, 12, 29]],
+          "date-time": "2025-12-29T00:00:00Z",
+          "timestamp": 1766966400000
+        },
+        "content-version": "vor",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      }
+    ],
+    "short-container-title": ["Sustain Sci"],
+    "published-print": {
+      "date-parts": [[2026, 5]]
+    },
+    "DOI": "10.1007/s11625-025-01790-9",
+    "type": "journal-article",
+    "created": {
+      "date-parts": [[2025, 12, 29]],
+      "date-time": "2025-12-29T17:42:48Z",
+      "timestamp": 1767030168000
+    },
+    "page": "1177-1191",
+    "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+    "source": "Crossref",
+    "is-referenced-by-count": 3,
+    "title": ["More than a buzzword? Mapping interpretations of the ‘polycrisis’"],
+    "prefix": "10.1007",
+    "volume": "21",
+    "author": [
+      {
+        "given": "Louis",
+        "family": "Delannoy",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jean-Charles",
+        "family": "Leveugle",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Sofia",
+        "family": "Maniatakou",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Peter",
+        "family": "Søgaard Jørgensen",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "297",
+    "published-online": {
+      "date-parts": [[2025, 12, 29]]
+    },
+    "container-title": ["Sustainability Science"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2025, 12, 29]]
+    },
+    "references-count": 87,
+    "journal-issue": {
+      "issue": "3",
+      "published-print": {
+        "date-parts": [[2026, 5]]
+      }
+    },
+    "alternative-id": ["1790"],
+    "URL": "https://doi.org/10.1007/s11625-025-01790-9",
+    "ISSN": ["1862-4065", "1862-4057"],
+    "issn-type": [
+      {
+        "value": "1862-4065",
+        "type": "print"
+      },
+      {
+        "value": "1862-4057",
+        "type": "electronic"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2025, 12, 29]]
+    }
+  }
+}

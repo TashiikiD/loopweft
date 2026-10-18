@@ -1,0 +1,63 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "institution": [
+      {
+        "name": "Portland State University"
+      }
+    ],
+    "reference-count": 0,
+    "publisher": "Portland State University Library",
+    "short-container-title": [],
+    "DOI": "10.15760/etd.7536",
+    "type": "dissertation",
+    "created": {
+      "date-parts": [[2021, 4, 29]],
+      "date-time": "2021-04-29T16:47:53Z",
+      "timestamp": 1619714873000
+    },
+    "approved": {
+      "date-parts": [[2021, 3, 5]]
+    },
+    "source": "Crossref",
+    "is-referenced-by-count": 2,
+    "title": ["Get Your Model Out There: Advancing Methods for Developing and Using Causal-Loop Diagrams"],
+    "prefix": "10.15760",
+    "author": [
+      {
+        "sequence": "additional",
+        "role": [
+          {
+            "role": "author",
+            "vocabulary": "crossref"
+          }
+        ]
+      },
+      {
+        "given": "Erin",
+        "family": "Kenzie",
+        "sequence": "first",
+        "role": [
+          {
+            "role": "author",
+            "vocabulary": "crossref"
+          }
+        ]
+      }
+    ],
+    "member": "6539",
+    "container-title": [],
+    "original-title": [],
+    "degree": ["Doctor of Philosophy (Ph.D.) in Systems Science"],
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[null]]
+    },
+    "references-count": 0,
+    "URL": "https://doi.org/10.15760/etd.7536",
+    "subject": []
+  }
+}

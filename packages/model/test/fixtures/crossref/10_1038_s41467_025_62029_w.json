@@ -1,0 +1,389 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 72,
+    "publisher": "Springer Science and Business Media LLC",
+    "issue": "1",
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2025, 8, 14]],
+          "date-time": "2025-08-14T00:00:00Z",
+          "timestamp": 1755129600000
+        },
+        "content-version": "tdm",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      },
+      {
+        "start": {
+          "date-parts": [[2025, 8, 14]],
+          "date-time": "2025-08-14T00:00:00Z",
+          "timestamp": 1755129600000
+        },
+        "content-version": "vor",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      }
+    ],
+    "short-container-title": ["Nat Commun"],
+    "DOI": "10.1038/s41467-025-62029-w",
+    "type": "journal-article",
+    "created": {
+      "date-parts": [[2025, 8, 14]],
+      "date-time": "2025-08-14T09:03:02Z",
+      "timestamp": 1755162182000
+    },
+    "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+    "source": "Crossref",
+    "is-referenced-by-count": 31,
+    "title": ["A systemic risk assessment methodological framework for the global polycrisis"],
+    "prefix": "10.1038",
+    "volume": "16",
+    "author": [
+      {
+        "given": "Ajay",
+        "family": "Gambhir",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Michael J.",
+        "family": "Albert",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Sylvanus S. P.",
+        "family": "Doe",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jonathan F.",
+        "family": "Donges",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Nadim",
+        "family": "Farajalla",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Leandro L.",
+        "family": "Giatti",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Haripriya",
+        "family": "Gundimeda",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Sarah",
+        "family": "Hendel-Blackford",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Thomas",
+        "family": "Homer-Dixon",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Daniel",
+        "family": "Hoyer",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Sumaya",
+        "family": "Adan",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "David",
+        "family": "Jacome-Polit",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Luke",
+        "family": "Kemp",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "David",
+        "family": "Korowicz",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Zora",
+        "family": "Kovacic",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jan",
+        "family": "Kwakkel",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Laurie",
+        "family": "Laybourn",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Robert",
+        "family": "Lempert",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Ayan",
+        "family": "Mahamoud",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Tom H.",
+        "family": "Oliver",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Ivana E.",
+        "family": "Pavkova",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Joseph",
+        "family": "Ponnoly",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Vishwas",
+        "family": "Satgar",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Megan",
+        "family": "Shipman",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jana",
+        "family": "Sillmann",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Nick",
+        "family": "Silver",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Samuel",
+        "family": "Stevenson",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Ruth",
+        "family": "Richardson",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "297",
+    "published-online": {
+      "date-parts": [[2025, 8, 14]]
+    },
+    "container-title": ["Nature Communications"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2025, 8, 14]]
+    },
+    "references-count": 72,
+    "journal-issue": {
+      "issue": "1",
+      "published-online": {
+        "date-parts": [[2025, 12]]
+      }
+    },
+    "alternative-id": ["62029"],
+    "URL": "https://doi.org/10.1038/s41467-025-62029-w",
+    "ISSN": ["2041-1723"],
+    "issn-type": [
+      {
+        "value": "2041-1723",
+        "type": "electronic"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2025, 8, 14]]
+    },
+    "article-number": "7382"
+  }
+}

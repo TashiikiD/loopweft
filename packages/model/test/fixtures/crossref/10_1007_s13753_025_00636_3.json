@@ -1,0 +1,110 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 146,
+    "publisher": "Springer Science and Business Media LLC",
+    "issue": "4",
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2025, 5, 28]],
+          "date-time": "2025-05-28T00:00:00Z",
+          "timestamp": 1748390400000
+        },
+        "content-version": "tdm",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      },
+      {
+        "start": {
+          "date-parts": [[2025, 5, 28]],
+          "date-time": "2025-05-28T00:00:00Z",
+          "timestamp": 1748390400000
+        },
+        "content-version": "vor",
+        "delay-in-days": 0,
+        "URL": "https://creativecommons.org/licenses/by/4.0"
+      }
+    ],
+    "short-container-title": ["Int J Disaster Risk Sci"],
+    "published-print": {
+      "date-parts": [[2025, 8]]
+    },
+    "DOI": "10.1007/s13753-025-00636-3",
+    "type": "journal-article",
+    "created": {
+      "date-parts": [[2025, 5, 28]],
+      "date-time": "2025-05-28T03:18:12Z",
+      "timestamp": 1748402292000
+    },
+    "page": "526-549",
+    "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+    "source": "Crossref",
+    "is-referenced-by-count": 41,
+    "title": ["Polycrisis and Systemic Risk: Assessment, Governance, and Communication"],
+    "prefix": "10.1007",
+    "volume": "16",
+    "author": [
+      {
+        "given": "Huan",
+        "family": "Liu",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Ortwin",
+        "family": "Renn",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "297",
+    "published-online": {
+      "date-parts": [[2025, 5, 28]]
+    },
+    "container-title": ["International Journal of Disaster Risk Science"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2025, 5, 28]]
+    },
+    "references-count": 146,
+    "journal-issue": {
+      "issue": "4",
+      "published-print": {
+        "date-parts": [[2025, 8]]
+      }
+    },
+    "alternative-id": ["636"],
+    "URL": "https://doi.org/10.1007/s13753-025-00636-3",
+    "ISSN": ["2095-0055", "2192-6395"],
+    "issn-type": [
+      {
+        "value": "2095-0055",
+        "type": "print"
+      },
+      {
+        "value": "2192-6395",
+        "type": "electronic"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2025, 5, 28]]
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "institution": [
+      {
+        "name": "Comprehensive R Archive Network",
+        "acronym": ["CRAN"]
+      }
+    ],
+    "description": "Performs Levins' loop analysis of qualitatively-specified complex causal systems. Loop analysis makes qualitative predictions of variable change in a system of causally interdependent variables, where \"qualitative\" means direct causal relationships and indirect causal effects are coded as sign only (i.e. increases, decreases, no change, and ambiguous). This implementation includes output support for graphs in .dot file format for use with visualization software such as 'graphviz' (<https://graphviz.org>). 'LoopAnalyst' provides tools for the construction and output of community matrices, computation and output of community effect matrices, tables of correlations, adjoint, absolute feedback, weighted feedback and weighted prediction matrices, change in life expectancy matrices, and feedback, path and loop enumeration tools.",
+    "reference-count": 6,
+    "publisher": "The R Foundation",
+    "short-container-title": [],
+    "content-updated": {
+      "date-parts": [[2026, 10, 5]]
+    },
+    "published-print": {
+      "date-parts": [[2006, 2, 8]]
+    },
+    "DOI": "10.32614/cran.package.loopanalyst",
+    "type": "dataset",
+    "created": {
+      "date-parts": [[2024, 6, 13]],
+      "date-time": "2024-06-13T06:16:47Z",
+      "timestamp": 1718259407000
+    },
+    "source": "Crossref",
+    "is-referenced-by-count": 0,
+    "title": ["LoopAnalyst: A Collection of Tools to Conduct Levins' Loop Analysis"],
+    "prefix": "10.32614",
+    "author": [
+      {
+        "given": "Alexis",
+        "family": "Dinno",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "17266",
+    "content-created": {
+      "date-parts": [[2006, 2, 8]]
+    },
+    "container-title": ["CRAN: Contributed Packages"],
+    "original-title": [],
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2006, 2, 8]]
+    },
+    "references-count": 6,
+    "URL": "https://doi.org/10.32614/cran.package.loopanalyst",
+    "subject": [],
+    "published": {
+      "date-parts": [[2006, 2, 8]]
+    }
+  }
+}

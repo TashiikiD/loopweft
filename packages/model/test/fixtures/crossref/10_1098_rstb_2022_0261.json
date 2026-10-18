@@ -1,0 +1,231 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 201,
+    "publisher": "The Royal Society",
+    "issue": "1893",
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2023, 11, 13]],
+          "date-time": "2023-11-13T00:00:00Z",
+          "timestamp": 1699833600000
+        },
+        "content-version": "vor",
+        "delay-in-days": 0,
+        "URL": "http://creativecommons.org/licenses/by/4.0/"
+      },
+      {
+        "start": {
+          "date-parts": [[2023, 11, 13]],
+          "date-time": "2023-11-13T00:00:00Z",
+          "timestamp": 1699833600000
+        },
+        "content-version": "tdm",
+        "delay-in-days": 0,
+        "URL": "http://creativecommons.org/licenses/by/4.0/"
+      }
+    ],
+    "short-container-title": ["Phil. Trans. R. Soc. B"],
+    "published-print": {
+      "date-parts": [[2024, 1]]
+    },
+    "DOI": "10.1098/rstb.2022.0261",
+    "type": "journal-article",
+    "created": {
+      "date-parts": [[2023, 11, 12]],
+      "date-time": "2023-11-12T19:05:27Z",
+      "timestamp": 1699815927000
+    },
+    "update-policy": "https://doi.org/10.1098/crossmark-policy",
+    "source": "Crossref",
+    "is-referenced-by-count": 84,
+    "title": ["Evolution of the polycrisis: Anthropocene traps that challenge global sustainability"],
+    "prefix": "10.1098",
+    "volume": "379",
+    "author": [
+      {
+        "given": "Peter",
+        "family": "Søgaard Jørgensen",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Raf E. V.",
+        "family": "Jansen",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Daniel I.",
+        "family": "Avila Ortega",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Lan",
+        "family": "Wang-Erlandsson",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jonathan F.",
+        "family": "Donges",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Henrik",
+        "family": "Österblom",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Per",
+        "family": "Olsson",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Magnus",
+        "family": "Nyström",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Steven J.",
+        "family": "Lade",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Thomas",
+        "family": "Hahn",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Carl",
+        "family": "Folke",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Garry D.",
+        "family": "Peterson",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Anne-Sophie",
+        "family": "Crépin",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "175",
+    "published-online": {
+      "date-parts": [[2023, 11, 13]]
+    },
+    "container-title": ["Philosophical Transactions of the Royal Society B: Biological Sciences"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2023, 11, 13]]
+    },
+    "references-count": 201,
+    "journal-issue": {
+      "issue": "1893",
+      "published-print": {
+        "date-parts": [[2024, 1]]
+      }
+    },
+    "alternative-id": ["10.1098/rstb.2022.0261"],
+    "URL": "https://doi.org/10.1098/rstb.2022.0261",
+    "ISSN": ["0962-8436", "1471-2970"],
+    "issn-type": [
+      {
+        "value": "0962-8436",
+        "type": "print"
+      },
+      {
+        "value": "1471-2970",
+        "type": "electronic"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2023, 11, 13]]
+    },
+    "article-number": "20220261"
+  }
+}

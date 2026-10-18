@@ -2,6 +2,25 @@
 // and in the browser; nothing reads the clock or draws random numbers.
 
 export {
+  type DraftNote,
+  initials,
+  licenceName,
+  type NoteLevel,
+  type ReferenceDraft,
+  referenceFromCrossref,
+} from './doi/crossref.ts';
+export {
+  CROSSREF_WORKS,
+  crossrefUrl,
+  LOOKUP_TIMEOUT_MS,
+  type LookupFailure,
+  type LookupFailureKind,
+  type LookupOptions,
+  type LookupResult,
+  lookupDoi,
+} from './doi/lookup.ts';
+export { DOI_PATTERN, readDoi } from './doi/read.ts';
+export {
   type CitableKind,
   type CoverageCount,
   type EvidenceCoverage,

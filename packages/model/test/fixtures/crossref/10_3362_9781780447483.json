@@ -1,0 +1,59 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 0,
+    "publisher": "PRACTICAL ACTION PUBLISHING",
+    "isbn-type": [
+      {
+        "value": "9781780447483",
+        "type": "electronic"
+      }
+    ],
+    "short-container-title": [],
+    "DOI": "10.3362/9781780447483",
+    "type": "edited-book",
+    "created": {
+      "date-parts": [[2019, 2, 21]],
+      "date-time": "2019-02-21T14:10:33Z",
+      "timestamp": 1550758233000
+    },
+    "source": "Crossref",
+    "is-referenced-by-count": 11,
+    "title": ["Systems Thinking and WASH"],
+    "prefix": "10.3362",
+    "member": "1928",
+    "published-online": {
+      "date-parts": [[2019]]
+    },
+    "container-title": [],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "editor": [
+      {
+        "given": "Kate",
+        "family": "Neely",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "editor"
+          }
+        ]
+      }
+    ],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2019]]
+    },
+    "ISBN": ["9781780447483"],
+    "references-count": 0,
+    "URL": "https://doi.org/10.3362/9781780447483",
+    "subject": [],
+    "published": {
+      "date-parts": [[2019]]
+    }
+  }
+}

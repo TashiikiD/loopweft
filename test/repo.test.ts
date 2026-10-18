@@ -106,6 +106,22 @@ describe('repository rules', () => {
     expect(entry.split(' ')[0]).toBe('100755');
   });
 
+  // AGENTS.md: no telemetry, no server; the only network call is the optional DOI lookup. Every source file of
+  // the packages and apps is searched for the browser's and Node's ways of reaching the network.
+  it('reaches the network only in the DOI lookup', () => {
+    const NETWORK =
+      /\bfetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|node:https?\b|node:net\b|node:dgram\b/;
+    const files = spawnSync('git', ['ls-files', 'packages', 'apps'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .stdout.split(/\r?\n/)
+      .filter((f) => /^(packages|apps)\/[^/]+\/(src\/.*\.(ts|tsx|mjs|js)|index\.html)$/.test(f));
+    expect(files.length).toBeGreaterThan(50);
+    const reaching = files.filter((f) => NETWORK.test(readFileSync(new URL(f, root), 'utf8')));
+    expect(reaching).toEqual(['packages/model/src/doi/lookup.ts']);
+  });
+
   // AGENTS.md: nothing personal in the repository. The words come from this machine only (`privateWords` in the
   // git-ignored .local.json, or LOOPWEFT_PRIVATE_WORDS); where none are set, as on CI, there is nothing to check.
   // private-words.test.ts checks the check itself, with a made-up word, everywhere.

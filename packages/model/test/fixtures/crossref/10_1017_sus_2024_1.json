@@ -1,0 +1,146 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 109,
+    "publisher": "Cambridge University Press (CUP)",
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2024, 1, 17]],
+          "date-time": "2024-01-17T00:00:00Z",
+          "timestamp": 1705449600000
+        },
+        "content-version": "unspecified",
+        "delay-in-days": 16,
+        "URL": "http://creativecommons.org/licenses/by/4.0/"
+      }
+    ],
+    "short-container-title": ["Glob. Sustain."],
+    "published-print": {
+      "date-parts": [[2024]]
+    },
+    "DOI": "10.1017/sus.2024.1",
+    "type": "journal-article",
+    "created": {
+      "date-parts": [[2024, 1, 17]],
+      "date-time": "2024-01-17T03:19:46Z",
+      "timestamp": 1705461586000
+    },
+    "update-policy": "https://doi.org/10.1017/policypage",
+    "source": "Crossref",
+    "is-referenced-by-count": 536,
+    "title": ["Global polycrisis: the causal mechanisms of crisis entanglement"],
+    "prefix": "10.1017",
+    "volume": "7",
+    "author": [
+      {
+        "given": "Michael",
+        "family": "Lawrence",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Thomas",
+        "family": "Homer-Dixon",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Scott",
+        "family": "Janzwood",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Johan",
+        "family": "Rockström",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Ortwin",
+        "family": "Renn",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Jonathan F.",
+        "family": "Donges",
+        "sequence": "additional",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "56",
+    "published-online": {
+      "date-parts": [[2024, 1, 17]]
+    },
+    "updated-by": [
+      {
+        "DOI": "10.1017/sus.2024.48",
+        "type": "correction",
+        "label": "Correction",
+        "source": "publisher",
+        "updated": {
+          "date-parts": [[2024, 1, 17]],
+          "date-time": "2024-01-17T00:00:00Z",
+          "timestamp": 1705449600000
+        }
+      }
+    ],
+    "container-title": ["Global Sustainability"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2024]]
+    },
+    "references-count": 109,
+    "alternative-id": ["S2059479824000012"],
+    "URL": "https://doi.org/10.1017/sus.2024.1",
+    "ISSN": ["2059-4798"],
+    "issn-type": [
+      {
+        "value": "2059-4798",
+        "type": "electronic"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2024]]
+    },
+    "article-number": "e6"
+  }
+}

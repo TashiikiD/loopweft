@@ -1,0 +1,86 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "reference-count": 11,
+    "publisher": "Author(s)",
+    "short-container-title": [],
+    "published-print": {
+      "date-parts": [[2017]]
+    },
+    "DOI": "10.1063/1.5005484",
+    "type": "proceedings-article",
+    "created": {
+      "date-parts": [[2017, 10, 4]],
+      "date-time": "2017-10-04T00:30:23Z",
+      "timestamp": 1507077023000
+    },
+    "page": "020151",
+    "source": "Crossref",
+    "is-referenced-by-count": 1,
+    "title": ["Strategic planning for MyRA performance: A causal loop diagram approach"],
+    "prefix": "10.1063",
+    "volume": "1891",
+    "author": [
+      {
+        "given": "Norhaslinda Zainal",
+        "family": "Abidin",
+        "sequence": "first",
+        "role": [
+          {
+            "role": "author",
+            "vocabulary": "crossref"
+          }
+        ]
+      },
+      {
+        "given": "Nerda Zura",
+        "family": "Zaibidi",
+        "sequence": "additional",
+        "role": [
+          {
+            "role": "author",
+            "vocabulary": "crossref"
+          }
+        ]
+      },
+      {
+        "given": "Khairah Nazurah",
+        "family": "Karim",
+        "sequence": "additional",
+        "role": [
+          {
+            "role": "author",
+            "vocabulary": "crossref"
+          }
+        ]
+      }
+    ],
+    "member": "317",
+    "event": {
+      "name": "THE 2ND INTERNATIONAL CONFERENCE ON APPLIED SCIENCE AND TECHNOLOGY 2017 (ICAST’17)",
+      "location": "Kedah, Malaysia"
+    },
+    "container-title": ["AIP Conference Proceedings"],
+    "original-title": [],
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2017]]
+    },
+    "references-count": 11,
+    "URL": "https://doi.org/10.1063/1.5005484",
+    "ISSN": ["0094-243X"],
+    "issn-type": [
+      {
+        "type": "print",
+        "value": "0094-243X"
+      }
+    ],
+    "subject": [],
+    "published": {
+      "date-parts": [[2017]]
+    }
+  }
+}

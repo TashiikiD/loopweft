@@ -1,0 +1,91 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "publisher-location": "Singapore",
+    "reference-count": 2,
+    "publisher": "Springer Nature Singapore",
+    "isbn-type": [
+      {
+        "value": "9789819652853",
+        "type": "print"
+      },
+      {
+        "value": "9789819652860",
+        "type": "electronic"
+      }
+    ],
+    "license": [
+      {
+        "start": {
+          "date-parts": [[2025, 1, 1]],
+          "date-time": "2025-01-01T00:00:00Z",
+          "timestamp": 1735689600000
+        },
+        "content-version": "tdm",
+        "delay-in-days": 0,
+        "URL": "https://www.springernature.com/gp/researchers/text-and-data-mining"
+      },
+      {
+        "start": {
+          "date-parts": [[2025, 1, 1]],
+          "date-time": "2025-01-01T00:00:00Z",
+          "timestamp": 1735689600000
+        },
+        "content-version": "vor",
+        "delay-in-days": 0,
+        "URL": "https://www.springernature.com/gp/researchers/text-and-data-mining"
+      }
+    ],
+    "short-container-title": [],
+    "published-print": {
+      "date-parts": [[2025]]
+    },
+    "DOI": "10.1007/978-981-96-5286-0_4",
+    "type": "book-chapter",
+    "created": {
+      "date-parts": [[2025, 10, 26]],
+      "date-time": "2025-10-26T09:56:10Z",
+      "timestamp": 1761472570000
+    },
+    "page": "21-25",
+    "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+    "source": "Crossref",
+    "is-referenced-by-count": 0,
+    "title": ["Causal Loop Diagram"],
+    "prefix": "10.1007",
+    "author": [
+      {
+        "given": "Nobuo",
+        "family": "Nishi",
+        "sequence": "first",
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "297",
+    "published-online": {
+      "date-parts": [[2025, 10, 27]]
+    },
+    "container-title": ["A Guidebook of Systems Thinking Approach in Public Health"],
+    "original-title": [],
+    "language": "en",
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [[2025]]
+    },
+    "ISBN": ["9789819652853", "9789819652860"],
+    "references-count": 2,
+    "URL": "https://doi.org/10.1007/978-981-96-5286-0_4",
+    "subject": [],
+    "published": {
+      "date-parts": [[2025]]
+    }
+  }
+}

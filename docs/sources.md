@@ -27,6 +27,47 @@ A source that is still cited is not removed, unless you ask for its citations to
 then every citation of it, on the map and in the story, and every scene's listing of it go too. A work that
 has supplements is never removed while they point to it; remove them first, or make them part of no work.
 
+## Looking up a DOI
+
+Given a DOI, Loopweft asks Crossref for the work's record (`https://api.crossref.org/works/<DOI>`) and
+drafts its APA reference, its in-text label and, when the publisher recorded one, its Creative Commons
+licence. This is Loopweft's only network call. It sends the DOI and nothing else: no account, no email
+address, nothing about the map. Entering a reference by hand needs no network and always works.
+
+A DOI can be pasted bare (`10.1017/sus.2024.1`), as an address (`https://doi.org/10.1017/sus.2024.1`), or
+after `doi:`. A full stop at the end is read as the sentence's.
+
+The draft is shown before anything is added, with notes of three kinds:
+
+- **warnings**: Crossref records a retraction, withdrawal or expression of concern for the work, or the DOI
+  is the notice itself rather than the work;
+- **missing**: a part APA asks for that Crossref does not give (a date, the book's editors, pages or an
+  article number). It is left out, never filled in;
+- **to check**: things Loopweft cannot settle, such as capitals, the year of an article published online
+  before its issue, or a kind of work Crossref names loosely.
+
+How the draft is written, following the APA Publication Manual (7th ed.):
+
+| Part | Rule |
+|---|---|
+| Authors | Family name and initials (`Donges, J. F.`; `Crépin, A.-S.`); `&` before the last; up to 20, then the first 19, `. . .` and the last. An organisation is written as Crossref names it. With no author, the title comes first; for a book, its editors (`(Ed.)`, `(Eds.)`). |
+| Year | For a journal article in an issue, the issue's year; otherwise the earliest date Crossref gives. No date: `(n.d.)`. |
+| Title | As Crossref writes it, except the first word after a colon, which APA capitalizes. Loopweft cannot tell proper nouns from other words, so it does not change a title in title case into APA's sentence case; it says so, for you to correct. Italics marked in the title are kept, and digits set as sub- or superscripts (CO₂). |
+| Journal articles | `*Journal*, *volume*(issue), pages` or `Article <number>`. |
+| Chapters | `In A. Editor (Ed.), *Book* (pp. 21–25). Publisher.` Crossref seldom lists a book's editors: the draft says when they are missing. |
+| Books and reports | `*Title* (2nd ed.). Publisher.` |
+| Preprints, dissertations, datasets | `[Preprint]`, `[Dissertation, Institution]` (APA names the kind: say "Doctoral dissertation" or "Master's thesis"), `[Data set]`. |
+| Other kinds | Written as a stand-alone work, with a note to check them against APA's rules. |
+| DOI | `https://doi.org/<DOI>` at the end. |
+| In-text label | `Brosig (2025)`, `Liu and Renn (2025)`, `Lawrence et al. (2024)`. |
+| Licence | Only a Creative Commons licence the publisher recorded for the published version, by its name (`CC BY 4.0`); anything else is left out. |
+
+When the lookup fails, it says why and what to do: the text is not a DOI; Crossref cannot be reached
+(offline) or does not answer within 20 seconds; Crossref has no record of the DOI (it may be registered
+with another agency: DataCite registers many datasets and supplements, such as the polycrisis example's
+figshare supplement); Crossref is busy; or its answer cannot be read. In each case the reference can be
+entered by hand.
+
 ## Citations
 
 A citation on a variable, link or loop names a source and may add:
