@@ -8,6 +8,8 @@ import { findPrivateWords, findPrivateWordsInPush } from './private-words.ts';
 
 // A made-up word: the real ones are set only on the machines that keep them (see repo.test.ts).
 const WORD = 'quokkatoast';
+/** A made-up word with a letter outside ASCII, as a name can have. */
+const ACCENTED = 'quokkajosé';
 const SAFE = 'Nothing personal here.\n';
 
 /** The pre-push hook's check (.githooks/pre-push). */
@@ -52,7 +54,7 @@ function remote(): string {
 function repository() {
   const dir = folder('loopweft-words-');
   /** Git, with `env` (such as another identity) and `input` where given. */
-  const run = (args: string[], env: Record<string, string> = {}, input?: string) =>
+  const run = (args: string[], env: Record<string, string> = {}, input?: string | Buffer) =>
     execFileSync('git', args, {
       cwd: dir,
       env: { ...ENV, ...env },
@@ -87,11 +89,11 @@ function repository() {
       writeFileSync(hook, `#!/bin/sh\nexec ${quoted(process.execPath)} ${quoted(CHECK)} "$@"\n`);
       chmodSync(hook, 0o755);
     },
-    /** A real `git push`, which runs the hook, with the made-up word set as the private one. */
+    /** A real `git push`, which runs the hook, with the made-up words set as the private ones. */
     push: (...args: string[]) =>
       spawnSync('git', ['push', '--quiet', ...args], {
         cwd: dir,
-        env: { ...ENV, LOOPWEFT_PRIVATE_WORDS: WORD },
+        env: { ...ENV, LOOPWEFT_PRIVATE_WORDS: `${WORD},${ACCENTED}` },
         encoding: 'utf8',
       }),
     found: () => findPrivateWords(dir, [WORD]).sort(),
@@ -371,5 +373,53 @@ describe('the push check', () => {
       expect(stopped.stderr).toContain(`${short(merge)} header mergetag: "${WORD}"`);
       expect(repo.git('ls-remote', 'origin')).toBe(`${base}\trefs/heads/main`);
     });
+
+    it('reads a commit in the encoding it declares, so a name with an accent is found', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      // A commit written in Latin-1, as git allows with an `encoding` header: é is one byte, not UTF-8.
+      const commit = repo.run(
+        ['hash-object', '-t', 'commit', '-w', '--stdin'],
+        {},
+        Buffer.from(
+          [
+            `tree ${repo.git('mktree')}`,
+            `author Dr ${ACCENTED} <someone@example.com> 1700000000 +0000`,
+            'committer Someone <someone@example.com> 1700000000 +0000',
+            'encoding ISO-8859-1',
+            '',
+            'Add nothing',
+            '',
+          ].join('\n'),
+          'latin1',
+        ),
+      );
+      repo.git('update-ref', 'HEAD', commit);
+      // Git reads it in its encoding too.
+      expect(repo.git('log', '-1', '--format=%an')).toBe(`Dr ${ACCENTED}`);
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(commit)} author name: "${ACCENTED}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+  });
+
+  it('stops at a commit in an encoding it cannot read, rather than miss a word in it', () => {
+    const repo = repository();
+    const commit = repo.run(
+      ['hash-object', '-t', 'commit', '-w', '--stdin'],
+      {},
+      [
+        `tree ${repo.git('mktree')}`,
+        'author Someone <someone@example.com> 1700000000 +0000',
+        'committer Someone <someone@example.com> 1700000000 +0000',
+        'encoding no-such-encoding',
+        '',
+        'Add nothing',
+        '',
+      ].join('\n'),
+    );
+    expect(() => inPush(repo.dir, pushing(commit))).toThrow(`${commit} is written in no-such-encoding`);
   });
 });

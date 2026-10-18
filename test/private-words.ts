@@ -59,13 +59,30 @@ function types(root: string, ids: string[]): Map<string, string> {
   return found;
 }
 
-/** A commit or a tag as git keeps it: a header on each line ("<name> <value>"), a blank line, the message. */
-function parse(raw: Buffer | undefined): {
+/**
+ * A commit or a tag as git keeps it: a header on each line ("<name> <value>"), a blank line, the message. It
+ * is UTF-8 unless an `encoding` header names another encoding, as git allows, and is then read in that one.
+ * An encoding this check cannot read, or bytes that are not in it, stop the push rather than hide a word.
+ */
+function parse(
+  raw: Buffer | undefined,
+  id: string,
+): {
   header: (name: string) => string;
   others: (known: readonly string[]) => [string, string][];
   message: string;
 } {
-  const text = (raw ?? Buffer.alloc(0)).toString('utf8');
+  const bytes = raw ?? Buffer.alloc(0);
+  // The header names are ASCII, so the encoding can be found before the object is read in it.
+  const ascii = bytes.toString('latin1');
+  const end = ascii.indexOf('\n\n');
+  const declared = /^encoding (.*)$/m.exec(end < 0 ? ascii : ascii.slice(0, end))?.[1]?.trim();
+  let text: string;
+  try {
+    text = declared ? new TextDecoder(declared, { fatal: true }).decode(bytes) : bytes.toString('utf8');
+  } catch {
+    throw new Error(`${id} is written in ${declared}, which this check cannot read.`);
+  }
   const blank = text.indexOf('\n\n');
   // A header can go on over further lines, each starting with a space, such as a merged tag (`mergetag`) or a
   // signature.
@@ -214,7 +231,7 @@ export function findPrivateWordsInPush(
     level = [
       ...new Set(
         tags.map((id) => {
-          const tag = parse(contents.get(id));
+          const tag = parse(contents.get(id), id);
           const tagger = identity(tag.header('tagger'));
           read(id, 'tag name', tag.header('tag'));
           read(id, 'tagger name', tagger.name);
@@ -266,7 +283,7 @@ export function findPrivateWordsInPush(
   const files = [...changed.values()].flat();
   const contents = objects(root, [...commits, ...files.filter((f) => f.text).map((f) => f.id)]);
   for (const commit of commits) {
-    const { header, others, message } = parse(contents.get(commit));
+    const { header, others, message } = parse(contents.get(commit), commit);
     read(commit, 'message', message);
     for (const role of ['author', 'committer']) {
       const { name, email } = identity(header(role));
