@@ -1,6 +1,6 @@
 import { createTheme, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode } from 'react';
 
 const theme = createTheme({
   primaryColor: 'teal',
@@ -11,12 +11,19 @@ const theme = createTheme({
   headings: { fontFamily: "'Fraunces Variable', Fraunces, Georgia, serif" },
 });
 
+export type StudioEnv = 'default' | 'test';
+
+/** `test` in component tests (jsdom), where nothing has a size: the table then draws every row. */
+export const StudioEnvContext = createContext<StudioEnv>('default');
+
 /** Mantine (light or dark, as the system has it) and its notifications. */
-export function Providers({ children, env = 'default' }: { children: ReactNode; env?: 'default' | 'test' }) {
+export function Providers({ children, env = 'default' }: { children: ReactNode; env?: StudioEnv }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="auto" env={env}>
-      <Notifications position="bottom-right" limit={4} />
-      {children}
+      <StudioEnvContext.Provider value={env}>
+        <Notifications position="bottom-right" limit={4} />
+        {children}
+      </StudioEnvContext.Provider>
     </MantineProvider>
   );
 }

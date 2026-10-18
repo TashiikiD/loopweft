@@ -378,7 +378,13 @@ function SelectedLinkKeys({ id }: { id: string }) {
   return null;
 }
 
-export function Canvas() {
+/** The canvas's pan and zoom, kept by the workspace while the table is shown. */
+export interface CanvasMemory {
+  generation: number;
+  view: View;
+}
+
+export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }) {
   const project = useStudio((s) => s.project);
   const selection = useStudio((s) => s.selection);
   const generation = useStudio((s) => s.generation);
@@ -388,8 +394,13 @@ export function Canvas() {
   const variables = useMemo(() => themeVariables(themeTokens(project)), [project]);
   const host = useRef<HTMLDivElement>(null);
   const size = useSize(host);
-  const [view, setView] = useState<View | null>(null);
-  const fitted = useRef(-1);
+  // Coming back from the table, the canvas shows what it showed; a map opened meanwhile is shown whole.
+  const kept = memory?.current?.generation === generation ? memory.current : null;
+  const [view, setView] = useState<View | null>(kept?.view ?? null);
+  const fitted = useRef(kept ? generation : -1);
+  useEffect(() => {
+    if (memory && view) memory.current = { generation, view };
+  }, [memory, view, generation]);
   const gesture = useRef<Gesture>(null);
   const [drag, setDrag] = useState<Moves | null>(null);
   const [band, setBand] = useState<Frame | null>(null);
@@ -630,7 +641,6 @@ export function Canvas() {
   return (
     <div ref={host} className="lw-canvas" style={variables} data-theme={project.theme.base}>
       {view && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: the drawing is worked with the pointer; the inspector, the table and the shorthand give the same edits by keyboard
         <svg
           role="img"
           aria-label={`The map: ${project.variables.length} variables and ${project.links.length} links`}

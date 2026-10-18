@@ -80,9 +80,13 @@ describe('repository rules', () => {
           devDependencies?: Record<string, string>;
         },
     );
+    // An exact version may be a pre-release (react-data-grid 7 is published only as betas).
     const ranges = manifests.flatMap((m) =>
       Object.entries({ ...m.dependencies, ...m.devDependencies })
-        .filter(([name, version]) => !name.startsWith('@loopweft/') && !/^\d+\.\d+\.\d+$/.test(version))
+        .filter(
+          ([name, version]) =>
+            !name.startsWith('@loopweft/') && !/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(version),
+        )
         .map(([name, version]) => `${name}@${version}`),
     );
     expect(ranges).toEqual([]);
