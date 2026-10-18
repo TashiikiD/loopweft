@@ -56,8 +56,9 @@ Another test ([`test/repo.test.ts`](test/repo.test.ts)) looks for them in every 
 staged for the next commit, as on disk, and in untracked files that git does not ignore. Before each push, the
 pre-push hook ([`scripts/check-push.ts`](scripts/check-push.ts)) also looks for them in everything the push
 sends: the names of the refs it pushes to, its annotated tags, and every commit the remote does not already
-hold (the message, the author's and committer's names and emails, and the name and contents of every file the
-commit adds or changes), so a word that a later commit removes still stops the push.
+hold (the message, the author's and committer's names and emails, every other header, such as a merged tag,
+and the name and contents of every file the commit adds or changes), so a word that a later commit removes
+still stops the push.
 
 ### Comparing renders with the presentation
 

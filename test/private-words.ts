@@ -60,12 +60,27 @@ function types(root: string, ids: string[]): Map<string, string> {
 }
 
 /** A commit or a tag as git keeps it: a header on each line ("<name> <value>"), a blank line, the message. */
-function parse(raw: Buffer | undefined): { header: (name: string) => string; message: string } {
+function parse(raw: Buffer | undefined): {
+  header: (name: string) => string;
+  others: (known: readonly string[]) => [string, string][];
+  message: string;
+} {
   const text = (raw ?? Buffer.alloc(0)).toString('utf8');
   const blank = text.indexOf('\n\n');
-  const headers = (blank < 0 ? text : text.slice(0, blank)).split('\n');
+  // A header can go on over further lines, each starting with a space, such as a merged tag (`mergetag`) or a
+  // signature.
+  const headers: [string, string][] = [];
+  for (const line of (blank < 0 ? text : text.slice(0, blank)).split('\n')) {
+    const last = headers.at(-1);
+    if (line.startsWith(' ') && last) last[1] += `\n${line.slice(1)}`;
+    else {
+      const space = line.indexOf(' ');
+      headers.push(space < 0 ? [line, ''] : [line.slice(0, space), line.slice(space + 1)]);
+    }
+  }
   return {
-    header: (name) => headers.find((h) => h.startsWith(`${name} `))?.slice(name.length + 1) ?? '',
+    header: (name) => headers.find(([n]) => n === name)?.[1] ?? '',
+    others: (known) => headers.filter(([n]) => !known.includes(n)),
     message: blank < 0 ? '' : text.slice(blank + 2),
   };
 }
@@ -149,6 +164,8 @@ export function findPrivateWords(root: string, words: readonly string[]): string
  *   is read.
  * In each of those commits the places are:
  * - `message`, `author name`, `author email`, `committer name` and `committer email`;
+ * - `header <name>`: every other header but the tree and the parents, such as a merged tag (`mergetag`) or a
+ *   signature (and likewise in a tag);
  * - `path <name>`: the name of each file the commit adds or changes, with its folders;
  * - `file <name>`: the contents of each of those files, so a word that a later commit removes is still found.
  *   Like findPrivateWords, it reads no images, fonts, PDFs or submodules.
@@ -203,6 +220,8 @@ export function findPrivateWordsInPush(
           read(id, 'tagger name', tagger.name);
           read(id, 'tagger email', tagger.email);
           read(id, 'tag message', tag.message);
+          for (const [name, value] of tag.others(['object', 'type', 'tag', 'tagger']))
+            read(id, `header ${name}`, value);
           return tag.header('object');
         }),
       ),
@@ -247,12 +266,16 @@ export function findPrivateWordsInPush(
   const files = [...changed.values()].flat();
   const contents = objects(root, [...commits, ...files.filter((f) => f.text).map((f) => f.id)]);
   for (const commit of commits) {
-    const { header, message } = parse(contents.get(commit));
+    const { header, others, message } = parse(contents.get(commit));
     read(commit, 'message', message);
     for (const role of ['author', 'committer']) {
       const { name, email } = identity(header(role));
       read(commit, `${role} name`, name);
       read(commit, `${role} email`, email);
+    }
+    // Every other header, such as the tag a merge records (`mergetag`), which the push sends without the tag.
+    for (const [name, value] of others(['tree', 'parent', 'author', 'committer'])) {
+      read(commit, `header ${name}`, value);
     }
     for (const { file, id, text } of changed.get(commit) ?? []) {
       read(commit, `path ${file}`, file);

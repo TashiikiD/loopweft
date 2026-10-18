@@ -51,9 +51,15 @@ function remote(): string {
 /** A new, empty git repository to write files into, run git in, commit, push from, and check. */
 function repository() {
   const dir = folder('loopweft-words-');
-  /** Git, with `env` (such as another identity) where given. */
-  const run = (args: string[], env: Record<string, string> = {}) =>
-    execFileSync('git', args, { cwd: dir, env: { ...ENV, ...env }, encoding: 'utf8', stdio: 'pipe' }).trim();
+  /** Git, with `env` (such as another identity) and `input` where given. */
+  const run = (args: string[], env: Record<string, string> = {}, input?: string) =>
+    execFileSync('git', args, {
+      cwd: dir,
+      env: { ...ENV, ...env },
+      input,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
   const git = (...args: string[]) => run(args);
   git('init', '--quiet');
   return {
@@ -326,6 +332,44 @@ describe('the push check', () => {
       expect(stopped.status).not.toBe(0);
       expect(stopped.stderr).toContain(`${short(original)} file notes.md: "${WORD}"`);
       expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops a merge whose header records a tag with the word, though the tag itself stays behind', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.write('notes.md', SAFE);
+      const base = repo.commit('Add the notes');
+      expect(repo.push('origin', 'HEAD:refs/heads/main').status).toBe(0);
+      const side = repo.commit('Add a side note');
+      // As `git merge` writes it for a signed tag: the tag, its lines indented, in a `mergetag` header.
+      const identity = 'Someone <someone@example.com> 1700000000 +0000';
+      const merge = repo.run(
+        ['hash-object', '-t', 'commit', '-w', '--stdin'],
+        {},
+        [
+          `tree ${repo.git('rev-parse', 'HEAD^{tree}')}`,
+          `parent ${base}`,
+          `parent ${side}`,
+          `author ${identity}`,
+          `committer ${identity}`,
+          `mergetag object ${side}`,
+          ' type commit',
+          ' tag v1',
+          ` tagger ${identity}`,
+          ' ',
+          ` Signed release by ${WORD}`,
+          '',
+          'Merge the side note',
+          '',
+        ].join('\n'),
+      );
+      repo.git('update-ref', 'HEAD', merge);
+      expect(repo.git('log', '-1', '--format=%B%an%ae%cn%ce')).not.toContain(WORD);
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(merge)} header mergetag: "${WORD}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe(`${base}\trefs/heads/main`);
     });
   });
 });
