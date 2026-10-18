@@ -28,12 +28,27 @@ export function slugify(label: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
-/** `base` if free, otherwise `base_2`, `base_3`, … Empty bases fall back to `fallback`. */
+/** The longest an id may be (`IdSchema`). */
+const MAX_ID_LENGTH = 80;
+
+/** `text` cut to `max` UTF-16 units, never inside a surrogate pair, without a trailing "_". */
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  let cut = text.slice(0, max);
+  if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
+  return cut.replace(/_+$/, '');
+}
+
+/**
+ * `base` if free, otherwise `base_2`, `base_3`, … Empty bases fall back to `fallback`. A long base is cut so
+ * that the id, with its number, stays within the 80 characters an id may have.
+ */
 export function uniqueId(base: string, taken: ReadonlySet<string>, fallback = 'item'): string {
-  const root = base || fallback;
+  const root = clip(base, MAX_ID_LENGTH) || fallback;
   if (!taken.has(root)) return root;
   for (let n = 2; ; n++) {
-    const candidate = `${root}_${n}`;
+    const suffix = `_${n}`;
+    const candidate = `${clip(root, MAX_ID_LENGTH - suffix.length)}${suffix}`;
     if (!taken.has(candidate)) return candidate;
   }
 }
