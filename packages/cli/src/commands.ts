@@ -10,6 +10,7 @@ import {
   addType,
   addVariable,
   applyShorthand,
+  evidenceCoverage,
   findLoops,
   flipSign,
   type Issue,
@@ -77,7 +78,7 @@ interface EditOptions {
 }
 
 /** One or more operations on a project file, saved together unless it is a dry run or nothing changed. */
-function edit(
+export function edit(
   env: Env,
   file: string,
   options: EditOptions,
@@ -114,7 +115,7 @@ const ensureArray = (value: string | string[] | undefined): string[] =>
   value === undefined ? [] : Array.isArray(value) ? value : [value];
 
 /** `--clear a b` as { a: null, b: null }, refusing names the element does not have. */
-function cleared(
+export function cleared(
   names: string[] | undefined,
   allowed: readonly string[],
   what: string,
@@ -192,6 +193,7 @@ export function infoCommand(file: string): CommandResult {
     links: l.links,
   }));
   const home = project.layout.home;
+  const evidence = evidenceCoverage(project);
   const data = {
     file,
     title: project.meta.title,
@@ -213,6 +215,13 @@ export function infoCommand(file: string): CommandResult {
     theme: project.theme,
     layout: { placed, pinned, bends: Object.keys(project.layout.bends).length, home: home ?? null },
     loops: named,
+    evidence: {
+      links: { total: evidence.links.total, cited: evidence.links.cited },
+      variables: { total: evidence.variables.total, cited: evidence.variables.cited },
+      loops: { total: evidence.loops.total, cited: evidence.loops.cited },
+      strengths: evidence.strengths,
+      withoutPages: evidence.withoutPages,
+    },
     issues: { errors: 0, warnings: warnings.length, byCode: countBy(warnings) },
   };
   const t = project.types;
@@ -223,6 +232,10 @@ export function infoCommand(file: string): CommandResult {
     `  story: ${plural(project.story.scenes.length, 'scene')}, ${plural(steps, 'step')}`,
     `  layout: ${placed} of ${project.variables.length} placed${pinned ? `, ${pinned} pinned` : ''}; home view ${home ? `centre (${home.x}, ${home.y}), zoom ${home.zoom}` : 'fitted to the map'}`,
     `  theme: ${project.theme.base}, palette ${project.theme.palette ?? 'loopweft'}`,
+    `  evidence: ${evidence.links.cited} of ${plural(evidence.links.total, 'link')} and ${evidence.variables.cited} of ${plural(
+      evidence.variables.total,
+      'variable',
+    )} cite a source`,
     `  ${
       warnings.length
         ? `${plural(warnings.length, 'warning')}: ${Object.entries(countBy(warnings))

@@ -36,6 +36,19 @@ import {
   varSetCommand,
 } from './commands.ts';
 import { importCommand } from './import.ts';
+import {
+  citeAddCommand,
+  citeListCommand,
+  citeRemoveCommand,
+  citeSetCommand,
+  referencesCommand,
+  sourceAddCommand,
+  sourceListCommand,
+  sourceLookupCommand,
+  sourceRemoveCommand,
+  sourceSetCommand,
+  sourceShowCommand,
+} from './sources.ts';
 import type { Env } from './support.ts';
 
 export interface Io {
@@ -308,6 +321,110 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .action((file: string, variable: string, direction: string, o) =>
       run(() => rippleCommand(file, variable, direction, o))(),
     );
+
+  const source = program
+    .command('source')
+    .description('the works the map cites: list, show, lookup, add, set, rm');
+  source
+    .command('list <file>')
+    .description('list the sources, with how often each is cited')
+    .action((file: string) => run(() => sourceListCommand(file))());
+  source
+    .command('show <file> <source>')
+    .description('one source in full, and everything that cites or lists it')
+    .action((file: string, ref: string) => run(() => sourceShowCommand(file, ref))());
+  source
+    .command('lookup <doi>')
+    .description(
+      'look a DOI up at Crossref and show its APA reference, without adding it (the only network call)',
+    )
+    .action((doi: string) => run(() => sourceLookupCommand(env(), doi))());
+  const sourceOptions = (command: Command) =>
+    command
+      .option('--label <text>', 'the short in-text form, e.g. "Lawrence et al. (2024)"')
+      .option('--url <address>', 'a web address, starting with https://')
+      .option('--licence <text>', 'the licence the source states, e.g. "CC BY 4.0"')
+      .option('--summary <text>', 'what the map draws from it')
+      .option('--part-of <source>', 'for a supplement: the source it belongs to')
+      .option('--dry-run', DRY_RUN);
+  sourceOptions(
+    source
+      .command('add <file>')
+      .description(
+        'add a source: by hand with --apa (works offline), or with --doi alone to fill it in from Crossref',
+      )
+      .option('--apa <text>', 'the full APA 7 reference; *asterisks* mark italics')
+      .option('--doi <doi>', 'its DOI (bare, or a doi.org address); without --apa it is looked up')
+      .option('--id <id>', 'its id (default: from the first author and year, e.g. lawrence2024)'),
+  ).action((file: string, o) => run(() => sourceAddCommand(env(), file, o))());
+  sourceOptions(
+    source
+      .command('set <file> <source>')
+      .description('change a source (its id stays)')
+      .option('--apa <text>', 'the full APA 7 reference')
+      .option('--doi <doi>', 'its DOI (not looked up)')
+      .option('--clear <fields...>', 'clear these: label, doi, url, licence, summary, partOf'),
+  ).action((file: string, ref: string, o) => run(() => sourceSetCommand(env(), file, ref, o))());
+  source
+    .command('rm <file> <sources...>')
+    .description('remove sources; one still cited or listed needs --cascade')
+    .option('--cascade', 'also remove its citations and the scenes’ listings of it')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, refs: string[], o) => run(() => sourceRemoveCommand(env(), file, refs, o))());
+
+  const cite = program
+    .command('cite')
+    .description('citations on variables, links and loops: list, add, set, rm');
+  cite
+    .command('list <file> [elements...]')
+    .description('the citations of these elements (default: of everything that cites a source)')
+    .option('--source <source>', 'only citations of this source')
+    .option('--uncited', 'instead, the links, variables and named loops that cite nothing')
+    .action((file: string, elements: string[], o) => run(() => citeListCommand(file, elements, o))());
+  const citeOptions = (command: Command) =>
+    command
+      .option('--pages <locator>', 'pages or another locator, e.g. 7, 11–12, e11, S4')
+      .option(
+        '--strength <s>',
+        'how strongly it supports the element, in your judgement: strong, moderate or weak',
+      )
+      .option('--note <text>', 'a figure, table or short quotation, e.g. "Fig. 6c"')
+      .option('--dry-run', DRY_RUN);
+  citeOptions(
+    cite
+      .command('add <file> <elements> <source>')
+      .description('cite a source on variables, links or loops (ids or variable labels, comma-separated)'),
+  ).action((file: string, elements: string, ref: string, o) =>
+    run(() => citeAddCommand(env(), file, elements, ref, o))(),
+  );
+  citeOptions(
+    cite
+      .command('set <file> <element> <source>')
+      .description('change an element’s citation of a source')
+      .option(
+        '--cited-pages <locator>',
+        'which citation, by its pages, when the element cites the source twice',
+      )
+      .option('--source <source>', 'cite another source instead')
+      .option('--clear <fields...>', 'clear these: pages, strength, note'),
+  ).action((file: string, element: string, ref: string, o) =>
+    run(() => citeSetCommand(env(), file, element, ref, o))(),
+  );
+  cite
+    .command('rm <file> <elements> <source>')
+    .description('remove the citation of a source from elements (comma-separated)')
+    .option('--cited-pages <locator>', 'which citation, by its pages, when an element cites the source twice')
+    .option('--all', 'every citation of the source on these elements')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, elements: string, ref: string, o) =>
+      run(() => citeRemoveCommand(env(), file, elements, ref, o))(),
+    );
+
+  program
+    .command('references <file>')
+    .description('the APA reference list, made from the sources (supplements under their work)')
+    .option('--markdown', 'as a Markdown list, with *italics*')
+    .action((file: string, o) => run(() => referencesCommand(file, o))());
 
   program
     .command('layout <file>')

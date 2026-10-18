@@ -107,10 +107,11 @@ describe('repository rules', () => {
   });
 
   // AGENTS.md: no telemetry, no server; the only network call is the optional DOI lookup. Every source file of
-  // the packages and apps is searched for the browser's and Node's ways of reaching the network.
+  // the packages and apps is searched for the browser's and Node's ways of reaching the network (passing the
+  // lookup a fetch to use, as the CLI does for its tests, is not a call).
   it('reaches the network only in the DOI lookup', () => {
     const NETWORK =
-      /\bfetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|node:https?\b|node:net\b|node:dgram\b/;
+      /(?<![.\w])fetch\s*\(|(?:globalThis|window|self)\.fetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|node:https?\b|node:net\b|node:dgram\b/;
     const files = spawnSync('git', ['ls-files', 'packages', 'apps'], {
       cwd: root,
       encoding: 'utf8',

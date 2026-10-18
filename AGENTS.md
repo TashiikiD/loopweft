@@ -84,12 +84,12 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 
 | Package | Role |
 |---|---|
-| `model` | The `.loopweft` format (zod schema, JSON Schema, validation, migrations, canonical serialization), `ops`, the shorthand, loops, integrity checks, references, the importers (tables, Kumu, DataViz; see docs/import.md) and the polycrisis converter |
+| `model` | The `.loopweft` format (zod schema, JSON Schema, validation, migrations, canonical serialization), `ops`, the shorthand, loops, integrity checks, references and the DOI lookup (its only network call), the importers (tables, Kumu, DataViz; see docs/import.md) and the polycrisis converter |
 | `motion` | The animation engine: timelines, eases, and a clock that steps exact frames |
 | `layout` | Automatic layouts (constellation, force, flow), link curves, label placement, camera maths, and `applyAutoLayout` (the edit both front ends use to lay a map out) |
 | `render` | The drawable graph, themes, palettes and colour-vision checks, and the SVG map view and story view |
 | `player` | Phase 5: the presentation runtime (placeholder) |
-| `cli` | The `loopweft` command line (Phase 2 basics: `new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `ripple`, `layout`, `import`); see its README |
+| `cli` | The `loopweft` command line (`new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `ripple`, `layout`, `import`, and the evidence: `source`, `cite`, `references`); see its README |
 
 Apps live in `apps/*`: `viewer` plays a project's story (published at `/demo/`), and `studio` is the editor,
 in React and Mantine (published at `/studio/`; its tests run in jsdom, in the `studio` Vitest project, and

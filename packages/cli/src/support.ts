@@ -18,10 +18,12 @@ import {
   serializeProject,
 } from '@loopweft/model';
 
-/** What a command needs from outside: today's date, read once by the caller (see main.ts). */
+/** What a command needs from outside: today's date, read once by the caller (see main.ts), and the network. */
 export interface Env {
   /** YYYY-MM-DD: stamped as `meta.modified` on every write, and as `meta.created` by `new`. */
   today: string;
+  /** The fetch the DOI lookup uses (tests answer from recorded replies). Default: the global fetch. */
+  fetch?: typeof fetch;
 }
 
 export function readText(file: string): string {

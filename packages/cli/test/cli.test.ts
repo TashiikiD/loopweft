@@ -13,7 +13,18 @@ import { commandNames, main, today } from '../src/main.ts';
 const dir = mkdtempSync(join(tmpdir(), 'loopweft-cli-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-const env = { today: '2026-10-18' };
+/** The DOI lookup answers from the Crossref replies recorded for the model's tests: no network. */
+const CROSSREF = new URL('../../model/test/fixtures/crossref/', import.meta.url);
+const recordedFetch = (async (url: string | URL | Request) => {
+  const doi = decodeURIComponent(String(url).replace('https://api.crossref.org/works/', ''));
+  const file = new URL(`${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`, CROSSREF);
+  if (!existsSync(file)) return new Response('Resource not found.', { status: 404 });
+  const body = JSON.parse(readFileSync(file, 'utf8')) as { status: unknown; text?: string };
+  if (typeof body.status === 'number') return new Response(body.text ?? '', { status: body.status });
+  return new Response(JSON.stringify(body), { status: 200 });
+}) as typeof fetch;
+
+const env = { today: '2026-10-18', fetch: recordedFetch };
 
 /** Runs one command; paths in its output are shown relative to the temporary folder. */
 async function run(...args: string[]): Promise<{ code: number; out: string; err: string }> {
@@ -115,6 +126,29 @@ describe('a session', () => {
         '--archetype',
         'Limits to growth',
       ],
+      [
+        'source',
+        'add',
+        'pop.loopweft',
+        '--apa',
+        'Test, A. (2020). *A fictitious source for tests*. Test Press.',
+        '--label',
+        'Test (2020)',
+        '--summary',
+        'Test data, not a real work.',
+      ],
+      ['source', 'lookup', 'https://doi.org/10.1017/sus.2024.1'],
+      ['source', 'add', 'pop.loopweft', '--doi', '10.1017/sus.2025.14', '--dry-run'],
+      ['source', 'add', 'pop.loopweft', '--doi', '10.6084/m9.figshare.c.6858564'],
+      ['cite', 'add', 'pop.loopweft', 'L1,L2', 'test2020', '--pages', '4–5', '--strength', 'moderate'],
+      ['cite', 'add', 'pop.loopweft', 'Births,L1', 'test2020', '--pages', '4–5'],
+      ['cite', 'set', 'pop.loopweft', 'L1', 'test2020', '--strength', 'strong', '--note', 'Fig. 2'],
+      ['cite', 'list', 'pop.loopweft'],
+      ['cite', 'list', 'pop.loopweft', '--uncited'],
+      ['source', 'list', 'pop.loopweft'],
+      ['source', 'show', 'pop.loopweft', 'Test (2020)'],
+      ['references', 'pop.loopweft', '--markdown'],
+      ['source', 'rm', 'pop.loopweft', 'test2020', '--dry-run'],
       ['ripple', 'pop.loopweft', 'Births', 'up'],
       ['ripple', 'pop.loopweft', 'deaths', 'down', '--max-steps', '1'],
       ['layout', 'pop.loopweft', '--auto', 'constellation', '--seed', '2', '--pin', 'fertility'],
@@ -292,8 +326,74 @@ describe('the contract for agents', () => {
       'loops set',
       'loops rm',
       'ripple',
+      'source list',
+      'source show',
+      'source lookup',
+      'source add',
+      'source set',
+      'source rm',
+      'cite list',
+      'cite add',
+      'cite set',
+      'cite rm',
+      'references',
       'layout',
     ]);
+  });
+
+  it('says why a DOI lookup failed, in JSON too, and adds nothing', async () => {
+    await run('new', 'doi.loopweft', '--title', 'DOI');
+    const before = readFileSync(join(dir, 'doi.loopweft'), 'utf8');
+    const missing = await json('source', 'add', 'doi.loopweft', '--doi', 'doi:10.6084/m9.figshare.c.6858564');
+    expect(missing.code).toBe(2);
+    expect(missing.doc).toMatchObject({
+      ok: false,
+      doi: '10.6084/m9.figshare.c.6858564',
+      lookup: { kind: 'notFound', status: 404 },
+      error: { exitCode: 2, message: expect.stringMatching(/^Crossref has no record of 10\.6084/) },
+    });
+    const notDoi = await json('source', 'lookup', 'sus.2024.1');
+    expect(notDoi).toMatchObject({ code: 2, doc: { ok: false, lookup: { kind: 'invalidDoi' } } });
+    expect((await json('source', 'add', 'doi.loopweft', '--doi', 'nope')).doc).toMatchObject({
+      error: { message: expect.stringMatching(/^--doi: “nope” is not a DOI/) },
+    });
+    expect(readFileSync(join(dir, 'doi.loopweft'), 'utf8')).toBe(before);
+  });
+
+  it('adds a source by hand without the network, and from a DOI with the lookup’s notes', async () => {
+    const offline = (async () => {
+      throw new TypeError('offline');
+    }) as typeof fetch;
+    let out = '';
+    const io = { out: (t: string) => (out += t), err: (t: string) => (out += t) };
+    const file = join(dir, 'doi.loopweft');
+    const by = [
+      '--apa',
+      'Test, A. (2020). *A fictitious source for tests*. Test Press.',
+      '--doi',
+      '10.1234/test.1',
+    ];
+    expect(await main(['source', 'add', file, ...by], io, { ...env, fetch: offline })).toBe(0);
+    expect(out).toBe('Added source test2020.\n');
+    out = '';
+    expect(await main(['source', 'lookup', '10.1017/sus.2024.1'], io, { ...env, fetch: offline })).toBe(2);
+    expect(out).toBe(
+      'Could not reach Crossref (api.crossref.org): check the internet connection, or enter the reference by hand.\n',
+    );
+    const added = await json(
+      'source',
+      'add',
+      'doi.loopweft',
+      '--doi',
+      '10.1108/ijccsm-02-2022-0016',
+      '--id',
+      'R',
+    );
+    expect(added.doc).toMatchObject({
+      ok: true,
+      result: { id: 'R' },
+      lookup: { type: 'journal-article', notes: [{ level: 'check' }, { level: 'warning' }] },
+    });
   });
 });
 

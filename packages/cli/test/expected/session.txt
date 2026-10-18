@@ -64,6 +64,81 @@ $ loopweft loops add pop.loopweft --links L3,L4 --name Deaths --archetype "Limit
 Named loop B1 ("Deaths"): 2 links, balancing.
 [exit 0]
 
+$ loopweft source add pop.loopweft --apa "Test, A. (2020). *A fictitious source for tests*. Test Press." --label "Test (2020)" --summary "Test data, not a real work."
+Added source test2020 (Test (2020)).
+[exit 0]
+
+$ loopweft source lookup https://doi.org/10.1017/sus.2024.1
+Lawrence, M., Homer-Dixon, T., Janzwood, S., Rockström, J., Renn, O., & Donges, J. F. (2024). Global polycrisis: The causal mechanisms of crisis entanglement. *Global Sustainability*, *7*, Article e6. https://doi.org/10.1017/sus.2024.1
+  label: Lawrence et al. (2024)
+  licence: CC BY 4.0
+  Crossref type: journal-article
+  check: Crossref records a correction to this work (10.1017/sus.2024.48, 2024-01-17): check whether it changes what the map cites.
+[exit 0]
+
+$ loopweft source add pop.loopweft --doi 10.1017/sus.2025.14 --dry-run
+Added source brosig2025 (Brosig (2025)). (dry run: nothing was saved)
+  Brosig, M. (2025). How do crises spread? The polycrisis and crisis transmission. *Global Sustainability*, *8*, Article e11. https://doi.org/10.1017/sus.2025.14
+[exit 0]
+
+$ loopweft source add pop.loopweft --doi 10.6084/m9.figshare.c.6858564
+Crossref has no record of 10.6084/m9.figshare.c.6858564. Check the DOI; if it is right, the DOI may be registered with another agency (DataCite registers many datasets and supplements), so enter the reference by hand.
+[exit 2]
+
+$ loopweft cite add pop.loopweft L1,L2 test2020 --pages 4–5 --strength moderate
+Cited test2020 pp. 4–5 on L1 and L2.
+[exit 0]
+
+$ loopweft cite add pop.loopweft Births,L1 test2020 --pages 4–5
+Cited test2020 pp. 4–5 on births. L1 already cited it.
+[exit 0]
+
+$ loopweft cite set pop.loopweft L1 test2020 --strength strong --note "Fig. 2"
+Changed L1's citation of test2020: strength, note.
+[exit 0]
+
+$ loopweft cite list pop.loopweft
+births  test2020 pp. 4–5
+L1      test2020 pp. 4–5 · strong · Fig. 2
+L2      test2020 pp. 4–5 · moderate
+[exit 0]
+
+$ loopweft cite list pop.loopweft --uncited
+2 of 5 links cite a source; citing nothing:
+  L3  Population → Deaths
+  L4  Deaths → Population
+  L5  Fertility → Births
+1 of 4 variables cite a source; citing nothing:
+  population  Population
+  deaths  Deaths
+  fertility  Fertility
+0 of 2 named loops cite a source; citing nothing:
+  R1  More people, more births
+  B1  Deaths
+[exit 0]
+
+$ loopweft source list pop.loopweft
+test2020  Test (2020)  (3 citations)
+[exit 0]
+
+$ loopweft source show pop.loopweft "Test (2020)"
+test2020: Test (2020)
+  Test, A. (2020). A fictitious source for tests. Test Press.
+  summary: Test data, not a real work.
+  used 3 times:
+    variable births: test2020 pp. 4–5
+    link L1: test2020 pp. 4–5 · strong · Fig. 2
+    link L2: test2020 pp. 4–5 · moderate
+[exit 0]
+
+$ loopweft references pop.loopweft --markdown
+- Test, A. (2020). *A fictitious source for tests*. Test Press.
+[exit 0]
+
+$ loopweft source rm pop.loopweft test2020 --dry-run
+Source test2020 is still cited by 1 variable (births) and cited by 2 links (L1, L2). Remove those first, or remove it with cascade to remove them too.
+[exit 2]
+
 $ loopweft ripple pop.loopweft Births up
 For a rise in Births, the change reaches 2 variables in 2 steps: 2 variables rising ▲.
   step 1  ▲ Population: rising, via L1
@@ -102,19 +177,18 @@ home view: centre (960, 520), zoom 1.1
 
 $ loopweft info pop.loopweft
 Population
-  4 variables, 5 links, 2 named loops, 0 sources
+  4 variables, 5 links, 2 named loops, 1 source
   types: 1 category, 1 role, 0 link types, 1 field
   story: 0 scenes, 0 steps
   layout: 4 of 4 placed, 1 pinned; home view centre (960, 520), zoom 1.1
   theme: cinematic-dark, palette loopweft
-  5 warnings: uncitedLink 5
+  evidence: 2 of 5 links and 1 of 4 variables cite a source
+  3 warnings: uncitedLink 3
 [exit 0]
 
 $ loopweft validate pop.loopweft
-warning links[0].citations: Link L1 (births → population) cites no source.
-warning links[1].citations: Link L2 (population → births) cites no source.
 warning links[2].citations: Link L3 (population → deaths) cites no source.
 warning links[3].citations: Link L4 (deaths → population) cites no source.
 warning links[4].citations: Link L5 (fertility → births) cites no source.
-valid: 0 errors, 5 warnings
+valid: 0 errors, 3 warnings
 [exit 0]

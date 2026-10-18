@@ -49,7 +49,12 @@
       "id": "births",
       "label": "Births",
       "category": "people",
-      "citations": []
+      "citations": [
+        {
+          "source": "test2020",
+          "pages": "4–5"
+        }
+      ]
     },
     {
       "id": "population",
@@ -82,7 +87,14 @@
       "fields": {
         "evidence": "explicit"
       },
-      "citations": []
+      "citations": [
+        {
+          "source": "test2020",
+          "pages": "4–5",
+          "strength": "strong",
+          "note": "Fig. 2"
+        }
+      ]
     },
     {
       "id": "L2",
@@ -91,7 +103,13 @@
       "sign": "+",
       "delay": true,
       "delayLabel": "20 yrs",
-      "citations": []
+      "citations": [
+        {
+          "source": "test2020",
+          "pages": "4–5",
+          "strength": "moderate"
+        }
+      ]
     },
     {
       "id": "L3",
@@ -183,7 +201,14 @@
       "citations": []
     }
   ],
-  "sources": [],
+  "sources": [
+    {
+      "id": "test2020",
+      "label": "Test (2020)",
+      "apa": "Test, A. (2020). *A fictitious source for tests*. Test Press.",
+      "summary": "Test data, not a real work."
+    }
+  ],
   "story": {
     "scenes": []
   },
