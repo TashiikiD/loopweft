@@ -149,6 +149,24 @@ function trailingGroupStart(text: string): number {
   return -1;
 }
 
+/** The first bracket outside quotes that closes nothing, else the last one left open, else null. */
+function unmatchedBracket(text: string): { at: number; char: '(' | ')' } | null {
+  const opens: number[] = [];
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') quoted = !quoted;
+    if (quoted) continue;
+    if (char === '(') opens.push(i);
+    else if (char === ')') {
+      if (opens.length === 0) return { at: i, char: ')' };
+      opens.pop();
+    }
+  }
+  const last = opens.at(-1);
+  return last === undefined ? null : { at: last, char: '(' };
+}
+
 type Attributes = Omit<ShorthandRelation, 'line' | 'from' | 'to' | 'signGiven' | 'sign' | 'cells'> & {
   sign?: ShorthandSign;
   cells?: { name: string; value: string; offset: number }[];
@@ -308,6 +326,19 @@ export function parseShorthand(text: string): ShorthandParse {
       );
       return;
     }
+    // An unmatched bracket would end up in a name, making a variable nobody meant: say where it is.
+    const bracket = unmatchedBracket(raw);
+    if (bracket) {
+      issue(
+        'error',
+        line,
+        bracket.at + 1,
+        bracket.char === '('
+          ? 'This "(" is never closed: close it, or quote the name if the bracket belongs to it.'
+          : 'This ")" closes nothing: take it out, or quote the name if the bracket belongs to it.',
+      );
+      return;
+    }
     const arrow = arrows[0] as { at: number; length: number };
     const from = unquote(raw.slice(0, arrow.at));
     let rest = raw.slice(arrow.at + arrow.length);
@@ -319,11 +350,13 @@ export function parseShorthand(text: string): ShorthandParse {
       const inside = rest.trimEnd().slice(open + 1, -1);
       const parsed = parseAttributes(inside);
       const at = (offset: number) => restStart + open + 2 + offset;
-      // Brackets that hold no detail at all were most likely meant as part of the name: say how to write it.
-      const named = parsed.recognized
-        ? ''
-        : `; if the brackets belong to the name, quote it: "${unquote(rest.trimEnd())}"`;
-      if (!inside.trim()) {
+      // Brackets that hold no detail at all were most likely meant as part of the name: say how to write it,
+      // the name as it would read (a quoted part unquoted), brackets and all.
+      const before = rest.trimEnd().slice(0, open);
+      const whole = `${unquote(before)}${before.slice(before.trimEnd().length)}${rest.trimEnd().slice(open)}`;
+      const named = parsed.recognized ? '' : `; if the brackets belong to the name, quote it: "${whole}"`;
+      // Brackets with nothing but commas and spaces in them are as empty.
+      if (!parsed.recognized && parsed.unknown.length === 0 && parsed.errors.length === 0) {
         issue(
           'error',
           line,

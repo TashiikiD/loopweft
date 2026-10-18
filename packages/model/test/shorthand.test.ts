@@ -100,6 +100,10 @@ describe('parseShorthand', () => {
         'P -> "Q (+)',
         'X -> Y (sideways)',
         'X -> Y ()',
+        'A -> B (sideways (+)',
+        'A -> B (sideways))',
+        'A -> B (, ,)',
+        'A -> "B" (sideways)',
       ].join('\n'),
     );
     expect(parsed.issues.map((i) => `${i.line}:${i.column} ${i.message}`)).toEqual([
@@ -113,7 +117,20 @@ describe('parseShorthand', () => {
       // Brackets at the end hold the link's details: with none in them, quoting the name is the way out.
       '8:9 Unknown item "sideways" (use a sign, delay, conf=, weight= or field=value); if the brackets belong to the name, quote it: "Y (sideways)".',
       `9:8 The brackets are empty: write the link's sign in them, e.g. (+); if the brackets belong to the name, quote it: "Y ()".`,
+      // An unmatched bracket would end up in a name.
+      '10:8 This "(" is never closed: close it, or quote the name if the bracket belongs to it.',
+      '11:18 This ")" closes nothing: take it out, or quote the name if the bracket belongs to it.',
+      `12:8 The brackets are empty: write the link's sign in them, e.g. (+); if the brackets belong to the name, quote it: "B (, ,)".`,
+      '13:11 Unknown item "sideways" (use a sign, delay, conf=, weight= or field=value); if the brackets belong to the name, quote it: "B (sideways)".',
     ]);
+  });
+
+  it('adds nothing from a line whose brackets do not match or hold no detail', () => {
+    for (const line of ['A -> B (sideways (+)', 'A -> B (sideways))', 'A -> B (,)', 'A -> B (, ,)']) {
+      const before = empty();
+      expect(() => applyShorthand(before, line), line).toThrow(ShorthandError);
+      expect(before).toEqual(empty());
+    }
   });
 });
 
