@@ -374,11 +374,13 @@ describe("Kumu's JSON export", () => {
 
   it('places what the map places, scaled to fill the view, and names its loops from their labels', async () => {
     const { project } = await exported();
-    // Reviews has no place, so the map is laid out around the pins, and only they are kept: Kumu's
-    // (-400…0, -210…210) fill 120…960 down, twice as large, in the middle across. Service speed floats.
+    // Reviews has no place, so a layout will keep only the pins: they alone fill the view, Kumu's
+    // (-400…0, -210…210) filling 120…960 down, twice as large, in the middle across. Service speed floats,
+    // and keeps its place, scaled the same way, for a map that is not laid out.
     expect(project.layout.positions).toEqual({
       customers: { x: 560, y: 540, pinned: true },
       queue_length: { x: 1360, y: 120, pinned: true },
+      service_speed: { x: 2160, y: 540 },
       staff_on_shift: { x: 1360, y: 960, pinned: true },
     });
     expect(project.loops).toEqual([
@@ -410,7 +412,7 @@ describe("Kumu's JSON export", () => {
       `Left out Kumu's loop "Not a loop": its connections do not make one closed loop.`,
       "Named 2 loops from Kumu's loops, by their labels: B1, B2.",
       `By their links' signs, B2 ("R") is balancing, whatever the label says: check the label or the signs.`,
-      `Placed and pinned 3 variables where the map "Rush hour" pins them, scaled to fill Loopweft's view; the others float in Kumu, so they are laid out automatically.`,
+      `Placed 4 variables where the map "Rush hour" draws them (3 pinned), scaled so that the pinned ones fill Loopweft's view; 1 variable has no place. An automatic layout moves every variable that is not pinned.`,
       "Not carried across: Kumu's perspectives (colours, sizes, filters), the look given to single elements, connection curves, where loop labels sit. Loopweft draws the map in its own look (the Look panel).",
     ]);
   });
@@ -475,7 +477,7 @@ describe("Kumu's JSON export", () => {
     expect(sheets.notes).toContain('Kept as custom fields: "degree", "Label", "Confidence".');
   });
 
-  it('keeps floating places only when every element has one, so no layout moves them', async () => {
+  it('scales by the pins alone when a layout will move the floating elements', async () => {
     const doc = JSON.parse(
       readFileSync(new URL('./fixtures/import/kumu-export.json', import.meta.url), 'utf8'),
     );
@@ -483,7 +485,10 @@ describe("Kumu's JSON export", () => {
     speed.position = { x: 4000, y: 0 };
     const farOff = importSource(await readImportFile(text('far.json', JSON.stringify(doc))));
     // Service speed floats far off, but Reviews has no place: the pins are scaled as if it were not there.
-    expect(farOff.project.layout.positions).toEqual((await exported()).project.layout.positions);
+    const { service_speed, ...pins } = farOff.project.layout.positions;
+    const { service_speed: _, ...before } = (await exported()).project.layout.positions;
+    expect(pins).toEqual(before);
+    expect(service_speed).toEqual({ x: 9360, y: 540 });
 
     const reviews = doc.maps[0].elements.find((e: { element: string }) => e.element === 'elem-reviews');
     reviews.position = { x: 0, y: 0 };
@@ -498,6 +503,30 @@ describe("Kumu's JSON export", () => {
     expect(all.notes).toContain(
       `Placed 5 variables where the map "Rush hour" draws them, scaled to fill Loopweft's view (3 pinned).`,
     );
+  });
+
+  it('counts the links a delayed mutual connection makes', async () => {
+    const doc = JSON.parse(
+      readFileSync(new URL('./fixtures/import/kumu-export.json', import.meta.url), 'utf8'),
+    );
+    const delayed = doc.connections.find((c: { delayed?: boolean }) => c.delayed);
+    delayed.direction = 'mutual';
+    const { project, notes } = importSource(await readImportFile(text('mutual.json', JSON.stringify(doc))));
+    expect(project.links.filter((l) => l.delay)).toHaveLength(2);
+    expect(notes).toContain('1 delayed connection became 2 delayed links.');
+  });
+
+  it('stops at a connection to an element the export does not have, rather than making one', async () => {
+    const doc = JSON.parse(
+      readFileSync(new URL('./fixtures/import/kumu-export.json', import.meta.url), 'utf8'),
+    );
+    doc.connections[0].to = 'elem-missing';
+    doc.connections[1].from = '';
+    const source = await readImportFile(text('dangling.json', JSON.stringify(doc)));
+    expect(await problems(() => importSource(source))).toEqual([
+      'connection 1, to: No element of the export has the Kumu id "elem-missing": export the map from Kumu again.',
+      'connection 2, from: The connection names no element here: export the map from Kumu again.',
+    ]);
   });
 
   it('stops at an element on the map without a label, and at a direction it cannot read', async () => {
