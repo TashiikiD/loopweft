@@ -22,6 +22,7 @@ import {
   loopSetCommand,
   loopsListCommand,
   newCommand,
+  TEMPLATE_IDS,
   TYPE_KINDS,
   typeAddCommand,
   typeMoveCommand,
@@ -69,8 +70,9 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
 
   program
     .command('new <file>')
-    .description('create an empty project file')
-    .requiredOption('--title <title>', 'the title of the map')
+    .description('create a project file: an empty map, or one made from a template')
+    .option('--title <title>', 'the title of the map (required for a blank map)')
+    .option('--template <id>', `start from a template: ${TEMPLATE_IDS.join(', ')}`)
     .option('--force', 'replace an existing file')
     .action((file: string, o) => run(() => newCommand(env(), file, o))());
 

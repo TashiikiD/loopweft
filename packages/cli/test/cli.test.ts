@@ -381,3 +381,34 @@ describe('import', () => {
     expect((await json('import', 'links.csv', '-o', 'x.loopweft', '--map', 'Nope=from')).code).toBe(2);
   });
 });
+
+describe('templates', () => {
+  it('starts a map from an archetype, or from the polycrisis example', async () => {
+    const { code, out } = await run('new', 'fixes.loopweft', '--template', 'fixes-that-fail');
+    expect(code).toBe(0);
+    expect(out).toBe('Created fixes.loopweft: "Fixes that fail" from the template fixes-that-fail.\n');
+    const fixes = readProject(readFileSync(join(dir, 'fixes.loopweft'), 'utf8'));
+    expect(fixes.ok && fixes.project.variables.map((v) => v.label)).toEqual([
+      'Problem symptom',
+      'Fix',
+      'Unintended consequence',
+    ]);
+    expect(fixes.ok && fixes.project.meta.created).toBe('2026-10-18');
+    const example = await json('new', 'example.loopweft', '--template', 'polycrisis', '--title', 'My copy');
+    expect(example.doc).toMatchObject({ ok: true, title: 'My copy', template: 'polycrisis' });
+    const copy = readProject(readFileSync(join(dir, 'example.loopweft'), 'utf8'));
+    expect(copy.ok && copy.project.variables).toHaveLength(41);
+  });
+
+  it('needs a title for a blank map, and names the templates when one is unknown', async () => {
+    expect((await json('new', 'untitled.loopweft')).doc).toMatchObject({
+      ok: false,
+      error: { message: 'Give the new map a title with --title.', exitCode: 2 },
+    });
+    const unknown = await json('new', 'x.loopweft', '--template', 'limits');
+    expect(unknown.code).toBe(2);
+    expect((unknown.doc.error as { message: string }).message).toMatch(
+      /^No template "limits"; the templates are blank, /,
+    );
+  });
+});

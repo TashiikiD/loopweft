@@ -64,6 +64,7 @@ export {
   type ShorthandSign,
 } from './shorthand.ts';
 export { atLeast, type ResolvedLevels, resolveLevels, sceneSources, stepSources } from './story.ts';
+export { ARCHETYPE_SOURCE, TEMPLATES, type Template, templateById } from './templates.ts';
 export { compareStrings, ID_PATTERN, nextSequentialId, slugify, uniqueId } from './text/ids.ts';
 export { closest, didYouMean, editDistanceRatio, typoDistanceRatio } from './text/similarity.ts';
 export { cleanText, type Reading, readBoolean, readNumber } from './text/values.ts';

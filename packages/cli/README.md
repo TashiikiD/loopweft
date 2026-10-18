@@ -28,7 +28,7 @@ run can be repeated byte for byte).
 
 | Command | Does |
 |---|---|
-| `new <file> --title <t> [--force]` | Creates an empty project |
+| `new <file> [--title <t>] [--template <id>] [--force]` | Creates a project: a blank map (it needs `--title`), an archetype or the polycrisis example ([the templates](../../docs/templates.md)) |
 | `info <file>` | Counts, types, named loops, theme, layout and warnings |
 | `validate <file>` | Errors (exit 1) and warnings |
 | `add <file> --shorthand "<text>"` or `--shorthand-file <f>` | Adds links written in shorthand (see below) |

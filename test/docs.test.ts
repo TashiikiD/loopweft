@@ -40,3 +40,12 @@ describe('the format specification', () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe('the templates page', () => {
+  it('lists every template', async () => {
+    const page = readFileSync(new URL('../docs/templates.md', import.meta.url), 'utf8');
+    const { TEMPLATES } = await import('../packages/model/src/index.ts');
+    for (const t of TEMPLATES) expect(page, t.id).toContain(`| \`${t.id}\` |`);
+    expect(page).toContain('| `polycrisis` |');
+  });
+});

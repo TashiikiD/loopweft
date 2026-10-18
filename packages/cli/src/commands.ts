@@ -2,6 +2,7 @@
 // runs), saves unless it is a dry run, and returns a line for people and a JSON-ready result for agents.
 // The pattern follows DataViz's packages/cli/src/commands.ts @ efcdbe2 (TashiikiD/DataViz, private).
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { applyAutoLayout, type LayoutKind } from '@loopweft/layout';
 import {
   addLink,
@@ -9,7 +10,6 @@ import {
   addType,
   addVariable,
   applyShorthand,
-  createProject,
   findLoops,
   flipSign,
   type Issue,
@@ -42,7 +42,9 @@ import {
   setType,
   setVariable,
   signText,
+  TEMPLATES,
   type TypeKind,
+  templateById,
   type VariableChanges,
 } from '@loopweft/model';
 import {
@@ -126,19 +128,41 @@ function cleared(
 
 // ----- new, info, validate -----
 
+/** Where the polycrisis example lives in the repository, for `new --template polycrisis`. */
+const EXAMPLE = fileURLToPath(new URL('../../../examples/polycrisis.loopweft', import.meta.url));
+
+/** The templates `new` offers: the built-in ones, then the polycrisis example. */
+export const TEMPLATE_IDS = [...TEMPLATES.map((t) => t.id), 'polycrisis'];
+
 export function newCommand(
   env: Env,
   file: string,
-  options: { title: string; force?: boolean },
+  options: { title?: string; template?: string; force?: boolean },
 ): CommandResult {
   if (existsSync(file) && !options.force) {
     throw new OpError(`${file} already exists; choose another name, or replace it with --force.`, 'usage');
   }
-  const project = createProject({ title: options.title, created: env.today });
+  const id = options.template ?? 'blank';
+  let project: Project;
+  if (id === 'polycrisis') {
+    project = loadProject(EXAMPLE);
+  } else {
+    const template = templateById(id);
+    if (!template) {
+      throw new OpError(`No template "${id}"; the templates are ${TEMPLATE_IDS.join(', ')}.`, 'usage');
+    }
+    if (id === 'blank' && options.title === undefined) {
+      throw new OpError('Give the new map a title with --title.', 'usage');
+    }
+    project = template.build();
+  }
+  const title = options.title ?? project.meta.title;
+  project = { ...project, meta: { ...project.meta, title, created: env.today } };
   const { backup } = saveProject(file, project, env);
+  const from = id === 'blank' ? '' : ` from the template ${id}`;
   return {
-    text: `Created ${file}: "${options.title}".`,
-    data: { file, title: options.title, ...(backup ? { backup } : {}) },
+    text: `Created ${file}: "${title}"${from}.`,
+    data: { file, title, template: id, ...(backup ? { backup } : {}) },
   };
 }
 
