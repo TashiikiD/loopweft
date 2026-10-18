@@ -495,6 +495,27 @@ describe('the push check', () => {
       expect(repo.git('ls-remote', 'origin')).toBe('');
     });
 
+    it('lets through a commit that removes a file whose name is not valid UTF-8', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      const blob = repo.run(['hash-object', '-w', '--stdin'], {}, SAFE);
+      const tree = repo.run(
+        ['mktree'],
+        {},
+        Buffer.concat([Buffer.from(`100644 blob ${blob}\t`), LATIN1, NL]),
+      );
+      const added = repo.git('commit-tree', tree, '-m', 'Add the notes');
+      // The remote has the file already, from before the guard.
+      repo.git('push', '--quiet', 'origin', `${added}:refs/heads/main`);
+      repo.guard();
+      // Removing the file sends no name, so the push goes through.
+      const removed = repo.git('commit-tree', repo.git('mktree'), '-p', added, '-m', 'Remove the notes');
+      repo.git('update-ref', 'HEAD', removed);
+      const sent = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(sent.status, sent.stderr).toBe(0);
+      expect(repo.git('ls-remote', 'origin')).toBe(`${removed}\trefs/heads/main`);
+    });
+
     it('stops a push to a ref whose name is not valid UTF-8, but lets its deletion through', () => {
       const repo = repository();
       repo.git('remote', 'add', 'origin', remote());

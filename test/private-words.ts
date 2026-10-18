@@ -309,12 +309,14 @@ export function findPrivateWordsInPush(
   const changed = new Map(
     commits.map((commit) => [commit, [] as { file: string; id: string; text: boolean }[]]),
   );
-  const listing = names(
+  // The ids and entries are ASCII; a name is read as UTF-8 only once its file is known to be in the commit.
+  const listing = split(
     git(root, ['diff-tree', '--stdin', '-r', '--root', '-c', '-z'], `${commits.join('\n')}\n`),
+    0x00,
   );
   let current = '';
   for (let i = 0; i < listing.length; i++) {
-    const entry = listing[i] ?? '';
+    const entry = (listing[i] ?? Buffer.alloc(0)).toString('latin1');
     if (!entry.startsWith(':')) {
       current = entry;
       continue;
@@ -323,11 +325,12 @@ export function findPrivateWordsInPush(
     const fields = entry.slice(parents).split(' ');
     const mode = fields[parents] ?? '';
     const id = fields[2 * parents + 1] ?? '';
-    const file = listing[++i] ?? '';
-    // A deleted file sends nothing. A submodule's entry names a commit of another repository: only its name
-    // is sent.
-    if (!NONE.test(id))
-      changed.get(current)?.push({ file, id, text: mode !== SUBMODULE && !BINARY.test(file) });
+    const name = listing[++i] ?? Buffer.alloc(0);
+    // A deleted file sends nothing, not even its name, so removing a file whose name is not UTF-8 stays
+    // possible. A submodule's entry names a commit of another repository: only its name is sent.
+    if (NONE.test(id)) continue;
+    const file = utf8(name);
+    changed.get(current)?.push({ file, id, text: mode !== SUBMODULE && !BINARY.test(file) });
   }
 
   const files = [...changed.values()].flat();
