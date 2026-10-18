@@ -10,6 +10,9 @@ import { findPrivateWords, findPrivateWordsInPush } from './private-words.ts';
 const WORD = 'quokkatoast';
 /** A made-up word with a letter outside ASCII, as a name can have. */
 const ACCENTED = 'quokkajosé';
+
+/** Text as a UTF-16 file holds it: little-endian, after a byte order mark. */
+const UTF16 = (text: string) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
 const SAFE = 'Nothing personal here.\n';
 
 /** The pre-push hook's check (.githooks/pre-push). */
@@ -68,7 +71,7 @@ function repository() {
     dir,
     git,
     run,
-    write: (file: string, text: string) => {
+    write: (file: string, text: string | Buffer) => {
       mkdirSync(dirname(join(dir, file)), { recursive: true });
       writeFileSync(join(dir, file), text);
     },
@@ -144,6 +147,20 @@ describe('the private-word check', () => {
     repo.write('notes.md', SAFE);
     repo.git('add', 'notes.md');
     expect(repo.found()).toEqual([]);
+  });
+
+  it('reads a UTF-16 text file, by its byte order mark', () => {
+    const repo = repository();
+    repo.write('notes.txt', UTF16(`private${WORD}\n`));
+    repo.git('add', 'notes.txt');
+    expect(repo.found()).toEqual([`notes.txt (staged): "${WORD}"`, `notes.txt (working): "${WORD}"`]);
+  });
+
+  it('stops at a file that is not UTF-8 or UTF-16 text, rather than miss a word in it', () => {
+    const repo = repository();
+    repo.write('notes.txt', Buffer.from(`Written by ${ACCENTED}.\n`, 'latin1'));
+    repo.git('add', 'notes.txt');
+    expect(() => repo.found()).toThrow('notes.txt (staged) is not UTF-8 text');
   });
 });
 
@@ -401,6 +418,45 @@ describe('the push check', () => {
       const stopped = repo.push('origin', 'HEAD:refs/heads/main');
       expect(stopped.status).not.toBe(0);
       expect(stopped.stderr).toContain(`${short(commit)} author name: "${ACCENTED}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops a commit that names no encoding and is not valid UTF-8, rather than pass it unread', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      // The same Latin-1 author, but with no `encoding` header: git sends the bytes as they are.
+      const commit = repo.run(
+        ['hash-object', '-t', 'commit', '-w', '--stdin'],
+        {},
+        Buffer.from(
+          [
+            `tree ${repo.git('mktree')}`,
+            `author Dr ${ACCENTED} <someone@example.com> 1700000000 +0000`,
+            'committer Someone <someone@example.com> 1700000000 +0000',
+            '',
+            'Add nothing',
+            '',
+          ].join('\n'),
+          'latin1',
+        ),
+      );
+      repo.git('update-ref', 'HEAD', commit);
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${commit} is not valid UTF-8`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops a UTF-16 text file with the word', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.write('notes.txt', UTF16(`private${WORD}\n`));
+      const id = repo.commit('Add the notes');
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} file notes.txt: "${WORD}"`);
       expect(repo.git('ls-remote', 'origin')).toBe('');
     });
   });

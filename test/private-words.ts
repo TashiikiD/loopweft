@@ -60,9 +60,28 @@ function types(root: string, ids: string[]): Map<string, string> {
 }
 
 /**
+ * The text of a file, to look for words in: UTF-8, or UTF-16 where the file starts with UTF-16's byte order
+ * mark. Bytes that are not valid text in that encoding throw, naming `what`, so no word hides behind them.
+ */
+function readable(content: Buffer, what: string): string {
+  const encoding =
+    content[0] === 0xff && content[1] === 0xfe
+      ? 'utf-16le'
+      : content[0] === 0xfe && content[1] === 0xff
+        ? 'utf-16be'
+        : 'utf-8';
+  try {
+    return new TextDecoder(encoding, { fatal: true }).decode(content);
+  } catch {
+    const name = encoding === 'utf-8' ? 'UTF-8' : 'UTF-16';
+    throw new Error(`${what} is not ${name} text, nor an image, font or PDF, so this check cannot read it.`);
+  }
+}
+
+/**
  * A commit or a tag as git keeps it: a header on each line ("<name> <value>"), a blank line, the message. It
  * is UTF-8 unless an `encoding` header names another encoding, as git allows, and is then read in that one.
- * An encoding this check cannot read, or bytes that are not in it, stop the push rather than hide a word.
+ * An encoding this check cannot read, or bytes not valid in it, stop the push rather than hide a word.
  */
 function parse(
   raw: Buffer | undefined,
@@ -79,9 +98,13 @@ function parse(
   const declared = /^encoding (.*)$/m.exec(end < 0 ? ascii : ascii.slice(0, end))?.[1]?.trim();
   let text: string;
   try {
-    text = declared ? new TextDecoder(declared, { fatal: true }).decode(bytes) : bytes.toString('utf8');
+    text = new TextDecoder(declared || 'utf-8', { fatal: true }).decode(bytes);
   } catch {
-    throw new Error(`${id} is written in ${declared}, which this check cannot read.`);
+    throw new Error(
+      declared
+        ? `${id} is written in ${declared}, which this check cannot read.`
+        : `${id} is not valid UTF-8 and names no other encoding, so this check cannot read it.`,
+    );
   }
   const blank = text.indexOf('\n\n');
   // A header can go on over further lines, each starting with a space, such as a merged tag (`mergetag`) or a
@@ -137,7 +160,7 @@ export function findPrivateWords(root: string, words: readonly string[]): string
   if (wanted.length === 0) return [];
   const found: string[] = [];
   const read = (file: string, copy: 'staged' | 'working' | 'untracked', content: Buffer) => {
-    const text = content.toString('utf8').toLowerCase();
+    const text = readable(content, `${file} (${copy})`).toLowerCase();
     for (const word of wanted) if (text.includes(word)) found.push(`${file} (${copy}): "${word}"`);
   };
   const onDisk = (file: string, copy: 'working' | 'untracked') => {
@@ -296,7 +319,8 @@ export function findPrivateWordsInPush(
     }
     for (const { file, id, text } of changed.get(commit) ?? []) {
       read(commit, `path ${file}`, file);
-      if (text) read(commit, `file ${file}`, (contents.get(id) ?? Buffer.alloc(0)).toString('utf8'));
+      const content = contents.get(id) ?? Buffer.alloc(0);
+      if (text) read(commit, `file ${file}`, readable(content, `${commit.slice(0, 7)} file ${file}`));
     }
   }
   return found;
