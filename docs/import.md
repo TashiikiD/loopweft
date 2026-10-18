@@ -74,9 +74,11 @@ holds the rest:
   too. Loopweft takes only the elements, connections and loops the export's maps show, as Kumu's own
   spreadsheet export does, and names what it leaves out.
 - **The title and description** of the Kumu project.
-- **Places.** Where the default map fixes an element, it is placed there, moved and scaled (the same across
-  as down) to fill Loopweft's view, and pinned when Kumu pins it. Elements that float in Kumu are laid out
-  around them. A blueprint or a spreadsheet holds no places, so the whole map is laid out.
+- **Places.** When the default map places every element, each is placed there, moved and scaled (the same
+  across as down) to fill Loopweft's view, and pinned when Kumu pins it. When some element has no place,
+  only the elements Kumu pins keep theirs, moved and scaled to fill the view by themselves, and the rest,
+  which float in Kumu, are laid out around them. A blueprint or a spreadsheet holds no places, so the whole
+  map is laid out.
 - **Named loops.** A loop of the map whose connections close one loop becomes a named loop, named by its
   Kumu label. Its polarity follows its links' signs; a label of R or B that says otherwise is named in the
   notes. A loop without a label, or whose connections do not close one loop, is left out and named.
