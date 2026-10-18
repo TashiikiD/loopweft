@@ -44,6 +44,7 @@ export {
   type TypeChanges,
   type TypeInput,
   type TypeKind,
+  typeUses,
 } from './types.ts';
 export {
   addVariable,

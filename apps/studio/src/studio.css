@@ -473,3 +473,33 @@ body {
   top: 12px;
   transform: translateX(-50%);
 }
+
+/* ----- Types and look ----- */
+
+/* A glyph in a list, drawn as on the canvas. */
+.lw-glyph {
+  flex: none;
+  overflow: visible;
+}
+
+.lw-glyph .node-core,
+.lw-glyph .node-dot {
+  fill: var(--c);
+}
+
+.lw-glyph .node-ring {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2.4;
+}
+
+.lw-type-editor {
+  padding: 10px 10px 12px 30px;
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.lw-vision-table th {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mantine-color-dimmed);
+}

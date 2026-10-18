@@ -29,6 +29,7 @@ import {
   useState,
 } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
+import { glyphProps } from '../glyph.tsx';
 import type { Selection } from '../state/store.ts';
 import {
   type Moves,
@@ -82,11 +83,6 @@ function useSize(ref: React.RefObject<HTMLElement | null>): Size | null {
 }
 
 /** Element attributes as React props: `class` becomes `className`. */
-const props = (attrs: Record<string, string | number>) => {
-  const { class: className, ...rest } = attrs;
-  return className === undefined ? rest : { ...rest, className };
-};
-
 /**
  * Label size on screen: in proportion to the zoom, as the presentation's labels are to its stage (24 px at
  * the whole-map zoom of about 0.9), but never smaller than can be read nor larger than the Studio's text.
@@ -147,7 +143,7 @@ const Node = memo(function Node({
       <circle className="hit" r={node.r + 4 / k} />
       {(selected || target) && <circle className="ring" r={node.r + 5 / k} />}
       {shapeGlyph(node.shape, node.r).map((part, i) =>
-        createElement(part.tag, { key: i, ...props(part.attrs) }, part.text),
+        createElement(part.tag, { key: i, ...glyphProps(part.attrs) }, part.text),
       )}
       {pinned && <circle className="pin" cx={node.r * 0.9} cy={-node.r * 0.9} r={3.2} />}
     </g>

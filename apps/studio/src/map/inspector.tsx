@@ -372,7 +372,14 @@ function IssueRow({
 }) {
   const text = (
     <Text size="sm">
-      <Badge size="xs" variant="light" color="yellow" mr={6} style={{ textTransform: 'none' }}>
+      <Badge
+        component="span"
+        size="xs"
+        variant="light"
+        color="yellow"
+        mr={6}
+        style={{ textTransform: 'none' }}
+      >
         {issue.code}
       </Badge>
       {issue.message}

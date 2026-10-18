@@ -165,8 +165,12 @@ export function moveType(
   };
 }
 
-/** What uses one: variables, links and groups by id. */
-function usesOf(project: Project, kind: TypeKind, id: string): { what: string; ids: string[] }[] {
+/** What uses one: variables, links and groups, by id (a field: what holds a value of it). */
+export function typeUses(
+  project: Project,
+  kind: TypeKind,
+  id: string,
+): { what: 'variable' | 'link' | 'group'; ids: string[] }[] {
   switch (kind) {
     case 'category':
       return [
@@ -203,7 +207,7 @@ export function removeType(
 ): OpOutput<{ id: string; cleared: Record<string, string[]> }> {
   const { item } = resolveType(project, kind, ref);
   const id = item.id;
-  const uses = usesOf(project, kind, id);
+  const uses = typeUses(project, kind, id);
   const used = described(uses);
   if (!options.cascade && used.length) {
     const action = kind === 'field' ? 'hold a value of it' : 'use it';
