@@ -1,8 +1,8 @@
 # Loops and ripples
 
-The Studio's Loops and Ripple panels read a map's structure: its variables, its links and their signs.
-They never use amounts, rates or timing, because a causal map has none. What they find is a property of
-the map as drawn, not a forecast.
+The Studio's Loops and Ripple panels, and `loopweft loops list` and `loopweft ripple` on the command line,
+read a map's structure: its variables, its links and their signs. They never use amounts, rates or timing,
+because a causal map has none. What they find is a property of the map as drawn, not a forecast.
 
 ## Loops
 

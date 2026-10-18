@@ -22,6 +22,7 @@ import {
   loopSetCommand,
   loopsListCommand,
   newCommand,
+  rippleCommand,
   TEMPLATE_IDS,
   TYPE_KINDS,
   typeAddCommand,
@@ -296,6 +297,17 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--cascade', 'also remove it from the story steps that show it')
     .option('--dry-run', DRY_RUN)
     .action((file: string, id: string, o) => run(() => loopRemoveCommand(env(), file, id, o))());
+
+  program
+    .command('ripple <file> <variable> <direction>')
+    .description(
+      'what if a variable rises (up) or falls (down)? which way the change pushes each variable it reaches, by the signs of the links',
+    )
+    .option('--include-optional', 'follow links of optional types too')
+    .option('--max-steps <n>', 'go no further than this many links from the start')
+    .action((file: string, variable: string, direction: string, o) =>
+      run(() => rippleCommand(file, variable, direction, o))(),
+    );
 
   program
     .command('layout <file>')

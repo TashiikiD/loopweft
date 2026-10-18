@@ -115,6 +115,8 @@ describe('a session', () => {
         '--archetype',
         'Limits to growth',
       ],
+      ['ripple', 'pop.loopweft', 'Births', 'up'],
+      ['ripple', 'pop.loopweft', 'deaths', 'down', '--max-steps', '1'],
       ['layout', 'pop.loopweft', '--auto', 'constellation', '--seed', '2', '--pin', 'fertility'],
       ['layout', 'pop.loopweft', '--home', '960,520,1.1', '--bend', 'L2=0.3', '--label-side', 'deaths=right'],
       ['layout', 'pop.loopweft'],
@@ -289,6 +291,7 @@ describe('the contract for agents', () => {
       'loops add',
       'loops set',
       'loops rm',
+      'ripple',
       'layout',
     ]);
   });
@@ -419,5 +422,27 @@ describe('templates', () => {
     expect((unknown.doc.error as { message: string }).message).toMatch(
       /^No template "limits"; the templates are blank, /,
     );
+  });
+});
+
+describe('ripple', () => {
+  it("gives agents the model's ripple, and refuses a start or a direction it cannot use", async () => {
+    await run('new', 'fixes-ripple.loopweft', '--template', 'fixes-that-fail');
+    const up = await json('ripple', 'fixes-ripple.loopweft', 'Fix', 'up');
+    expect(up.code).toBe(0);
+    expect(up.doc).toMatchObject({ ok: true, start: 'fix', direction: 'up', capped: false });
+    expect(Array.isArray(up.doc.reached) && up.doc.reached.length).toBeGreaterThan(0);
+    const sideways = await json('ripple', 'fixes-ripple.loopweft', 'Fix', 'sideways');
+    expect(sideways.doc).toMatchObject({
+      ok: false,
+      error: { message: 'A ripple starts with a rise (up) or a fall (down), not "sideways".', exitCode: 2 },
+    });
+    expect((await json('ripple', 'fixes-ripple.loopweft', 'Nothing', 'up')).code).toBe(2);
+    expect(
+      (await json('ripple', 'fixes-ripple.loopweft', 'Fix', 'up', '--max-steps', '0')).doc,
+    ).toMatchObject({
+      ok: false,
+      error: { message: '--max-steps must be a whole number, 1 or more, not "0".', exitCode: 2 },
+    });
   });
 });

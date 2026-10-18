@@ -64,6 +64,22 @@ $ loopweft loops add pop.loopweft --links L3,L4 --name Deaths --archetype "Limit
 Named loop B1 ("Deaths"): 2 links, balancing.
 [exit 0]
 
+$ loopweft ripple pop.loopweft Births up
+If births rises, the change reaches 2 variables in 2 steps: 2 ▲.
+  step 1  ▲ population               via L1
+  step 2  ▲ deaths                   via L3
+Back to births at step 2 along L2: ▲ the same way, so the loop reinforces the change.
+Pushed the other way later, round a loop or by a longer way: population (L4).
+Directions only, from the links' signs: not how much or how soon.
+[exit 0]
+
+$ loopweft ripple pop.loopweft deaths down --max-steps 1
+If deaths falls, the change reaches 1 variable in 1 step: 1 ▲.
+  step 1  ▲ population               via L4
+Stopped after 1 step (--max-steps): the change goes further.
+Directions only, from the links' signs: not how much or how soon.
+[exit 0]
+
 $ loopweft layout pop.loopweft --auto constellation --seed 2 --pin fertility
 Laid out the map as a constellation by category (seed 2): moved 4 variables; added 1 group halo.
 Pinned fertility.

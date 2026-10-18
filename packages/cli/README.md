@@ -37,6 +37,7 @@ run can be repeated byte for byte).
 | `type category\|role\|link\|field add\|set\|rm\|move` | The vocabulary: e.g. `type role add <file> --name Stock --shape rounded-square`, `type field add <file> --name Evidence --kind choice --option explicit=Explicit` |
 | `loops list <file> [--max-length n] [--limit n] [--include-optional]` | The loops the map makes, R or B by their signs, and which are named |
 | `loops add\|set\|rm` | Named loops: `add <file> --links L1,L2 --name "<n>" [--archetype]` |
+| `ripple <file> <variable> up\|down [--include-optional] [--max-steps n]` | What if a variable rises or falls: which way the change pushes each variable it reaches, by the links' signs, and where it stops ([loops and ripples](../../docs/analysis.md)) |
 | `layout <file> [--auto constellation\|force\|flow [--seed n]] [--move id=x,y] [--pin …] [--unpin …] [--label-side id=side] [--bend link=v] [--clear-bends [links…]] [--home x,y,zoom] [--clear-home]` | Shows the layout, or changes it (in that order) |
 | `import <file> -o <project> [--format tables\|kumu\|dataviz] [--title] [--sheet Name=variables\|links\|ignore] [--header-row n] [--map Column=target] [--sign-field <field>] [--layout force\|constellation\|flow\|none]` | Makes a project from tables (CSV, TSV, Excel), a Kumu map or a DataViz project, and prints what it could not carry across (see [importing](../../docs/import.md)) |
 
