@@ -1,3 +1,5 @@
 #!/bin/sh
 # Fast local gate before anything leaves the machine. Full gate: npm run verify.
+# First, no private word in what the push sends: git lists the refs being pushed on standard input.
+node scripts/check-push.ts || exit 1
 npm run verify:fast
