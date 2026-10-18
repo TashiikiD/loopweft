@@ -249,14 +249,14 @@ describe('Kumu', () => {
     expect(notes).toEqual([
       'Imported 4 variables, 5 links, 2 categories, 3 custom fields.',
       'No link cites a source yet: Loopweft flags every uncited link.',
-      "Read Kumu's JSON: 4 elements and 5 connections.",
+      "Read Kumu's JSON blueprint: the 4 elements and 5 connections.",
       "Kumu's element types became categories.",
       'Signs came from the connection field "Polarity".',
       '1 mutual connection became two links, one each way.',
       'Left out 1 undirected connection: a causal link needs a direction.',
       '1 connection gives no direction: read as directed, from → to.',
-      'Kept as custom fields: "tags", "Owner", "label" (Loopweft has no tags or link labels of its own).',
-      'Kumu blueprints hold no positions: the map is laid out automatically.',
+      'Kept as custom fields: "tags", "Owner", "label".',
+      "Kumu's blueprints hold no positions: the map is laid out automatically.",
     ]);
     expect(errorsIn(validateProject(project))).toEqual([]);
   });
@@ -318,6 +318,181 @@ describe('Kumu', () => {
     ]);
     expect(await problems(() => importSource(source, { title: 'Plain', signField: 'Polarity' }))).toEqual([
       'connections: No connection field "Polarity" holds signs: there is no such field.',
+    ]);
+  });
+});
+
+describe("Kumu's JSON export", () => {
+  // kumu-export.json is made up, laid out as Kumu writes its exports: fields under `attributes`, ends by Kumu
+  // id, `maps` with what each shows and where, `loops` by their connections, field definitions.
+  const exported = async () => importSource(await readImportFile(fixture('kumu-export.json')));
+
+  it('takes what the map shows, under the project name, with the fields named as Kumu names them', async () => {
+    const { project } = await exported();
+    expect(project.meta).toEqual({
+      title: 'Morning rush',
+      description: 'A made-up map for the importer tests.',
+    });
+    expect(project.variables.map((v) => v.label)).toEqual([
+      'Customers',
+      'Queue length',
+      'Service speed',
+      'Reviews',
+      'Staff on shift',
+    ]);
+    expect(project.variables[0]).toEqual({
+      id: 'customers',
+      label: 'Customers',
+      category: 'demand',
+      definition: 'People coming in during the rush.',
+      fields: { degree: 2 },
+      citations: [],
+    });
+    expect(project.types.fields.map((f) => `${f.id} "${f.name}" ${f.kind} ${f.appliesTo}`)).toEqual([
+      'degree "degree" number variables',
+      'label "Label" text links',
+      'confidence "Confidence" choice links',
+    ]);
+    expect(
+      project.links.map((l) => `${l.id} ${l.from} ${l.sign} ${l.to}${l.delay ? ' delayed' : ''}`),
+    ).toEqual([
+      'L1 customers + queue_length',
+      'L2 queue_length - reviews delayed',
+      'L3 reviews + customers',
+      'L4 staff_on_shift + service_speed',
+      'L5 service_speed - queue_length',
+      // Reversed in Kumu: drawn from its To (Queue length) to its From (Staff on shift).
+      'L6 queue_length + staff_on_shift',
+    ]);
+    expect(project.links[0]).toMatchObject({
+      weight: 8,
+      rationale: 'Each customer adds an order.',
+      fields: { label: 'More orders' },
+    });
+    expect(errorsIn(validateProject(project))).toEqual([]);
+  });
+
+  it('places what the map places, scaled to fill the view, and names its loops from their labels', async () => {
+    const { project } = await exported();
+    // Kumu's (-400…400, -210…210) fill 160…1760 across and 120…960 down; Reviews floats, unplaced.
+    expect(project.layout.positions).toEqual({
+      customers: { x: 160, y: 540, pinned: true },
+      queue_length: { x: 960, y: 120, pinned: true },
+      service_speed: { x: 1760, y: 540 },
+      staff_on_shift: { x: 960, y: 960, pinned: true },
+    });
+    expect(project.loops).toEqual([
+      {
+        id: 'B1',
+        name: 'B1',
+        links: ['L2', 'L3', 'L1'],
+        description: 'Long queues put people off.',
+        citations: [],
+      },
+      { id: 'B2', name: 'R', links: ['L6', 'L4', 'L5'], citations: [] },
+    ]);
+  });
+
+  it('says what it left out, what it read and what it could not carry', async () => {
+    const { notes } = await exported();
+    expect(notes).toEqual([
+      'Imported 5 variables, 6 links, 2 categories, 3 custom fields.',
+      'No link cites a source yet: Loopweft flags every uncited link.',
+      `Read Kumu's JSON export: the 5 elements and 6 connections that its map "Rush hour" shows.`,
+      'Left out what the export keeps but no map shows (Kumu keeps what is removed from a map): 1 element, 1 connection (Customers → Queue length), 1 loop.',
+      "Kumu's element types became categories.",
+      'Signs came from the connection types, which all read as signs.',
+      '1 connection is reversed in Kumu: its link runs from its To to its From, the way Kumu draws it.',
+      '1 delayed connection became a delayed link.',
+      "Kumu's connection descriptions became the links' rationales.",
+      'Kept as custom fields: "degree", "Label", "Confidence".',
+      'Of these, Kumu computed "degree": they describe the map as it was in Kumu, and do not change when it changes.',
+      `Left out Kumu's loop "Not a loop": its connections do not make one closed loop.`,
+      "Named 2 loops from Kumu's loops, by their labels: B1, B2.",
+      `By their links' signs, B2 ("R") is balancing, whatever the label says: check the label or the signs.`,
+      `Placed 4 variables where the map "Rush hour" draws them, scaled to fill Loopweft's view (3 pinned); the others are laid out automatically.`,
+      "Not carried across: Kumu's perspectives (colours, sizes, filters), the look given to single elements, connection curves, where loop labels sit. Loopweft draws the map in its own look (the Look panel).",
+    ]);
+  });
+
+  it('gives the same map as Kumu’s spreadsheet of it, which has every column on both sheets', async () => {
+    const book = buildXlsx([
+      {
+        name: 'Elements',
+        rows: [
+          ['Label', 'Type', 'Tags', 'Description', 'Confidence', 'Strength', 'degree'],
+          ['Customers', 'Demand', null, 'People coming in during the rush.', null, null, 2],
+          ['Queue length', 'Operations', null, null, null, null, 4],
+          ['Service speed', 'Operations', null, null, null, null, 2],
+          ['Reviews', 'Demand', null, null, null, null, 2],
+          ['Staff on shift', 'Operations', null, null, null, null, 2],
+        ],
+      },
+      {
+        name: 'Connections',
+        rows: [
+          [
+            'From',
+            'To',
+            'Direction',
+            'Label',
+            'Type',
+            'Tags',
+            'Description',
+            'Confidence',
+            'Strength',
+            'degree',
+          ],
+          [
+            'Customers',
+            'Queue length',
+            'directed',
+            'More orders',
+            '+',
+            null,
+            'Each customer adds an order.',
+            null,
+            8,
+            null,
+          ],
+          ['Queue length', 'Reviews', 'directed', null, '-', null, null, 'High', 5, null],
+          ['Reviews', 'Customers', 'directed', null, '+', null, null, 'Moderate', null, null],
+          ['Staff on shift', 'Service speed', 'directed', null, '+', null, null, 'High', null, null],
+          ['Service speed', 'Queue length', 'directed', null, '-', null, null, null, null, null],
+          ['Queue length', 'Staff on shift', 'directed', 'Call in help', '+', null, null, null, null, null],
+        ],
+      },
+    ]);
+    const sheets = importSource(await readImportFile({ name: 'rush.xlsx', bytes: book }));
+    const json = await exported();
+    // A spreadsheet holds no delays, places or loops, and no title: those come from the JSON alone.
+    const shared = (p: typeof json.project) => ({
+      variables: p.variables,
+      links: p.links.map(({ delay: _, ...link }) => link),
+      types: p.types,
+    });
+    expect(shared(sheets.project)).toEqual(shared(json.project));
+    expect(sheets.notes).toContain('Kept as custom fields: "degree", "Label", "Confidence".');
+  });
+
+  it('stops at an element on the map without a label, and at a direction it cannot read', async () => {
+    const doc = JSON.parse(
+      readFileSync(new URL('./fixtures/import/kumu-export.json', import.meta.url), 'utf8'),
+    );
+    doc.maps[0].elements.push({
+      _id: 'node-n6',
+      position: null,
+      pinned: false,
+      style: {},
+      element: 'elem-unnamed',
+    });
+    doc.connections[0].reversed = 'sideways';
+    doc.connections[1].direction = 'both';
+    const source = await readImportFile(text('broken.json', JSON.stringify(doc)));
+    expect(await problems(() => importSource(source))).toEqual([
+      'element 6: The element has no label (Kumu id elem-unnamed): give it one in Kumu.',
+      'connection 1, reversed: reversed must be true or false, not "sideways".',
+      'connection 2, direction: Kumu directions are directed, mutual or undirected, not "both".',
     ]);
   });
 });

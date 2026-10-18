@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "name": "Morning rush",
+  "description": "A made-up map for the importer tests.",
+  "proxyImages": true,
+  "defaultMap": "map-test0001",
+  "defaultPerspective": null,
+  "attributeRelevance": {},
+  "attributes": [
+    {
+      "_id": "attr-test0001",
+      "name": "Confidence",
+      "format": "string",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "list",
+      "locked": false,
+      "values": ["High", "Moderate"],
+      "sort": false,
+      "cluster": true
+    },
+    {
+      "_id": "attr-test0002",
+      "name": "Connection Type",
+      "format": "string",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "list",
+      "locked": false,
+      "values": ["+", "-"],
+      "sort": false,
+      "cluster": true
+    },
+    {
+      "_id": "attr-test0003",
+      "name": "Description",
+      "format": "text",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "none",
+      "locked": false,
+      "values": [],
+      "sort": false,
+      "cluster": false
+    },
+    {
+      "_id": "attr-test0004",
+      "name": "Element Type",
+      "format": "string",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "list",
+      "locked": false,
+      "values": ["Demand", "Operations"],
+      "sort": false,
+      "cluster": true
+    },
+    {
+      "_id": "attr-test0005",
+      "name": "Label",
+      "format": "string",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "autocomplete",
+      "locked": false,
+      "values": [],
+      "sort": false,
+      "cluster": false
+    },
+    {
+      "_id": "attr-test0006",
+      "name": "Strength",
+      "format": "string",
+      "private": false,
+      "limit": 1,
+      "category": "General",
+      "prompt": "autocomplete",
+      "locked": false,
+      "values": [],
+      "sort": false,
+      "cluster": false
+    },
+    {
+      "_id": "attr-test0007",
+      "name": "Tags",
+      "format": "string",
+      "private": false,
+      "limit": "none",
+      "category": "General",
+      "prompt": "autocomplete",
+      "locked": false,
+      "values": [],
+      "sort": false,
+      "cluster": false
+    },
+    {
+      "_id": "attr-test0008",
+      "name": "degree",
+      "format": "number",
+      "private": false,
+      "limit": 1,
+      "category": "Metrics",
+      "prompt": "autocomplete",
+      "locked": false,
+      "values": [],
+      "sort": false,
+      "cluster": false
+    }
+  ],
+  "elements": [
+    {
+      "_id": "elem-customers",
+      "attributes": {
+        "label": "Customers",
+        "element type": "Demand",
+        "description": "People coming in during the rush.",
+        "degree": 2
+      }
+    },
+    {
+      "_id": "elem-queue",
+      "attributes": { "label": "Queue length", "element type": "Operations", "degree": 4 }
+    },
+    {
+      "_id": "elem-speed",
+      "attributes": { "label": "Service speed", "element type": "Operations", "degree": 2 }
+    },
+    {
+      "_id": "elem-reviews",
+      "attributes": { "label": "Reviews", "element type": "Demand", "degree": 2 }
+    },
+    {
+      "_id": "elem-staff",
+      "attributes": { "label": "Staff on shift", "element type": "Operations", "degree": 2 }
+    },
+    { "_id": "elem-unnamed", "attributes": {} }
+  ],
+  "connections": [
+    {
+      "_id": "conn-c1",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": false,
+      "attributes": {
+        "connection type": "+",
+        "strength": "8",
+        "label": "More orders",
+        "description": "Each customer adds an order."
+      },
+      "from": "elem-customers",
+      "to": "elem-queue"
+    },
+    {
+      "_id": "conn-c2",
+      "direction": "directed",
+      "delayed": true,
+      "reversed": false,
+      "attributes": { "connection type": "-", "strength": "5", "confidence": "High" },
+      "from": "elem-queue",
+      "to": "elem-reviews"
+    },
+    {
+      "_id": "conn-c3",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": false,
+      "attributes": { "connection type": "+", "confidence": "Moderate" },
+      "from": "elem-reviews",
+      "to": "elem-customers"
+    },
+    {
+      "_id": "conn-c4",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": false,
+      "attributes": { "connection type": "+", "confidence": "High" },
+      "from": "elem-staff",
+      "to": "elem-speed"
+    },
+    {
+      "_id": "conn-c5",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": false,
+      "attributes": { "connection type": "-" },
+      "from": "elem-speed",
+      "to": "elem-queue"
+    },
+    {
+      "_id": "conn-c6",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": true,
+      "attributes": { "connection type": "+", "label": "Call in help" },
+      "from": "elem-staff",
+      "to": "elem-queue"
+    },
+    {
+      "_id": "conn-c7",
+      "direction": "directed",
+      "delayed": false,
+      "reversed": false,
+      "attributes": { "connection type": "+" },
+      "from": "elem-customers",
+      "to": "elem-queue"
+    }
+  ],
+  "loops": [
+    {
+      "_id": "loop-l1",
+      "attributes": { "label": "B1", "description": "Long queues put people off." },
+      "connections": ["conn-c2", "conn-c3", "conn-c1"]
+    },
+    {
+      "_id": "loop-l2",
+      "attributes": { "label": "R" },
+      "connections": ["conn-c6", "conn-c4", "conn-c5"]
+    },
+    {
+      "_id": "loop-l3",
+      "attributes": { "label": "Not a loop" },
+      "connections": ["conn-c1", "conn-c4"]
+    },
+    {
+      "_id": "loop-l4",
+      "attributes": { "label": "Off the map" },
+      "connections": ["conn-c7", "conn-c2", "conn-c3"]
+    }
+  ],
+  "maps": [
+    {
+      "_id": "map-test0001",
+      "name": "Rush hour",
+      "description": "",
+      "scale": 1,
+      "center": { "x": 0, "y": 0 },
+      "defaultPerspective": "pers-test0001",
+      "defaultElementBehavior": "floating",
+      "defaultConnectionDirection": "directed",
+      "elements": [
+        {
+          "_id": "node-n1",
+          "position": { "x": -400, "y": 0 },
+          "pinned": true,
+          "style": {},
+          "element": "elem-customers"
+        },
+        {
+          "_id": "node-n2",
+          "position": { "x": 0, "y": -210 },
+          "pinned": true,
+          "style": {},
+          "element": "elem-queue"
+        },
+        {
+          "_id": "node-n3",
+          "position": { "x": 400, "y": 0 },
+          "pinned": false,
+          "style": { "color": "#336699" },
+          "element": "elem-speed"
+        },
+        { "_id": "node-n4", "position": null, "pinned": false, "style": {}, "element": "elem-reviews" },
+        {
+          "_id": "node-n5",
+          "position": { "x": 0, "y": 210 },
+          "pinned": true,
+          "style": {},
+          "element": "elem-staff"
+        }
+      ],
+      "connections": [
+        { "_id": "edge-e1", "curvature": 0.2, "style": {}, "connection": "conn-c1" },
+        { "_id": "edge-e2", "style": {}, "connection": "conn-c2" },
+        { "_id": "edge-e3", "style": {}, "connection": "conn-c3" },
+        { "_id": "edge-e4", "style": {}, "connection": "conn-c4" },
+        { "_id": "edge-e5", "style": {}, "connection": "conn-c5" },
+        { "_id": "edge-e6", "style": {}, "connection": "conn-c6" }
+      ],
+      "loops": [
+        {
+          "_id": "labl-b1",
+          "position": { "x": -100, "y": -20 },
+          "pinned": true,
+          "style": {},
+          "loop": "loop-l1"
+        },
+        { "_id": "labl-b2", "position": null, "pinned": false, "style": {}, "loop": "loop-l2" },
+        { "_id": "labl-b3", "position": null, "pinned": false, "style": {}, "loop": "loop-l3" }
+      ]
+    }
+  ],
+  "perspectives": [
+    {
+      "_id": "pers-test0001",
+      "name": "Rush hour",
+      "style": "@settings {\n  template: systems;\n}\n"
+    }
+  ]
+}

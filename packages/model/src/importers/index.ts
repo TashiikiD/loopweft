@@ -91,7 +91,8 @@ export function importSource(
       return importDataViz(source.data, options.title ? { title: options.title } : {});
     case 'kumu':
       return importKumu(source.data, {
-        title: options.title ?? titleFromName(source.name),
+        // Kumu's export names its project; a blueprint or a spreadsheet does not.
+        title: options.title ?? (source.data.name || titleFromName(source.name)),
         ...(options.signField ? { signField: options.signField } : {}),
       });
     case 'tables': {

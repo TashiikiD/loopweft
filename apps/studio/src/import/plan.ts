@@ -12,6 +12,7 @@ import {
   type KumuData,
   LINK_KEYS,
   mappingProblems,
+  normalizeToken,
   type Project,
   plural,
   type Shape,
@@ -60,12 +61,21 @@ export const KIND_NAMES: Record<Field['kind'], string> = {
   boolean: 'yes or no',
 };
 
+/** True when the file names its own map (a DataViz project, Kumu's export): the import then takes that title. */
+export const hasOwnTitle = (source: ImportSource): boolean =>
+  source.format === 'dataviz' || (source.format === 'kumu' && source.data.name !== '');
+
 /** What a read file holds, in a line. */
 export function describeSource(source: ImportSource): string {
   if (source.format === 'dataviz') return 'A DataViz project.';
   if (source.format === 'kumu') {
-    const { elements, connections, from } = source.data;
-    return `A Kumu map (${from === 'JSON' ? 'a JSON blueprint' : 'a spreadsheet'}): ${plural(elements.length, 'element')} and ${plural(connections.length, 'connection')}.`;
+    const { elements, connections, layout, name } = source.data;
+    const kind = {
+      export: "Kumu's JSON export",
+      blueprint: 'a JSON blueprint',
+      spreadsheet: 'a spreadsheet',
+    }[layout];
+    return `A Kumu map${name ? `, "${name}"` : ''} (${kind}): ${plural(elements.length, 'element')} and ${plural(connections.length, 'connection')}${layout === 'export' ? ' on its maps' : ''}.`;
   }
   const { format, tables } = source.file;
   const kind = { csv: 'CSV', tsv: 'TSV', json: 'JSON', xlsx: 'Excel' }[format];
@@ -206,11 +216,19 @@ export function samples(table: TableData, column: string, count = 3): string[] {
   return out;
 }
 
-/** The fields Kumu connections have, in the order they first appear: where signs might be. */
-export function kumuConnectionFields(data: KumuData): string[] {
+/** What says where a connection goes, rather than a value it holds: never where signs are. */
+const KUMU_STRUCTURE = new Set(['from', 'to', 'id', '_id', 'direction', 'delayed', 'reversed']);
+
+/**
+ * The fields Kumu connections hold values in, in the order they first appear, named as the file names them:
+ * where signs might be.
+ */
+export function kumuConnectionFields(data: KumuData): { value: string; label: string }[] {
   const seen = new Set<string>();
-  for (const connection of data.connections) for (const key of Object.keys(connection)) seen.add(key);
-  return [...seen];
+  for (const connection of data.connections)
+    for (const [key, value] of Object.entries(connection))
+      if (!KUMU_STRUCTURE.has(key.toLowerCase()) && value !== '' && value !== null) seen.add(key);
+  return [...seen].map((key) => ({ value: key, label: data.fieldNames[normalizeToken(key)] ?? key }));
 }
 
 export type Placement = LayoutKind | 'none';

@@ -97,7 +97,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   program
     .command('import <input>')
     .description(
-      'make a .loopweft file from tables (CSV, TSV, Excel), a Kumu blueprint or spreadsheet, or a DataViz project',
+      'make a .loopweft file from tables (CSV, TSV, Excel), a Kumu map (its JSON export, a blueprint or its spreadsheet), or a DataViz project',
     )
     .requiredOption('-o, --out <file>', 'the .loopweft file to write')
     .option('--format <format>', 'tables, kumu or dataviz (default: worked out from the file)')

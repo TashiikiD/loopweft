@@ -44,10 +44,10 @@ the next shape in the list, which the notes give. The CLI's `--map Column=target
 
 ## Kumu
 
-Kumu documents two layouts, and Loopweft reads both: a JSON blueprint (`{ "elements": [...],
-"connections": [...] }`) and a spreadsheet whose sheets hold elements (Label, Type, Description, Tags…)
-and connections (From, To, Type, Direction, Label, Strength…). Kumu's own project backup (Export to JSON) is
-not publicly documented: its elements and connections are read as far as they use these fields.
+Loopweft reads the two layouts Kumu documents, a JSON blueprint (`{ "elements": [...], "connections":
+[...] }`) and a spreadsheet whose sheets hold elements (Label, Type, Description, Tags…) and connections
+(From, To, Type, Direction, Label, Strength…), and Kumu's own JSON export (Export to JSON). Kumu does not
+document its export; Loopweft reads it as Kumu writes it, which was checked on real exports.
 
 | Kumu | Loopweft |
 |---|---|
@@ -55,16 +55,36 @@ not publicly documented: its elements and connections are read as far as they us
 | element type | category |
 | connection description, strength | link rationale, weight |
 | connection type | link type, unless it holds the signs (below) |
+| a delayed connection (export) | a delayed link |
 | a "To" cell naming several elements, separated by `\|` | one link to each |
 | a mutual connection | two links, one each way |
-| tags, connection labels, any other field | custom fields |
+| tags, connection labels, any other field with a value | custom fields, named as Kumu names them |
 
 Kumu links have no sign. A connection field named sign or polarity gives the sign; else a connection type
 that reads as a sign everywhere (+, -, positive…) does; else every link is recorded as unknown (`?`) and the
 notes say so (`--sign-field` names the field instead). An undirected connection cannot be a causal link and
-is left out, counted in the notes; one that gives no direction is read from → to. Kumu's loops are not
-read (their format is not documented): Loopweft finds the loops from the links. A blueprint holds no
-positions, so the map is laid out.
+is left out, counted in the notes; one that gives no direction is read from → to. A connection reversed
+with Kumu's direction menu runs the way Kumu draws it, from its To to its From.
+
+Kumu's spreadsheets give both sheets every column; a column without a value on a sheet makes no field.
+JSON and spreadsheet exports of the same map give the same variables, links and fields. Only the JSON export
+holds the rest:
+
+- **What the map shows.** Kumu keeps in a project what was removed from a map, and the export holds it
+  too. Loopweft takes only the elements, connections and loops the export's maps show, as Kumu's own
+  spreadsheet export does, and names what it leaves out.
+- **The title and description** of the Kumu project.
+- **Places.** Where the default map fixes an element, it is placed there, moved and scaled (the same across
+  as down) to fill Loopweft's view, and pinned when Kumu pins it. Elements that float in Kumu are laid out
+  around them. A blueprint or a spreadsheet holds no places, so the whole map is laid out.
+- **Named loops.** A loop of the map whose connections close one loop becomes a named loop, named by its
+  Kumu label. Its polarity follows its links' signs; a label of R or B that says otherwise is named in the
+  notes. A loop without a label, or whose connections do not close one loop, is left out and named.
+- **Metrics.** Fields Kumu computed (degree, betweenness and the like) are kept as custom fields, and the
+  notes say they do not change as the map does.
+
+Kumu's perspectives (its colours, sizes and filters), the look of single elements and connections,
+connection curves and where loop labels sit are not carried across; the notes name those the export has.
 
 ## DataViz
 

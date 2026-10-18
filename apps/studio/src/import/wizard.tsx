@@ -44,6 +44,7 @@ import {
   describeSource,
   FIELD_KEYS,
   FIELD_NAMES,
+  hasOwnTitle,
   initialChoices,
   KIND_NAMES,
   kumuConnectionFields,
@@ -288,7 +289,7 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
       setReadError(null);
       setChoices(next.format === 'tables' ? initialChoices(next) : []);
       setSignField(null);
-      setTitle(next.format === 'dataviz' ? '' : titleFromName(picked.name));
+      setTitle(hasOwnTitle(next) ? '' : titleFromName(picked.name));
     } catch (error) {
       setReadError((error as Error).message);
     }
@@ -359,8 +360,8 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
           <Stack gap="sm" mt="sm">
             <Text size="sm">
               Make a new map from a table of links (CSV, TSV or Excel, with a table of variables if you have
-              one), a Kumu map (its JSON blueprint or its spreadsheet) or a DataViz project. Nothing leaves
-              this computer.
+              one), a Kumu map (its JSON export, a JSON blueprint or its spreadsheet) or a DataViz project.
+              Nothing leaves this computer.
             </Text>
             <Group gap="sm">
               <Button
@@ -466,10 +467,7 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
                   size="sm"
                   label="Signs come from"
                   value={signField ?? ''}
-                  data={[
-                    { value: '', label: 'Found by the importer' },
-                    ...kumuConnectionFields(source.data).map((f) => ({ value: f, label: f })),
-                  ]}
+                  data={[{ value: '', label: 'Found by the importer' }, ...kumuConnectionFields(source.data)]}
                   allowDeselect={false}
                   onChange={(value) => setSignField(value ? value : null)}
                   comboboxProps={{ withinPortal: true }}
@@ -485,7 +483,7 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
                 size="sm"
                 style={{ flex: 1, minWidth: 220 }}
                 label="Title"
-                placeholder={source?.format === 'dataviz' ? "The project's own title" : 'Untitled map'}
+                placeholder={source && hasOwnTitle(source) ? "The project's own title" : 'Untitled map'}
                 value={title}
                 onChange={(e) => setTitle(e.currentTarget.value)}
               />

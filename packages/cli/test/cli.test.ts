@@ -296,7 +296,7 @@ describe('the contract for agents', () => {
 
 describe('import', () => {
   const fixtures = new URL('../../model/test/fixtures/import/', import.meta.url);
-  for (const name of ['links.csv', 'kumu-blueprint.json', 'garden.dataviz.json']) {
+  for (const name of ['links.csv', 'kumu-blueprint.json', 'kumu-export.json', 'garden.dataviz.json']) {
     copyFileSync(fileURLToPath(new URL(name, fixtures)), join(dir, name));
   }
 
@@ -363,6 +363,15 @@ describe('import', () => {
     const garden = readProject(readFileSync(join(dir, 'garden.loopweft'), 'utf8'));
     expect(garden.ok && garden.project.layout.positions.compost).toEqual({ x: 200, y: 300, pinned: true });
     expect(garden.ok && Object.keys(garden.project.layout.positions)).toHaveLength(5);
+    // Kumu's export: its project name, its map's places (Reviews floats, so it is laid out) and its loops.
+    const exported = await json('import', 'kumu-export.json', '-o', 'rush.loopweft');
+    expect(exported.doc).toMatchObject({ ok: true, format: 'kumu', counts: { variables: 5, links: 6 } });
+    const rush = readProject(readFileSync(join(dir, 'rush.loopweft'), 'utf8'));
+    if (!rush.ok) throw new Error('not valid');
+    expect(rush.project.meta.title).toBe('Morning rush');
+    expect(rush.project.layout.positions.customers).toEqual({ x: 160, y: 540, pinned: true });
+    expect(Object.keys(rush.project.layout.positions)).toHaveLength(5);
+    expect(rush.project.loops.map((l) => l.id)).toEqual(['B1', 'B2']);
   });
 
   it('writes nothing on a dry run or when the output exists, and stops at what it cannot read', async () => {
