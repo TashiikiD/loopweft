@@ -10,7 +10,9 @@ const out = mkdtempSync(join(tmpdir(), 'loopweft-site-'));
 afterAll(() => rmSync(out, { recursive: true, force: true }));
 
 describe('the GitHub Pages site', () => {
-  it('builds the landing page', () => {
+  // Two production builds (the viewer and the Studio): about 12 s, but a minute or more on a busy computer
+  // while the other tests run beside them.
+  it('builds the landing page', { timeout: 180_000 }, () => {
     const run = spawnSync(process.execPath, ['scripts/build-site.mjs', out], { cwd: root, encoding: 'utf8' });
     expect(run.status, run.stderr).toBe(0);
     const page = readFileSync(join(out, 'index.html'), 'utf8');
