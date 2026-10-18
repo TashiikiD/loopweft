@@ -703,12 +703,11 @@ export function loopRemoveCommand(
 // ----- ripple -----
 
 const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
-/** Each way in words, beside its mark: a screen reader or a font without the marks still tells it. */
-const WAY: Record<Trend, [one: string, many: string]> = {
-  up: ['rises', 'rise'],
-  down: ['falls', 'fall'],
-  mixed: ['is pushed both ways', 'are pushed both ways'],
-};
+/**
+ * Each way in words, beside its mark, so a screen reader or a font without the marks still tells it; put so
+ * that no verb has to agree with a label, which may be singular or plural.
+ */
+const WAY: Record<Trend, string> = { up: 'rising', down: 'falling', mixed: 'pushed both ways' };
 
 /**
  * What if a variable rises or falls: the model's ripple (the Studio's Ripple panel runs the same), told as
@@ -733,9 +732,9 @@ export function rippleCommand(
   const counted = (trend: Trend) => result.reached.filter((r) => r.trend === trend).length;
   const tally = (['up', 'down', 'mixed'] as const)
     .filter((t) => counted(t))
-    .map((t) => `${counted(t)} ${WAY[t][counted(t) === 1 ? 0 : 1]} ${MARK[t]}`)
+    .map((t) => `${plural(counted(t), 'variable')} ${WAY[t]} ${MARK[t]}`)
     .join(', ');
-  const change = `If ${name(result.start)} ${WAY[result.direction][0]}`;
+  const change = `For a ${result.direction === 'up' ? 'rise' : 'fall'} in ${name(result.start)}`;
   const later = result.reached.filter((r) => r.against.length);
   const lines = [
     result.reached.length
@@ -743,11 +742,11 @@ export function rippleCommand(
       : `${change}, the change reaches no other variable.`,
     ...result.reached.map(
       (r) =>
-        `  step ${r.step}  ${MARK[r.trend]} ${name(r.variable)} ${WAY[r.trend][0]}, via ${r.via.join(', ')}`,
+        `  step ${r.step}  ${MARK[r.trend]} ${name(r.variable)}: ${WAY[r.trend]}, via ${r.via.join(', ')}`,
     ),
     ...result.feedback.map(
       (f) =>
-        `Back to ${name(result.start)} at step ${f.step} along ${f.link}: ${MARK[f.trend]} it ${WAY[f.trend][0]}, ${
+        `Back to ${name(result.start)} at step ${f.step} along ${f.link}: ${MARK[f.trend]} ${WAY[f.trend]}, ${
           f.trend === result.direction
             ? 'the same way, so the loop reinforces the change.'
             : 'the other way, so the loop counters it.'
