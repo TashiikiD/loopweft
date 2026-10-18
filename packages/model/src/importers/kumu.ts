@@ -404,11 +404,16 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
 
   let placed = 0;
   let pinned = 0;
+  let pinsOnly = false;
   if (data.map) {
-    const places = [...ids].flatMap(([kumu, id]) => {
+    const all = [...ids].flatMap(([kumu, id]) => {
       const at = data.map?.positions[kumu];
       return at ? [{ id, at }] : [];
     });
+    // An element without a place means an automatic layout, which keeps only pinned places: then only those
+    // are kept and scaled, so that a floating element far off cannot squeeze the pins and then move anyway.
+    pinsOnly = all.length < builder.project.variables.length;
+    const places = pinsOnly ? all.filter((p) => p.at.pinned) : all;
     const view = intoView(places.map((p) => p.at));
     for (const { id, at } of places) {
       builder.project.layout.positions[id] = { ...view(at), ...(at.pinned ? { pinned: true } : {}) };
@@ -616,11 +621,13 @@ export function importKumu(data: KumuData, options: KumuOptions): ImportOutcome 
     );
 
   if (data.map) {
-    const others = data.elements.length > placed ? '; the others are laid out automatically' : '';
+    const them = placed === 1 ? 'it' : 'them';
     notes.push(
-      placed
-        ? `Placed ${count(placed, 'variable')} where the map "${data.map.name}" draws ${placed === 1 ? 'it' : 'them'}, scaled to fill Loopweft's view${pinned ? ` (${pinned} pinned)` : ''}${others}.`
-        : `The map "${data.map.name}" fixes no element's place: the map is laid out automatically.`,
+      placed === 0
+        ? `The map "${data.map.name}" fixes no element's place: the map is laid out automatically.`
+        : pinsOnly
+          ? `Placed and pinned ${count(placed, 'variable')} where the map "${data.map.name}" pins ${them}, scaled to fill Loopweft's view; the others float in Kumu, so they are laid out automatically.`
+          : `Placed ${count(placed, 'variable')} where the map "${data.map.name}" draws ${them}, scaled to fill Loopweft's view${pinned ? ` (${pinned} pinned)` : ''}.`,
     );
     if (data.maps > 1) notes.push(`The export has ${data.maps} maps: the places come from its default map.`);
   } else {
