@@ -81,14 +81,15 @@ export function sourceListCommand(file: string): CommandResult {
     ...(s.partOf ? { partOf: s.partOf } : {}),
     citations: coverage.get(s.id)?.citations ?? 0,
     elements: coverage.get(s.id)?.elements ?? 0,
+    story: coverage.get(s.id)?.story ?? 0,
   }));
   const width = Math.max(4, ...rows.map((r) => r.id.length));
   const text = rows
     .map(
       (r) =>
         `${r.id.padEnd(width)}  ${r.label ?? plainReference(r.apa).slice(0, 60)}  (${plural(r.citations, 'citation')}${
-          r.doi ? `; doi ${r.doi}` : ''
-        }${r.partOf ? `; part of ${r.partOf}` : ''})`,
+          r.story ? `; in the story ${plural(r.story, 'time')}` : ''
+        }${r.doi ? `; doi ${r.doi}` : ''}${r.partOf ? `; part of ${r.partOf}` : ''})`,
     )
     .join('\n');
   return { text: text || 'No sources.', data: { sources: rows } };
