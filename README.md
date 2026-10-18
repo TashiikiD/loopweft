@@ -43,7 +43,10 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
 | `docs/` | The format specification |
 | `examples/` | Example projects: the polycrisis map and story |
-| `packages/motion`, `layout`, `render`, `player`, `cli` | Placeholders for later phases |
+| `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
+| `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
+| `apps/viewer` | The viewer that plays a project's story ([the example](https://tashiikid.github.io/loopweft/demo/)) |
+| `packages/player` | A placeholder for Phase 5 |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
 | `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |

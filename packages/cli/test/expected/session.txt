@@ -1,0 +1,104 @@
+$ loopweft new pop.loopweft --title Population
+Created pop.loopweft: "Population".
+[exit 0]
+
+$ loopweft add pop.loopweft --shorthand "Births -> Population (+)\\nPopulation -> Births (+, delay \"20 yrs\")\\nPopulation -> Deaths (+)\\nDeaths -> Population (-)\\n@group People: Births, Population, Deaths"
+Added 4 links, 3 variables and 1 category from shorthand.
+[exit 0]
+
+$ loopweft var add pop.loopweft --label Fertility --definition "Births per woman." --at 200,300
+Added variable fertility ("Fertility").
+Moved variable fertility.
+[exit 0]
+
+$ loopweft link add pop.loopweft --from fertility --to Births --sign positive --confidence M
+Added link L5 (fertility → births, +).
+[exit 0]
+
+$ loopweft type role add pop.loopweft --name Stock --shape rounded-square
+Added role stock ("Stock").
+[exit 0]
+
+$ loopweft type field add pop.loopweft --name Evidence --kind choice --applies-to links --option explicit=Explicit --option synthesis=Synthesis
+Added field evidence ("Evidence").
+[exit 0]
+
+$ loopweft var set pop.loopweft Population --role stock --size large
+Changed variable population: role, size.
+[exit 0]
+
+$ loopweft link set pop.loopweft L1 --field Evidence=explicit --rationale "Each birth adds a person."
+Changed link L1: rationale, fields.
+[exit 0]
+
+$ loopweft link flip pop.loopweft L3 --dry-run
+Flipped L3 (population → deaths) from + to −. (dry run: nothing was saved)
+[exit 0]
+
+$ loopweft var list pop.loopweft
+births                   Births  [people]
+population               Population  [people]  (stock)
+deaths                   Deaths  [people]
+fertility                Fertility
+[exit 0]
+
+$ loopweft link list pop.loopweft
+L1       births → population (+)
+L2       population → births (+)
+L3       population → deaths (+)
+L4       deaths → population (−)
+L5       fertility → births (+)
+[exit 0]
+
+$ loopweft loops list pop.loopweft
+2 loops (1 reinforcing, 1 balancing)
+R  births → population → births  (L1 L2)
+B  deaths → population → deaths  (L4 L3)
+[exit 0]
+
+$ loopweft loops add pop.loopweft --links L2,L1 --name "More people, more births"
+Named loop R1 ("More people, more births"): 2 links, reinforcing.
+[exit 0]
+
+$ loopweft loops add pop.loopweft --links L3,L4 --name Deaths --archetype "Limits to growth"
+Named loop B1 ("Deaths"): 2 links, balancing.
+[exit 0]
+
+$ loopweft layout pop.loopweft --auto constellation --seed 2 --pin fertility
+Laid out the map as a constellation by category (seed 2): moved 4 variables; added 1 group halo.
+Pinned fertility.
+[exit 0]
+
+$ loopweft layout pop.loopweft --home 960,520,1.1 --bend L2=0.3 --label-side deaths=right
+The label of deaths now sits to its right.
+Set the curve of L2.
+Set the home view: centre (960, 520), zoom 1.1.
+[exit 0]
+
+$ loopweft layout pop.loopweft
+births                   922, 610
+population               995, 619
+deaths                   922, 536  label right
+fertility                996, 545  pinned
+curves set by hand: 1; groups: 1
+home view: centre (960, 520), zoom 1.1
+[exit 0]
+
+$ loopweft info pop.loopweft
+Population
+  4 variables, 5 links, 2 named loops, 0 sources
+  types: 1 category, 1 role, 0 link types, 1 field
+  story: 0 scenes, 0 steps
+  layout: 4 of 4 placed, 1 pinned; home view centre (960, 520), zoom 1.1
+  theme: cinematic-dark, palette loopweft
+  5 warnings: uncitedLink 5
+[exit 0]
+
+$ loopweft validate pop.loopweft
+warning links[0].citations: Link L1 (births → population) cites no source.
+warning links[1].citations: Link L2 (population → births) cites no source.
+warning links[2].citations: Link L3 (population → deaths) cites no source.
+warning links[3].citations: Link L4 (deaths → population) cites no source.
+warning links[4].citations: Link L5 (fertility → births) cites no source.
+valid: 0 errors, 5 warnings
+[exit 0]

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { autoLayout, chooseBends, computeForceLayout, flowLayout, mapGeometry } from '../src/index.ts';
+import {
+  applyAutoLayout,
+  autoLayout,
+  chooseBends,
+  computeForceLayout,
+  flowLayout,
+  mapGeometry,
+} from '../src/index.ts';
 import { example, smallProject } from './helpers.ts';
 
 type Positions = Record<string, { x: number; y: number }>;
@@ -70,6 +77,28 @@ describe('automatic layouts', () => {
         );
       }
     }
+  });
+
+  it('records a layout as one edit: constellation halos replace the groups, other layouts draw none', () => {
+    const project = smallProject();
+    project.layout.positions.b2 = { x: 123, y: 456, pinned: true };
+    const out = applyAutoLayout(project, { kind: 'constellation', seed: 5 });
+    expect(out.result.kind).toBe('constellation');
+    expect(out.result.seed).toBe(5);
+    expect(out.result.pinned).toEqual(['b2']);
+    expect(out.project.layout.groups.map((g) => g.id)).toEqual(['a', 'b', 'c']);
+    expect(out.summary).toBe(
+      'Laid out the map as a constellation by category (seed 5): moved 9 variables; 1 pinned variable stayed and added 3 group halos.',
+    );
+    expect(out.project.layout.positions).toEqual(
+      autoLayout(project, { kind: 'constellation', seed: 5 }).positions,
+    );
+    const flow = applyAutoLayout(out.project, { kind: 'flow' });
+    expect(flow.project.layout.groups).toEqual([]);
+    expect(flow.summary).toMatch(
+      /^Laid out the map as a flow from causes to effects: moved \d+ variables; 1 pinned variable stayed and removed 3 group halos\.$/,
+    );
+    expect(project.layout.groups).toEqual([]);
   });
 
   it('flow: puts causes left of their effects, even with feedback', () => {

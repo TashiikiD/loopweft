@@ -64,6 +64,7 @@ export {
 export {
   type AutoLayout,
   type AutoLayoutOptions,
+  applyAutoLayout,
   autoLayout,
   type LayoutKind,
   type MapEdge,

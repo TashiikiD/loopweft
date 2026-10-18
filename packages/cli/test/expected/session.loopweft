@@ -1,0 +1,191 @@
+{
+  "$schema": "https://tashiikid.github.io/loopweft/schema/v1.json",
+  "format": "loopweft",
+  "version": 1,
+  "meta": {
+    "title": "Population",
+    "created": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "theme": {
+    "base": "cinematic-dark"
+  },
+  "types": {
+    "categories": [
+      {
+        "id": "people",
+        "name": "People"
+      }
+    ],
+    "roles": [
+      {
+        "id": "stock",
+        "name": "Stock",
+        "shape": "rounded-square"
+      }
+    ],
+    "linkTypes": [],
+    "fields": [
+      {
+        "id": "evidence",
+        "name": "Evidence",
+        "kind": "choice",
+        "appliesTo": "links",
+        "options": [
+          {
+            "id": "explicit",
+            "name": "Explicit"
+          },
+          {
+            "id": "synthesis",
+            "name": "Synthesis"
+          }
+        ]
+      }
+    ]
+  },
+  "variables": [
+    {
+      "id": "births",
+      "label": "Births",
+      "category": "people",
+      "citations": []
+    },
+    {
+      "id": "population",
+      "label": "Population",
+      "category": "people",
+      "role": "stock",
+      "size": "large",
+      "citations": []
+    },
+    {
+      "id": "deaths",
+      "label": "Deaths",
+      "category": "people",
+      "citations": []
+    },
+    {
+      "id": "fertility",
+      "label": "Fertility",
+      "definition": "Births per woman.",
+      "citations": []
+    }
+  ],
+  "links": [
+    {
+      "id": "L1",
+      "from": "births",
+      "to": "population",
+      "sign": "+",
+      "rationale": "Each birth adds a person.",
+      "fields": {
+        "evidence": "explicit"
+      },
+      "citations": []
+    },
+    {
+      "id": "L2",
+      "from": "population",
+      "to": "births",
+      "sign": "+",
+      "delay": true,
+      "delayLabel": "20 yrs",
+      "citations": []
+    },
+    {
+      "id": "L3",
+      "from": "population",
+      "to": "deaths",
+      "sign": "+",
+      "citations": []
+    },
+    {
+      "id": "L4",
+      "from": "deaths",
+      "to": "population",
+      "sign": "-",
+      "citations": []
+    },
+    {
+      "id": "L5",
+      "from": "fertility",
+      "to": "births",
+      "sign": "+",
+      "confidence": "medium",
+      "citations": []
+    }
+  ],
+  "layout": {
+    "positions": {
+      "births": {
+        "x": 922,
+        "y": 610
+      },
+      "deaths": {
+        "x": 922,
+        "y": 536,
+        "labelSide": "right"
+      },
+      "fertility": {
+        "x": 996,
+        "y": 545,
+        "pinned": true
+      },
+      "population": {
+        "x": 995,
+        "y": 619
+      }
+    },
+    "groups": [
+      {
+        "id": "people",
+        "category": "people",
+        "label": "PEOPLE",
+        "halo": {
+          "x": 946,
+          "y": 588,
+          "r": 118
+        },
+        "labelAt": {
+          "x": 946,
+          "y": 730
+        }
+      }
+    ],
+    "bends": {
+      "L2": 0.3
+    },
+    "home": {
+      "x": 960,
+      "y": 520,
+      "zoom": 1.1
+    }
+  },
+  "loops": [
+    {
+      "id": "R1",
+      "name": "More people, more births",
+      "links": [
+        "L2",
+        "L1"
+      ],
+      "citations": []
+    },
+    {
+      "id": "B1",
+      "name": "Deaths",
+      "links": [
+        "L3",
+        "L4"
+      ],
+      "archetype": "Limits to growth",
+      "citations": []
+    }
+  ],
+  "sources": [],
+  "story": {
+    "scenes": []
+  },
+  "assets": {}
+}

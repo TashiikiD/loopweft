@@ -4,5 +4,16 @@
   "private": true,
   "description": "The loopweft command-line tool, for people and AI agents: every command prints one JSON document with --json.",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "bin": {
+    "loopweft": "./bin/loopweft.mjs"
+  },
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "dependencies": {
+    "@loopweft/layout": "*",
+    "@loopweft/model": "*",
+    "commander": "15.0.0"
+  }
 }

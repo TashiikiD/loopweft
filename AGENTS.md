@@ -67,6 +67,7 @@ reviews before the next one starts. The file format is specified in [docs/format
 | `npm test` | Vitest unit tests |
 | `npm run verify` | The full merge gate, with a Markdown summary |
 | `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
+| `npm run loopweft -- <command>` | Runs the `loopweft` command line (`npx loopweft` works too) |
 | `npm run convert:polycrisis -- --deck <folder>` | Rebuilds `examples/polycrisis.loopweft` from the private polycrisis deck |
 | `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |
 
@@ -81,9 +82,13 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 | Package | Role |
 |---|---|
 | `model` | The `.loopweft` format (zod schema, JSON Schema, validation, migrations, canonical serialization), `ops`, the shorthand, loops, integrity checks, references and the polycrisis converter |
-| `motion`, `layout`, `render` | Phase 1: the animation engine, auto-layouts and the SVG renderer (placeholders for now) |
+| `motion` | The animation engine: timelines, eases, and a clock that steps exact frames |
+| `layout` | Automatic layouts (constellation, force, flow), link curves, label placement, camera maths, and `applyAutoLayout` (the edit both front ends use to lay a map out) |
+| `render` | The drawable graph, themes, palettes and colour-vision checks, and the SVG map view and story view |
 | `player` | Phase 5: the presentation runtime (placeholder) |
-| `cli` | Phase 2: the `loopweft` command-line tool (placeholder) |
+| `cli` | The `loopweft` command line (Phase 2 basics: `new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `layout`); see its README |
+
+Apps live in `apps/*`: `viewer` plays a project's story (published at `/demo/`).
 
 Every edit to a project is an operation in `@loopweft/model` (`src/ops/`): a project goes in, and
 `{ project, result, summary }` comes out, with the input untouched; an expected failure is an `OpError`

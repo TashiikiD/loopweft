@@ -1,6 +1,13 @@
 // Layout for a .loopweft project: automatic layouts that keep pinned variables where they are, and the
 // drawable geometry (positions, radii, bends, curves) that the renderer and label placement share.
-import type { Group, Position, Project, Variable } from '@loopweft/model';
+import {
+  applyLayout,
+  type Group,
+  type OpOutput,
+  type Position,
+  type Project,
+  type Variable,
+} from '@loopweft/model';
 import { type BendReport, chooseBends } from './bends.ts';
 import { constellationLayout } from './constellation.ts';
 import { flowLayout } from './flow.ts';
@@ -95,6 +102,29 @@ export function autoLayout(project: Project, options: AutoLayoutOptions): AutoLa
     positions[v.id] = old?.pinned ? old : { x: p.x, y: p.y };
   }
   return { positions, groups };
+}
+
+const DESCRIPTIONS: Record<LayoutKind, string> = {
+  constellation: 'as a constellation by category',
+  force: 'with the force layout',
+  flow: 'as a flow from causes to effects',
+};
+
+/**
+ * The edit behind "lay out automatically", in the Studio and in `loopweft layout --auto`: computes the
+ * layout and records it with the model's `applyLayout`. Pinned variables stay where they are.
+ */
+export function applyAutoLayout(
+  project: Project,
+  options: AutoLayoutOptions,
+): OpOutput<ReturnType<typeof applyLayout>['result'] & { kind: LayoutKind; seed: number }> {
+  const seed = options.seed ?? 1337;
+  const out = applyLayout(
+    project,
+    autoLayout(project, { ...options, seed }),
+    `${DESCRIPTIONS[options.kind]}${options.kind === 'flow' ? '' : ` (seed ${seed})`}`,
+  );
+  return { ...out, result: { ...out.result, kind: options.kind, seed } };
 }
 
 /** Glyph radius in map units: hubs are larger, and ring glyphs a little larger to read as rings. */
