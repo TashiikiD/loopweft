@@ -6,15 +6,23 @@
 //
 //   node scripts/check-push.ts [<remote> [<url>]] < <the lines git gives the pre-push hook>
 //
-// Without a URL (or a remote) every commit the refs reach is read.
-import { text } from 'node:stream/consumers';
+// Without a URL (or a remote) every commit the refs reach is read. Standard input is read as bytes, so a ref
+// name that is not UTF-8 stops the push rather than being read with a replacement character.
+import { buffer } from 'node:stream/consumers';
 import { privateWords } from '../packages/model/scripts/polycrisis-deck.ts';
 import { findPrivateWordsInPush } from '../test/private-words.ts';
 
 const [remote, url] = process.argv.slice(2);
 const words = privateWords();
 if (words.length > 0) {
-  const found = findPrivateWordsInPush(process.cwd(), words, await text(process.stdin), url ?? remote);
+  let found: string[];
+  try {
+    found = findPrivateWordsInPush(process.cwd(), words, await buffer(process.stdin), url ?? remote);
+  } catch (error) {
+    // Something the check cannot read: stop the push rather than let it through unread.
+    process.stderr.write(`The private-word check stopped this push: ${(error as Error).message}\n`);
+    process.exit(1);
+  }
   if (found.length > 0) {
     process.stderr.write(
       [

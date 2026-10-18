@@ -24,8 +24,34 @@ const git = (root: string, args: string[], input?: string): Buffer =>
     stdio: 'pipe',
   });
 
+/** Git's output split at each `separator` byte, without the empty pieces. */
+function split(out: Buffer, separator: number): Buffer[] {
+  const found: Buffer[] = [];
+  for (let at = 0; at < out.length; ) {
+    const next = out.indexOf(separator, at);
+    const end = next < 0 ? out.length : next;
+    if (end > at) found.push(out.subarray(at, end));
+    at = end + 1;
+  }
+  return found;
+}
+
+/**
+ * A name git gives as bytes, such as a file's or a ref's, read as UTF-8. One that is not UTF-8 throws, shown
+ * as near as it can be, rather than lose a word to a replacement character.
+ */
+function utf8(name: Buffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(name);
+  } catch {
+    throw new Error(
+      `${JSON.stringify(name.toString('utf8'))} is not valid UTF-8, so this check cannot read it.`,
+    );
+  }
+}
+
 /** File names as git lists them with `-z`: ended by NUL and never quoted, so every character stays as it is. */
-const names = (out: Buffer): string[] => out.toString('utf8').split('\0').filter(Boolean);
+const names = (out: Buffer): string[] => split(out, 0x00).map(utf8);
 
 /** The contents of git objects by id, from one `git cat-file --batch`. */
 function objects(root: string, ids: string[]): Map<string, Buffer> {
@@ -193,7 +219,8 @@ export function findPrivateWords(root: string, words: readonly string[]): string
 /**
  * Every place one of the words appears, in any letter case, in what a push sends, as
  * `<id> <place>: "<word>"`. `pushed` is what git gives the pre-push hook on its standard input, one line for
- * each ref the push updates: `<local ref> <local id> <remote ref> <remote id>`. `destination` is where the
+ * each ref the push updates: `<local ref> <local id> <remote ref> <remote id>`. Given as bytes, a ref name
+ * that is not UTF-8 stops the check, as a file name does. `destination` is where the
  * push goes (the hook's second argument, its URL). A deleted ref, whose local id is all zeros, sends nothing,
  * so deleting one is never stopped. For every other ref the places are:
  * - `ref <remote ref>`: the name the push gives it at the destination;
@@ -215,7 +242,7 @@ export function findPrivateWords(root: string, words: readonly string[]): string
 export function findPrivateWordsInPush(
   root: string,
   words: readonly string[],
-  pushed: string,
+  pushed: string | Buffer,
   destination?: string,
 ): string[] {
   const wanted = words.map((w) => w.trim().toLowerCase()).filter(Boolean);
@@ -226,14 +253,14 @@ export function findPrivateWordsInPush(
     for (const word of wanted) if (lower.includes(word)) found.push(`${id.slice(0, 7)} ${place}: "${word}"`);
   };
 
-  const updates = pushed
-    .split('\n')
-    .filter((line) => line.trim() !== '')
-    .map((line) => {
-      const [, id = '', ref = ''] = line.trim().split(' ');
-      return { id, ref };
-    })
-    .filter((update) => !NONE.test(update.id));
+  const updates: { id: string; ref: string }[] = [];
+  for (const line of split(typeof pushed === 'string' ? Buffer.from(pushed) : pushed, 0x0a)) {
+    // The ids are ASCII. A deletion is let through unread, even of a ref whose name is not UTF-8.
+    const [, id = ''] = line.toString('latin1').trim().split(' ');
+    if (id === '' || NONE.test(id)) continue;
+    const [, , ref = ''] = utf8(line).trim().split(' ');
+    updates.push({ id, ref });
+  }
   for (const { id, ref } of updates) read(id, `ref ${ref}`, ref);
 
   // Each local id names a commit, or an annotated tag of one, maybe through further tags.

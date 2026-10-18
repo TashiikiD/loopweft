@@ -13,6 +13,10 @@ const ACCENTED = 'quokkajosé';
 
 /** Text as a UTF-16 file holds it: little-endian, after a byte order mark. */
 const UTF16 = (text: string) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+
+/** A name with the accented word in Latin-1 bytes, which are not valid UTF-8. */
+const LATIN1 = Buffer.from(`dr-${ACCENTED}-notes.txt`, 'latin1');
+const NL = Buffer.from('\n');
 const SAFE = 'Nothing personal here.\n';
 
 /** The pre-push hook's check (.githooks/pre-push). */
@@ -162,6 +166,18 @@ describe('the private-word check', () => {
     repo.git('add', 'notes.txt');
     expect(() => repo.found()).toThrow('notes.txt (staged) is not UTF-8 text');
   });
+
+  it('stops at a file whose name is not valid UTF-8, rather than miss a word in it', () => {
+    const repo = repository();
+    const blob = repo.run(['hash-object', '-w', '--stdin'], {}, SAFE);
+    // Staged by git's own command, which takes the name's bytes as they are: Windows allows no such file.
+    repo.run(
+      ['update-index', '--add', '--index-info'],
+      {},
+      Buffer.concat([Buffer.from(`100644 ${blob} 0\t`), LATIN1, NL]),
+    );
+    expect(() => repo.found()).toThrow('is not valid UTF-8');
+  });
 });
 
 /** The id git gives for a ref that one side does not have. */
@@ -175,7 +191,7 @@ const pushing = (id: string, ref = 'refs/heads/main', remote = ZERO) =>
 const short = (id: string) => id.slice(0, 7);
 
 describe('the push check', () => {
-  const inPush = (dir: string, pushed: string, destination?: string) =>
+  const inPush = (dir: string, pushed: string | Buffer, destination?: string) =>
     findPrivateWordsInPush(dir, [WORD], pushed, destination).sort();
 
   it('stops a commit whose message has the word, in any letter case', () => {
@@ -458,6 +474,52 @@ describe('the push check', () => {
       expect(stopped.status).not.toBe(0);
       expect(stopped.stderr).toContain(`${short(id)} file notes.txt: "${WORD}"`);
       expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    // Git keeps names as bytes. Built through git's own commands, which take the bytes as they are, these run
+    // on Windows too, which allows no such name on disk.
+    it('stops a file whose name is not valid UTF-8', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      const blob = repo.run(['hash-object', '-w', '--stdin'], {}, SAFE);
+      const tree = repo.run(
+        ['mktree'],
+        {},
+        Buffer.concat([Buffer.from(`100644 blob ${blob}\t`), LATIN1, NL]),
+      );
+      repo.git('update-ref', 'HEAD', repo.git('commit-tree', tree, '-m', 'Add the notes'));
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain('is not valid UTF-8');
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops a push to a ref whose name is not valid UTF-8, but lets its deletion through', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      const id = repo.commit('Add nothing');
+      // A ref named in Latin-1 bytes, which git reads from packed-refs as they are.
+      writeFileSync(
+        join(repo.dir, '.git', 'packed-refs'),
+        Buffer.concat([Buffer.from(`${id} refs/heads/`), LATIN1, NL]),
+        {
+          flag: 'a',
+        },
+      );
+      const stopped = repo.push('origin', 'refs/heads/*:refs/heads/*');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain('The private-word check stopped this push');
+      expect(stopped.stderr).toContain('is not valid UTF-8');
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+      // Deleting such a ref sends nothing, so the check lets it through.
+      const deletion = Buffer.concat([
+        Buffer.from(`(delete) ${ZERO} refs/heads/`),
+        LATIN1,
+        Buffer.from(` ${id}\n`),
+      ]);
+      expect(inPush(repo.dir, deletion)).toEqual([]);
     });
   });
 
