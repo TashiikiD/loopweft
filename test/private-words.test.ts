@@ -41,9 +41,17 @@ function folder(prefix: string): string {
   return dir;
 }
 
-/** A new, empty git repository to write files into, run git in, commit, and check. */
+/** A new, empty bare repository to push to. */
+function remote(): string {
+  const dir = folder('loopweft-remote-');
+  execFileSync('git', ['init', '--quiet', '--bare'], { cwd: dir, env: ENV, stdio: 'pipe' });
+  return dir;
+}
+
+/** A new, empty git repository to write files into, run git in, commit, push from, and check. */
 function repository() {
   const dir = folder('loopweft-words-');
+  /** Git, with `env` (such as another identity) where given. */
   const run = (args: string[], env: Record<string, string> = {}) =>
     execFileSync('git', args, { cwd: dir, env: { ...ENV, ...env }, encoding: 'utf8', stdio: 'pipe' }).trim();
   const git = (...args: string[]) => run(args);
@@ -51,13 +59,35 @@ function repository() {
   return {
     dir,
     git,
-    write: (file: string, text: string) => writeFileSync(join(dir, file), text),
+    run,
+    write: (file: string, text: string) => {
+      mkdirSync(dirname(join(dir, file)), { recursive: true });
+      writeFileSync(join(dir, file), text);
+    },
     /** Commits every change, by `identity` where given, and gives the new commit's id. */
     commit: (message: string, identity: Record<string, string> = {}) => {
       git('add', '--all');
       run(['commit', '--quiet', '--allow-empty', `--message=${message}`], identity);
       return git('rev-parse', 'HEAD');
     },
+    /**
+     * Makes the push check this repository's pre-push hook, alone and on the made-up word: .githooks/pre-push
+     * then runs the whole fast gate.
+     */
+    guard: () => {
+      const hook = join(dir, '.git', 'hooks', 'pre-push');
+      const quoted = (path: string) => `"${path.replaceAll('\\', '/')}"`;
+      mkdirSync(dirname(hook), { recursive: true });
+      writeFileSync(hook, `#!/bin/sh\nexec ${quoted(process.execPath)} ${quoted(CHECK)} "$@"\n`);
+      chmodSync(hook, 0o755);
+    },
+    /** A real `git push`, which runs the hook, with the made-up word set as the private one. */
+    push: (...args: string[]) =>
+      spawnSync('git', ['push', '--quiet', ...args], {
+        cwd: dir,
+        env: { ...ENV, LOOPWEFT_PRIVATE_WORDS: WORD },
+        encoding: 'utf8',
+      }),
     found: () => findPrivateWords(dir, [WORD]).sort(),
   };
 }
@@ -112,14 +142,16 @@ describe('the private-word check', () => {
 /** The id git gives for a ref that one side does not have. */
 const ZERO = '0'.repeat(40);
 
-/** What git gives the pre-push hook for pushing `id` to a branch the remote has at `remote` (or not yet). */
-const pushing = (id: string, remote = ZERO) => `refs/heads/main ${id} refs/heads/main ${remote}\n`;
+/** What the pre-push hook gets for pushing `id` to `ref`, which the remote has at `remote` (or lacks). */
+const pushing = (id: string, ref = 'refs/heads/main', remote = ZERO) =>
+  `refs/heads/main ${id} ${ref} ${remote}\n`;
 
-/** A commit's id as the push check names it. */
+/** An object's id as the push check names it. */
 const short = (id: string) => id.slice(0, 7);
 
 describe('the push check', () => {
-  const inPush = (dir: string, pushed: string) => findPrivateWordsInPush(dir, [WORD], pushed).sort();
+  const inPush = (dir: string, pushed: string, destination?: string) =>
+    findPrivateWordsInPush(dir, [WORD], pushed, destination).sort();
 
   it('stops a commit whose message has the word, in any letter case', () => {
     const repo = repository();
@@ -151,20 +183,69 @@ describe('the push check', () => {
     expect(inPush(repo.dir, pushing(tip))).toEqual([`${short(added)} file notes.md: "${WORD}"`]);
   });
 
-  it('passes a clean range, even where commits the remote already has hold the word', () => {
+  it('reads the names of files and folders, even of a file whose contents it skips', () => {
     const repo = repository();
-    const sent = repo.commit(`Notes by ${WORD}`);
-    // As a push or a fetch leaves it: the remote-tracking branch is where the remote's branch is.
-    repo.git('update-ref', 'refs/remotes/origin/main', sent);
-    repo.write('notes.md', SAFE);
-    const tip = repo.commit('Add the notes');
-    expect(inPush(repo.dir, pushing(tip, sent))).toEqual([]);
+    repo.write(`private-${WORD}.md`, SAFE);
+    repo.write(`docs/${WORD}/notes.md`, SAFE);
+    repo.write(`${WORD}.png`, `${WORD}\n`);
+    const id = repo.commit('Add the notes');
+    expect(inPush(repo.dir, pushing(id))).toEqual(
+      [
+        `${short(id)} path docs/${WORD}/notes.md: "${WORD}"`,
+        `${short(id)} path private-${WORD}.md: "${WORD}"`,
+        `${short(id)} path ${WORD}.png: "${WORD}"`,
+      ].sort(),
+    );
   });
 
-  it('ignores a deleted branch, which sends nothing', () => {
+  it('passes a clean range, even where commits the destination already holds have the word', () => {
     const repo = repository();
-    const gone = repo.commit(`Notes by ${WORD}`);
-    expect(inPush(repo.dir, `(delete) ${ZERO} refs/heads/notes ${gone}\n`)).toEqual([]);
+    const origin = remote();
+    const sent = repo.commit(`Notes by ${WORD}`);
+    repo.git('push', '--quiet', origin, 'HEAD:refs/heads/main');
+    repo.write('notes.md', SAFE);
+    const tip = repo.commit('Add the notes');
+    expect(inPush(repo.dir, pushing(tip, 'refs/heads/main', sent), origin)).toEqual([]);
+  });
+
+  it('reads a commit that only another remote holds', () => {
+    const repo = repository();
+    const [upstream, origin] = [remote(), remote()];
+    repo.git('remote', 'add', 'upstream', upstream);
+    const id = repo.commit(`Notes by ${WORD}`);
+    // This leaves upstream's remote-tracking branch at the commit, which says nothing of what origin holds.
+    repo.git('push', '--quiet', 'upstream', 'HEAD:refs/heads/main');
+    expect(inPush(repo.dir, pushing(id), origin)).toEqual([`${short(id)} message: "${WORD}"`]);
+    expect(inPush(repo.dir, pushing(id), upstream)).toEqual([]);
+  });
+
+  it('reads the names of the refs it pushes to, but lets a deletion through', () => {
+    const repo = repository();
+    const origin = remote();
+    const id = repo.commit('Add nothing');
+    repo.git('push', '--quiet', origin, 'HEAD:refs/heads/main');
+    const refs = pushing(id, `refs/heads/${WORD}`) + pushing(id, `refs/tags/v1-${WORD}`);
+    expect(inPush(repo.dir, refs, origin)).toEqual([
+      `${short(id)} ref refs/heads/${WORD}: "${WORD}"`,
+      `${short(id)} ref refs/tags/v1-${WORD}: "${WORD}"`,
+    ]);
+    // Deleting a ref sends nothing, and must stay possible for one whose name already shows the word.
+    expect(inPush(repo.dir, `(delete) ${ZERO} refs/heads/${WORD} ${id}\n`, origin)).toEqual([]);
+  });
+
+  it('reads annotated tags, a tag of a tag too: their names, taggers and messages', () => {
+    const repo = repository();
+    const origin = remote();
+    repo.commit('Add nothing');
+    repo.git('push', '--quiet', origin, 'HEAD:refs/heads/main');
+    repo.run(['tag', '--annotate', '--message=First release', 'v1'], {
+      GIT_COMMITTER_EMAIL: `${WORD}@example.com`,
+    });
+    repo.git('tag', '--annotate', `--message=Notes by ${WORD}`, 'v1-notes', 'v1');
+    const [inner, outer] = [repo.git('rev-parse', 'v1'), repo.git('rev-parse', 'v1-notes')];
+    expect(inPush(repo.dir, pushing(outer, 'refs/tags/v1-notes'), origin)).toEqual(
+      [`${short(inner)} tagger email: "${WORD}"`, `${short(outer)} tag message: "${WORD}"`].sort(),
+    );
   });
 
   it('reads what a merge changes from all of its parents, and what each branch brings in its own commits', () => {
@@ -185,34 +266,66 @@ describe('the push check', () => {
     );
   });
 
-  it('stops a real push, and lets it through once the commit is clean', () => {
-    const repo = repository();
-    const remote = folder('loopweft-remote-');
-    execFileSync('git', ['init', '--quiet', '--bare'], { cwd: remote, env: ENV, stdio: 'pipe' });
-    repo.git('remote', 'add', 'origin', remote);
-    // A hook with the check alone, on the made-up word: .githooks/pre-push then runs the whole fast gate.
-    const hook = join(repo.dir, '.git', 'hooks', 'pre-push');
-    const quoted = (path: string) => `"${path.replaceAll('\\', '/')}"`;
-    mkdirSync(dirname(hook), { recursive: true });
-    writeFileSync(hook, `#!/bin/sh\nexec ${quoted(process.execPath)} ${quoted(CHECK)}\n`);
-    chmodSync(hook, 0o755);
-    const push = () =>
-      spawnSync('git', ['push', '--quiet', 'origin', 'HEAD:refs/heads/main'], {
-        cwd: repo.dir,
-        env: { ...ENV, LOOPWEFT_PRIVATE_WORDS: WORD },
-        encoding: 'utf8',
-      });
+  describe('in a real push', () => {
+    it('stops the push, and lets it through once the commit is clean', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.write('notes.md', SAFE);
+      const id = repo.commit(`Notes for ${WORD}`);
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
 
-    repo.write('notes.md', SAFE);
-    const id = repo.commit(`Notes for ${WORD}`);
-    const stopped = push();
-    expect(stopped.status).not.toBe(0);
-    expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
-    expect(repo.git('ls-remote', 'origin')).toBe('');
+      repo.git('commit', '--quiet', '--amend', '--message=Notes');
+      const sent = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(sent.status, sent.stderr).toBe(0);
+      expect(repo.git('ls-remote', 'origin')).toBe(`${repo.git('rev-parse', 'HEAD')}\trefs/heads/main`);
+    });
 
-    repo.git('commit', '--quiet', '--amend', '--message=Notes');
-    const sent = push();
-    expect(sent.status, sent.stderr).toBe(0);
-    expect(repo.git('ls-remote', 'origin')).toBe(`${repo.git('rev-parse', 'HEAD')}\trefs/heads/main`);
+    it('stops a commit that only another remote holds', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'upstream', remote());
+      repo.git('remote', 'add', 'origin', remote());
+      const id = repo.commit(`Notes by ${WORD}`);
+      repo.git('push', '--quiet', 'upstream', 'HEAD:refs/heads/main');
+      repo.guard();
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops an annotated tag on a commit the remote already holds', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.commit('Add nothing');
+      expect(repo.push('origin', 'HEAD:refs/heads/main').status).toBe(0);
+      repo.git('tag', '--annotate', `--message=Notes by ${WORD}`, 'v1');
+      const stopped = repo.push('origin', 'refs/tags/v1');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(repo.git('rev-parse', 'v1'))} tag message: "${WORD}"`);
+      expect(repo.git('ls-remote', '--tags', 'origin')).toBe('');
+    });
+
+    it('reads the commit it sends, not a clean local replacement for it', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.write('notes.md', `Written by ${WORD}.\n`);
+      const original = repo.commit('Add the notes');
+      repo.write('notes.md', SAFE);
+      repo.git('add', '--all');
+      const clean = repo.git('commit-tree', repo.git('write-tree'), '-m', 'Add the notes');
+      repo.git('replace', original, clean);
+      // Git now shows the clean commit in place of the original, but a push sends the original.
+      expect(repo.git('show', original)).not.toContain(WORD);
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(original)} file notes.md: "${WORD}"`);
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
   });
 });

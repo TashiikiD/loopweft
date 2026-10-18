@@ -14,8 +14,15 @@ const SUBMODULE = '160000';
 /** An object id of zeros names nothing: a deleted file, or a deleted ref. */
 const NONE = /^0+$/;
 
+/** Git, reading each object itself, never a local replacement for it (`git replace`), as a push does. */
 const git = (root: string, args: string[], input?: string): Buffer =>
-  execFileSync('git', args, { cwd: root, input, maxBuffer: 2 ** 30 });
+  execFileSync('git', args, {
+    cwd: root,
+    input,
+    maxBuffer: 2 ** 30,
+    env: { ...process.env, GIT_NO_REPLACE_OBJECTS: '1' },
+    stdio: 'pipe',
+  });
 
 /** File names as git lists them with `-z`: ended by NUL and never quoted, so every character stays as it is. */
 const names = (out: Buffer): string[] => out.toString('utf8').split('\0').filter(Boolean);
@@ -36,6 +43,53 @@ function objects(root: string, ids: string[]): Map<string, Buffer> {
     at = eol + 1 + size + 1;
   }
   return contents;
+}
+
+/** The type of each object git has, by id, from one `git cat-file --batch-check`. */
+function types(root: string, ids: string[]): Map<string, string> {
+  const found = new Map<string, string>();
+  const wanted = [...new Set(ids)].filter(Boolean);
+  if (wanted.length === 0) return found;
+  // Each line: "<id> <type> <size>", or "<id> missing".
+  const out = git(root, ['cat-file', '--batch-check'], `${wanted.join('\n')}\n`).toString('latin1');
+  for (const line of out.split('\n')) {
+    const [id = '', type = ''] = line.split(' ');
+    if (['blob', 'tree', 'commit', 'tag'].includes(type)) found.set(id, type);
+  }
+  return found;
+}
+
+/** A commit or a tag as git keeps it: a header on each line ("<name> <value>"), a blank line, the message. */
+function parse(raw: Buffer | undefined): { header: (name: string) => string; message: string } {
+  const text = (raw ?? Buffer.alloc(0)).toString('utf8');
+  const blank = text.indexOf('\n\n');
+  const headers = (blank < 0 ? text : text.slice(0, blank)).split('\n');
+  return {
+    header: (name) => headers.find((h) => h.startsWith(`${name} `))?.slice(name.length + 1) ?? '',
+    message: blank < 0 ? '' : text.slice(blank + 2),
+  };
+}
+
+/** The name and email of an identity, "<name> <<email>> <time> <zone>". */
+function identity(value: string): { name: string; email: string } {
+  const [, name = value, email = ''] = /^([^<]*)<([^>]*)>/.exec(value) ?? [];
+  return { name, email };
+}
+
+/**
+ * The commits that the refs of `destination` point to (`git ls-remote`), of those this repository has: what
+ * the destination already holds, so a push sends none of them. None when it cannot be listed.
+ */
+function held(root: string, destination: string): string[] {
+  let listing: string;
+  try {
+    listing = git(root, ['ls-remote', '--', destination]).toString('latin1');
+  } catch {
+    return [];
+  }
+  // Each line: "<id>", a tab and the ref; an annotated tag also comes peeled, as "<ref>^{}".
+  const ids = listing.split('\n').map((line) => line.split('\t')[0] ?? '');
+  return [...types(root, ids)].filter(([, kind]) => kind === 'commit').map(([id]) => id);
 }
 
 /**
@@ -83,36 +137,92 @@ export function findPrivateWords(root: string, words: readonly string[]): string
 
 /**
  * Every place one of the words appears, in any letter case, in what a push sends, as
- * `<commit> <place>: "<word>"`. `pushed` is what git gives the pre-push hook on its standard input, one line
- * for each ref the push updates: `<local ref> <local id> <remote ref> <remote id>`. The push sends the
- * commits that the local ids reach and no remote-tracking branch does
- * (`git rev-list <local id> --not --remotes`); a deleted ref, whose local id is all zeros, sends none. In each
- * of those commits the places are:
- * - `message`;
- * - `author name`, `author email`, `committer name` and `committer email`;
- * - `file <name>`: each file the commit adds or changes, so a word that a later commit removes is still
- *   found. A merge is compared with all of its parents at once, so only what differs from each of them is its
- *   own; what a branch brings is read in that branch's commits.
- * Like findPrivateWords, it reads no images, fonts, PDFs or submodules.
+ * `<id> <place>: "<word>"`. `pushed` is what git gives the pre-push hook on its standard input, one line for
+ * each ref the push updates: `<local ref> <local id> <remote ref> <remote id>`. `destination` is where the
+ * push goes (the hook's second argument, its URL). A deleted ref, whose local id is all zeros, sends nothing,
+ * so deleting one is never stopped. For every other ref the places are:
+ * - `ref <remote ref>`: the name the push gives it at the destination;
+ * - for an annotated tag, and a tag of a tag: `tag name`, `tagger name`, `tagger email` and `tag message`, in
+ *   each tag down to the commit;
+ * - the commits the push sends: those the local ids reach and no ref of the destination does (as
+ *   `git ls-remote` lists them). Without a destination, or where it cannot be listed, every commit they reach
+ *   is read.
+ * In each of those commits the places are:
+ * - `message`, `author name`, `author email`, `committer name` and `committer email`;
+ * - `path <name>`: the name of each file the commit adds or changes, with its folders;
+ * - `file <name>`: the contents of each of those files, so a word that a later commit removes is still found.
+ *   Like findPrivateWords, it reads no images, fonts, PDFs or submodules.
+ * A merge is compared with all of its parents at once, so only what differs from each of them is its own;
+ * what a branch brings is read in that branch's commits.
  */
-export function findPrivateWordsInPush(root: string, words: readonly string[], pushed: string): string[] {
+export function findPrivateWordsInPush(
+  root: string,
+  words: readonly string[],
+  pushed: string,
+  destination?: string,
+): string[] {
   const wanted = words.map((w) => w.trim().toLowerCase()).filter(Boolean);
-  const tips = pushed
+  if (wanted.length === 0) return [];
+  const found: string[] = [];
+  const read = (id: string, place: string, content: string) => {
+    const lower = content.toLowerCase();
+    for (const word of wanted) if (lower.includes(word)) found.push(`${id.slice(0, 7)} ${place}: "${word}"`);
+  };
+
+  const updates = pushed
     .split('\n')
     .filter((line) => line.trim() !== '')
-    .map((line) => line.trim().split(' ')[1] ?? '')
-    .filter((id) => !NONE.test(id));
-  if (wanted.length === 0 || tips.length === 0) return [];
-  const commits = git(root, ['rev-list', ...tips, '--not', '--remotes'])
+    .map((line) => {
+      const [, id = '', ref = ''] = line.trim().split(' ');
+      return { id, ref };
+    })
+    .filter((update) => !NONE.test(update.id));
+  for (const { id, ref } of updates) read(id, `ref ${ref}`, ref);
+
+  // Each local id names a commit, or an annotated tag of one, maybe through further tags.
+  const tips: string[] = [];
+  let level = [...new Set(updates.map((update) => update.id))];
+  while (level.length > 0) {
+    const kinds = types(root, level);
+    for (const id of level) {
+      const kind = kinds.get(id);
+      if (kind === 'commit') tips.push(id);
+      else if (kind !== 'tag') {
+        const what = kind ? `a ${kind}` : 'which git does not have';
+        throw new Error(`The push sends ${id}, ${what}: only commits and tags can be checked.`);
+      }
+    }
+    const tags = level.filter((id) => kinds.get(id) === 'tag');
+    const contents = objects(root, tags);
+    level = [
+      ...new Set(
+        tags.map((id) => {
+          const tag = parse(contents.get(id));
+          const tagger = identity(tag.header('tagger'));
+          read(id, 'tag name', tag.header('tag'));
+          read(id, 'tagger name', tagger.name);
+          read(id, 'tagger email', tagger.email);
+          read(id, 'tag message', tag.message);
+          return tag.header('object');
+        }),
+      ),
+    ];
+  }
+  if (tips.length === 0) return found;
+
+  const sent = destination === undefined ? [] : held(root, destination);
+  const commits = git(root, ['rev-list', '--stdin'], [...tips, ...sent.map((id) => `^${id}`), ''].join('\n'))
     .toString('latin1')
     .split('\n')
     .filter(Boolean);
-  if (commits.length === 0) return [];
+  if (commits.length === 0) return found;
 
   // The files each commit adds or changes (-c: for a merge, those that differ from every parent): the
   // commit's id, then each file's entry and name, all ended by NUL. An entry starts with a colon per parent,
   // then gives the mode of each parent's copy and of the commit's own, then their object ids in that order.
-  const changed = new Map(commits.map((commit) => [commit, [] as { file: string; id: string }[]]));
+  const changed = new Map(
+    commits.map((commit) => [commit, [] as { file: string; id: string; text: boolean }[]]),
+  );
   const listing = names(
     git(root, ['diff-tree', '--stdin', '-r', '--root', '-c', '-z'], `${commits.join('\n')}\n`),
   );
@@ -128,32 +238,26 @@ export function findPrivateWordsInPush(root: string, words: readonly string[], p
     const mode = fields[parents] ?? '';
     const id = fields[2 * parents + 1] ?? '';
     const file = listing[++i] ?? '';
-    // A deleted file sends nothing, and a submodule's entry names a commit of another repository.
-    if (!NONE.test(id) && mode !== SUBMODULE && !BINARY.test(file)) changed.get(current)?.push({ file, id });
+    // A deleted file sends nothing. A submodule's entry names a commit of another repository: only its name
+    // is sent.
+    if (!NONE.test(id))
+      changed.get(current)?.push({ file, id, text: mode !== SUBMODULE && !BINARY.test(file) });
   }
 
-  const contents = objects(root, [...commits, ...[...changed.values()].flat().map((f) => f.id)]);
-  const text = (id: string) => (contents.get(id) ?? Buffer.alloc(0)).toString('utf8');
-  const found: string[] = [];
+  const files = [...changed.values()].flat();
+  const contents = objects(root, [...commits, ...files.filter((f) => f.text).map((f) => f.id)]);
   for (const commit of commits) {
-    const short = commit.slice(0, 7);
-    const read = (place: string, content: string) => {
-      const lower = content.toLowerCase();
-      for (const word of wanted) if (lower.includes(word)) found.push(`${short} ${place}: "${word}"`);
-    };
-    // A commit: a header on each line, such as "author <name> <<email>> <time> <zone>", then a blank line and
-    // the message.
-    const raw = text(commit);
-    const blank = raw.indexOf('\n\n');
-    const headers = (blank < 0 ? raw : raw.slice(0, blank)).split('\n');
-    read('message', blank < 0 ? '' : raw.slice(blank + 2));
+    const { header, message } = parse(contents.get(commit));
+    read(commit, 'message', message);
     for (const role of ['author', 'committer']) {
-      const value = headers.find((h) => h.startsWith(`${role} `))?.slice(role.length + 1) ?? '';
-      const [, name = value, email = ''] = /^([^<]*)<([^>]*)>/.exec(value) ?? [];
-      read(`${role} name`, name);
-      read(`${role} email`, email);
+      const { name, email } = identity(header(role));
+      read(commit, `${role} name`, name);
+      read(commit, `${role} email`, email);
     }
-    for (const { file, id } of changed.get(commit) ?? []) read(`file ${file}`, text(id));
+    for (const { file, id, text } of changed.get(commit) ?? []) {
+      read(commit, `path ${file}`, file);
+      if (text) read(commit, `file ${file}`, (contents.get(id) ?? Buffer.alloc(0)).toString('utf8'));
+    }
   }
   return found;
 }
