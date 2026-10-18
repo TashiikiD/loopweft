@@ -703,10 +703,16 @@ export function loopRemoveCommand(
 // ----- ripple -----
 
 const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
+/** Each way in words, beside its mark: a screen reader or a font without the marks still tells it. */
+const WAY: Record<Trend, [one: string, many: string]> = {
+  up: ['rises', 'rise'],
+  down: ['falls', 'fall'],
+  mixed: ['is pushed both ways', 'are pushed both ways'],
+};
 
 /**
  * What if a variable rises or falls: the model's ripple (the Studio's Ripple panel runs the same), told as
- * the panel tells it. Directions only, from the links' signs.
+ * the panel tells it, by the variables' names. Directions only, from the links' signs.
  */
 export function rippleCommand(
   file: string,
@@ -722,23 +728,26 @@ export function rippleCommand(
     includeOptional: o.includeOptional === true,
     ...(maxSteps !== undefined ? { maxSteps } : {}),
   });
+  const labels = new Map(project.variables.map((v) => [v.id, v.label.replace(/\s+/g, ' ')]));
+  const name = (id: string) => labels.get(id) || id;
   const counted = (trend: Trend) => result.reached.filter((r) => r.trend === trend).length;
   const tally = (['up', 'down', 'mixed'] as const)
     .filter((t) => counted(t))
-    .map((t) => `${counted(t)} ${MARK[t]}`)
+    .map((t) => `${counted(t)} ${WAY[t][counted(t) === 1 ? 0 : 1]} ${MARK[t]}`)
     .join(', ');
-  const change = `If ${result.start} ${result.direction === 'up' ? 'rises' : 'falls'}`;
+  const change = `If ${name(result.start)} ${WAY[result.direction][0]}`;
   const later = result.reached.filter((r) => r.against.length);
   const lines = [
     result.reached.length
       ? `${change}, the change reaches ${plural(result.reached.length, 'variable')} in ${plural(result.hops.length, 'step')}: ${tally}.`
       : `${change}, the change reaches no other variable.`,
     ...result.reached.map(
-      (r) => `  step ${r.step}  ${MARK[r.trend]} ${r.variable.padEnd(24)} via ${r.via.join(', ')}`,
+      (r) =>
+        `  step ${r.step}  ${MARK[r.trend]} ${name(r.variable)} ${WAY[r.trend][0]}, via ${r.via.join(', ')}`,
     ),
     ...result.feedback.map(
       (f) =>
-        `Back to ${result.start} at step ${f.step} along ${f.link}: ${MARK[f.trend]} ${
+        `Back to ${name(result.start)} at step ${f.step} along ${f.link}: ${MARK[f.trend]} it ${WAY[f.trend][0]}, ${
           f.trend === result.direction
             ? 'the same way, so the loop reinforces the change.'
             : 'the other way, so the loop counters it.'
@@ -746,12 +755,12 @@ export function rippleCommand(
     ),
     ...(counted('mixed')
       ? [
-          '± where opposing pushes arrive together: the signs alone cannot tell which wins, so the ripple goes no further from there.',
+          '± (pushed both ways) where opposing pushes arrive together: the signs alone cannot tell which wins, so the ripple goes no further from there.',
         ]
       : []),
     ...(later.length
       ? [
-          `Pushed the other way later, round a loop or by a longer way: ${later.map((r) => `${r.variable} (${r.against.join(', ')})`).join('; ')}.`,
+          `Pushed the other way later, round a loop or by a longer way: ${later.map((r) => `${name(r.variable)} (${r.against.join(', ')})`).join('; ')}.`,
         ]
       : []),
     ...(result.unknownLinks.length
@@ -765,7 +774,7 @@ export function rippleCommand(
         ]
       : []),
     ...(result.capped
-      ? [`Stopped after ${plural(maxSteps ?? 0, 'step')} (--max-steps): the change goes further.`]
+      ? [`Stopped after ${plural(maxSteps ?? 0, 'step')} (--max-steps): there is more to the change.`]
       : []),
     "Directions only, from the links' signs: not how much or how soon.",
   ];
