@@ -21,7 +21,7 @@ no server, no telemetry.
 - automatic layouts, the map's feedback loops (found, counted and named), a what-if ripple, the paths
   between two variables, and the most-connected variables (with the caveat that connected does not mean
   leverage);
-- a references library: add a source by its DOI (looked up at Crossref, Loopweft's only network call) or by
+- a references library: add a source by its DOI (looked up at Crossref or DataCite, Loopweft's only network call) or by
   hand; cite it on variables, links and loops with pages and a strength; see what cites nothing; and the
   APA reference list made from the sources;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from

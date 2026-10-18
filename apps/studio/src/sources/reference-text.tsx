@@ -28,7 +28,7 @@ export const plainReference = (apa: string): string => apa.replace(/\*([^*]+)\*/
 
 const LEVELS = [
   { level: 'warning', title: 'Read before citing', color: 'red', Icon: IconAlertTriangle },
-  { level: 'missing', title: 'Not in Crossref’s record', color: 'yellow', Icon: IconQuestionMark },
+  { level: 'missing', title: 'Not in the record', color: 'yellow', Icon: IconQuestionMark },
   { level: 'check', title: 'To check', color: 'blue', Icon: IconInfoCircle },
 ] as const;
 
@@ -36,7 +36,7 @@ export function DraftNotes({ notes }: { notes: readonly DraftNote[] }) {
   if (notes.length === 0) {
     return (
       <Text size="sm" c="dimmed">
-        Crossref’s record gave every part of this reference. Check it against the work before citing it.
+        The record gave every part of this reference. Check it against the work before citing it.
       </Text>
     );
   }

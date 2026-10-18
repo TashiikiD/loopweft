@@ -216,7 +216,7 @@ function AddSource({ onDone }: { onDone(): void }) {
           <Group align="flex-end" wrap="nowrap">
             <TextInput
               label="DOI"
-              description="Bare, or as a doi.org address. Only the DOI is sent, to Crossref."
+              description="Bare, or as a doi.org address. Only the DOI is sent: to Crossref, and to DataCite if Crossref has no record."
               placeholder="10.1017/sus.2024.1"
               value={doi}
               onChange={(event) => setDoi(event.currentTarget.value)}
@@ -244,7 +244,7 @@ function AddSource({ onDone }: { onDone(): void }) {
             <Group gap="xs">
               <Loader size="xs" />
               <Text size="sm" c="dimmed">
-                Asking Crossref…
+                Looking it up…
               </Text>
             </Group>
           )}
@@ -252,7 +252,7 @@ function AddSource({ onDone }: { onDone(): void }) {
             <Alert
               color={result.failure.kind === 'cancelled' ? 'gray' : 'red'}
               variant="light"
-              title="No reference from Crossref"
+              title="No reference found"
             >
               <Stack gap="xs" align="flex-start">
                 <Text size="sm">{result.failure.message}</Text>

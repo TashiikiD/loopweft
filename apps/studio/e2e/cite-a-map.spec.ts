@@ -1,15 +1,15 @@
 // The Phase 3 checkpoint, end to end in a real browser: cite a map. Six links of the polycrisis example's
 // food, livelihoods and unrest cluster are typed in, their three sources added (two by DOI lookup, one by
 // hand while offline), and every link and variable cited as the example cites it; the saved file is read
-// back. Crossref answers from the replies recorded for the model's tests; every other request that would
-// leave this computer is refused, and the only one made is the lookup tried while offline. With
+// back. Crossref and DataCite answer from the replies recorded for the model's tests; every other request
+// that would leave this computer is refused, and the only one made is the lookup tried while offline. With
 // LOOPWEFT_REVIEW set to a folder, screens of the flow are saved there for the review.
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { evidenceCoverage, readProject, validateProject } from '@loopweft/model';
 import { expect, type Page, type Route, test } from '@playwright/test';
 
-const CROSSREF = resolve('packages/model/test/fixtures/crossref');
+const FIXTURES = resolve('packages/model/test/fixtures');
 const EXAMPLE = resolve('examples/polycrisis.loopweft');
 const REVIEW = process.env.LOOPWEFT_REVIEW ? resolve(process.env.LOOPWEFT_REVIEW) : null;
 
@@ -27,12 +27,21 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-/** Answers a Crossref works request from the recorded replies, as Crossref would (it allows any origin). */
+/**
+ * Answers a Crossref or DataCite request from their recorded replies, as they would (both allow browser
+ * requests); a DOI with no recorded reply is one the agency has no record of.
+ */
 async function crossref(route: Route) {
-  const doi = decodeURIComponent(new URL(route.request().url()).pathname.replace('/works/', ''));
-  const file = join(CROSSREF, `${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`);
-  const body = JSON.parse(readFileSync(file, 'utf8')) as { status: unknown; text?: string };
+  const url = new URL(route.request().url());
+  const agency = url.hostname === 'api.datacite.org' ? 'datacite' : 'crossref';
+  const doi = decodeURIComponent(url.pathname.replace(/^\/(works|dois)\//, ''));
+  const file = join(FIXTURES, agency, `${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`);
   const headers = { 'access-control-allow-origin': '*' };
+  if (!existsSync(file)) {
+    await route.fulfill({ status: 404, body: 'Not found', headers });
+    return;
+  }
+  const body = JSON.parse(readFileSync(file, 'utf8')) as { status: unknown; text?: string };
   if (typeof body.status === 'number') {
     await route.fulfill({ status: body.status, body: body.text ?? '', headers });
     return;
@@ -40,7 +49,7 @@ async function crossref(route: Route) {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body), headers });
 }
 
-const LOOKUP = /^https:\/\/api\.crossref\.org\/works\//;
+const LOOKUP = /^https:\/\/api\.(crossref\.org\/works|datacite\.org\/dois)\//;
 
 const SHORTHAND = [
   'Economic insecurity -> Food insecurity (+)',

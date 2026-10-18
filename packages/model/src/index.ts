@@ -2,16 +2,20 @@
 // and in the browser; nothing reads the clock or draws random numbers.
 
 export {
+  type Agency,
   type DraftNote,
   initials,
   licenceName,
   type NoteLevel,
   type ReferenceDraft,
-  referenceFromCrossref,
-} from './doi/crossref.ts';
+} from './doi/apa.ts';
+export { referenceFromCrossref } from './doi/crossref.ts';
+export { referenceFromDataCite } from './doi/datacite.ts';
 export {
   CROSSREF_WORKS,
   crossrefUrl,
+  DATACITE_DOIS,
+  dataciteUrl,
   LOOKUP_TIMEOUT_MS,
   type LookupFailure,
   type LookupFailureKind,

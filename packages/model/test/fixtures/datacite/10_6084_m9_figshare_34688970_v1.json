@@ -1,0 +1,78 @@
+{
+  "data": {
+    "id": "10.6084/m9.figshare.34688970.v1",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.6084/m9.figshare.34688970.v1",
+      "prefix": "10.6084",
+      "suffix": "m9.figshare.34688970.v1",
+      "creators": [
+        {
+          "name": "REINDOLPH OSEI-ANIM",
+          "givenName": "REINDOLPH",
+          "familyName": "OSEI-ANIM"
+        }
+      ],
+      "titles": [
+        {
+          "title": "Physical Climate Risk and Bank Loan Quality: Data and Reproducibility Materials on Adaptation Readiness and Capital Buffers"
+        }
+      ],
+      "publisher": "figshare",
+      "container": {},
+      "publicationYear": 2026,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2026-10-18",
+          "dateType": "Created"
+        },
+        {
+          "date": "2026-10-18",
+          "dateType": "Updated"
+        },
+        {
+          "date": "2026-10-18",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "DATA",
+        "bibtex": "misc",
+        "citeproc": "dataset",
+        "schemaOrg": "Dataset",
+        "resourceType": "Dataset",
+        "resourceTypeGeneral": "Dataset"
+      },
+      "relatedIdentifiers": [
+        {
+          "relationType": "IsIdenticalTo",
+          "relatedIdentifier": "10.6084/m9.figshare.34688970",
+          "relatedIdentifierType": "DOI"
+        }
+      ],
+      "version": "1",
+      "rightsList": [
+        {
+          "rights": "Creative Commons Attribution 4.0 International",
+          "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "cc-by-4.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://figshare.com/articles/dataset/Physical_Climate_Risk_and_Bank_Loan_Quality_Data_and_Reproducibility_Materials_on_Adaptation_Readiness_and_Capital_Buffers/34688970/1",
+      "metadataVersion": 0,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "mds",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2026-10-18T07:51:59.000Z",
+      "registered": "2026-10-18T07:52:00.000Z",
+      "published": "2026",
+      "updated": "2026-10-18T07:52:00.000Z"
+    }
+  }
+}

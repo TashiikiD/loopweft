@@ -355,7 +355,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   source
     .command('lookup <doi>')
     .description(
-      'look a DOI up at Crossref and show its APA reference, without adding it (the only network call)',
+      'look a DOI up at Crossref (or DataCite) and show its APA reference, without adding it (the only network call)',
     )
     .action((doi: string) => run(() => sourceLookupCommand(env(), doi))());
   const sourceOptions = (command: Command) =>
@@ -370,7 +370,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     source
       .command('add <file>')
       .description(
-        'add a source: by hand with --apa (works offline), or with --doi alone to fill it in from Crossref',
+        'add a source: by hand with --apa (works offline), or with --doi alone to fill it in from Crossref or DataCite',
       )
       .option('--apa <text>', 'the full APA 7 reference; *asterisks* mark italics')
       .option('--doi <doi>', 'its DOI (bare, or a doi.org address); without --apa it is looked up')

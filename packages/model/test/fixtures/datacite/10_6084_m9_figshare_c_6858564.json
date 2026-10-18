@@ -1,0 +1,132 @@
+{
+  "data": {
+    "id": "10.6084/m9.figshare.c.6858564",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.6084/m9.figshare.c.6858564",
+      "prefix": "10.6084",
+      "suffix": "m9.figshare.c.6858564",
+      "creators": [
+        {
+          "name": "Søgaard Jørgensen, Peter",
+          "givenName": "Peter",
+          "familyName": "Søgaard Jørgensen"
+        },
+        {
+          "name": "Jansen, Raf E. V.",
+          "givenName": "Raf E. V.",
+          "familyName": "Jansen"
+        },
+        {
+          "name": "Avila Ortega, Daniel I.",
+          "givenName": "Daniel I.",
+          "familyName": "Avila Ortega"
+        },
+        {
+          "name": "Wang-Erlandsson, Lan",
+          "givenName": "Lan",
+          "familyName": "Wang-Erlandsson"
+        },
+        {
+          "name": "Donges, Jonathan F.",
+          "givenName": "Jonathan F.",
+          "familyName": "Donges"
+        },
+        {
+          "name": "Österblom, Henrik",
+          "givenName": "Henrik",
+          "familyName": "Österblom"
+        },
+        {
+          "name": "Olsson, Per",
+          "givenName": "Per",
+          "familyName": "Olsson"
+        },
+        {
+          "name": "Nyström, Magnus",
+          "givenName": "Magnus",
+          "familyName": "Nyström"
+        },
+        {
+          "name": "Lade, Steve J.",
+          "givenName": "Steve J.",
+          "familyName": "Lade"
+        },
+        {
+          "name": "Hahn, Thomas",
+          "givenName": "Thomas",
+          "familyName": "Hahn"
+        },
+        {
+          "name": "Folke, Carl",
+          "givenName": "Carl",
+          "familyName": "Folke"
+        },
+        {
+          "name": "Peterson, Garry D.",
+          "givenName": "Garry D.",
+          "familyName": "Peterson"
+        },
+        {
+          "name": "Crépin, Anne-Sophie",
+          "givenName": "Anne-Sophie",
+          "familyName": "Crépin"
+        }
+      ],
+      "titles": [
+        {
+          "title": "Supplementary material from \"Evolution of the polycrisis: Anthropocene traps that challenge global sustainability\""
+        }
+      ],
+      "publisher": "The Royal Society",
+      "container": {},
+      "publicationYear": 2023,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2023-11-07",
+          "dateType": "Created"
+        },
+        {
+          "date": "2023-11-07",
+          "dateType": "Updated"
+        },
+        {
+          "date": "2023",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "GEN",
+        "bibtex": "misc",
+        "citeproc": "article",
+        "schemaOrg": "Collection",
+        "resourceType": "Collection",
+        "resourceTypeGeneral": "Collection"
+      },
+      "relatedIdentifiers": [],
+      "version": null,
+      "rightsList": [
+        {
+          "rights": "Creative Commons Attribution 4.0 International",
+          "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "cc-by-4.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://rs.figshare.com/collections/Supplementary_material_from_Evolution_of_the_polycrisis_Anthropocene_traps_that_challenge_global_sustainability_/6858564",
+      "metadataVersion": 2,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "mds",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2023-09-29T12:24:39.000Z",
+      "registered": "2023-09-29T12:24:39.000Z",
+      "published": "2023",
+      "updated": "2023-11-07T02:56:50.000Z"
+    }
+  }
+}

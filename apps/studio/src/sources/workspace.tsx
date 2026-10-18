@@ -55,7 +55,7 @@ export function SourcesWorkspace() {
                 <Text size="sm" c="dimmed">
                   {sources.length
                     ? 'Choose a source to read and change it, and to see what cites it.'
-                    : 'A source is a work the map draws on. Add one by its DOI (Loopweft looks it up at Crossref) or by hand; then cite it on variables and links in the Map workspace’s inspector.'}
+                    : 'A source is a work the map draws on. Add one by its DOI (Loopweft looks it up at Crossref or DataCite) or by hand; then cite it on variables and links in the Map workspace’s inspector.'}
                 </Text>
               )}
             </div>

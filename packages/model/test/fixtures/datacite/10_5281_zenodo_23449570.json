@@ -1,0 +1,77 @@
+{
+  "data": {
+    "id": "10.5281/zenodo.23449570",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.5281/zenodo.23449570",
+      "prefix": "10.5281",
+      "suffix": "zenodo.23449570",
+      "creators": [
+        {
+          "name": "Kondratiuk, Dmytro",
+          "nameType": "Personal",
+          "givenName": "Dmytro",
+          "familyName": "Kondratiuk"
+        }
+      ],
+      "titles": [
+        {
+          "title": "IM Onion-S — Simulation Model of Digital Transformation of Agri-food Enterprises"
+        }
+      ],
+      "publisher": "Zenodo",
+      "container": {},
+      "publicationYear": 2026,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2026-10-18",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "COMP",
+        "bibtex": "misc",
+        "citeproc": "article",
+        "schemaOrg": "SoftwareSourceCode",
+        "resourceType": "",
+        "resourceTypeGeneral": "Software"
+      },
+      "relatedIdentifiers": [
+        {
+          "relationType": "IsSupplementTo",
+          "relatedIdentifier": "https://github.com/DmytroKondratiuk/IM_Onion_S/tree/v.1.2.0",
+          "resourceTypeGeneral": "Software",
+          "relatedIdentifierType": "URL"
+        },
+        {
+          "relationType": "IsVersionOf",
+          "relatedIdentifier": "10.5281/zenodo.19979159",
+          "relatedIdentifierType": "DOI"
+        }
+      ],
+      "version": "v.1.2.0",
+      "rightsList": [
+        {
+          "rights": "Apache License 2.0",
+          "rightsUri": "http://www.apache.org/licenses/LICENSE-2.0",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "apache-2.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://zenodo.org/doi/10.5281/zenodo.23449570",
+      "metadataVersion": 0,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "api",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2026-10-18T09:08:29.000Z",
+      "registered": "2026-10-18T09:08:30.000Z",
+      "published": "2026",
+      "updated": "2026-10-18T09:08:30.000Z"
+    }
+  }
+}

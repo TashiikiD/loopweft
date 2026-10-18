@@ -125,9 +125,9 @@ export async function sourceLookupCommand(env: Env, doi: string): Promise<Comman
   const { draft } = result;
   const lines = [
     draft.apa,
-    `  label: ${draft.label ?? '(none: Crossref lists no author)'}`,
+    `  label: ${draft.label ?? `(none: ${draft.agency} lists no author)`}`,
     `  licence: ${draft.licence ?? '(none recorded)'}`,
-    `  Crossref type: ${draft.type}`,
+    `  from ${draft.agency}, type: ${draft.type}`,
     ...noteLines(draft),
   ];
   return { text: lines.join('\n'), data: { draft } };
@@ -156,8 +156,8 @@ const sourceFields = (o: SourceOptions): SourceChanges => ({
 });
 
 /**
- * `source add`: by hand with --apa (no network), or from a DOI's Crossref record. Options given beside --doi
- * replace what the lookup drafted.
+ * `source add`: by hand with --apa (no network), or from a DOI's record at Crossref or DataCite. Options
+ * given beside --doi replace what the lookup drafted.
  */
 export async function sourceAddCommand(env: Env, file: string, o: SourceOptions): Promise<CommandResult> {
   loadProject(file);
@@ -188,7 +188,7 @@ export async function sourceAddCommand(env: Env, file: string, o: SourceOptions)
     out.text,
     `  ${draft.apa}`,
     ...(draft.notes.length
-      ? ['  From Crossref; check before citing:', ...noteLines(draft).map((l) => `  ${l}`)]
+      ? [`  From ${draft.agency}; check before citing:`, ...noteLines(draft).map((l) => `  ${l}`)]
       : []),
   ];
   return { text: lines.join('\n'), data: { ...out.data, lookup: { type: draft.type, notes: draft.notes } } };

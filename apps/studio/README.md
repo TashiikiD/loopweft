@@ -8,7 +8,7 @@ in later phases.
   colours, so it looks as it will when presented. Every change is one of `@loopweft/model`'s operations (the
   ones the `loopweft` command line runs), applied as one undoable step.
 - Open and save `.loopweft` files. In Chrome and Edge, Save writes back to the file it came from (the File
-  System Access API); other browsers download a copy. Nothing leaves the computer, except a DOI looked up at Crossref when
+  System Access API); other browsers download a copy. Nothing leaves the computer, except a DOI looked up at Crossref or DataCite when
   asked (Sources, Add a source).
 - While a map has unsaved changes, a copy is kept in the browser (IndexedDB) and offered back after a crash
   or a closed tab.

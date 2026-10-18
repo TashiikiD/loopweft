@@ -1,9 +1,9 @@
 // The Sources workspace in jsdom: the library, adding a source by hand or from a DOI (the lookup answers from
-// a recorded Crossref reply, never the network), changing and removing one, and the reference list.
-import { readFileSync } from 'node:fs';
+// recorded Crossref and DataCite replies, never the network), changing and removing one, and the reference list.
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createProject, type LookupResult, type Project, referenceFromCrossref } from '@loopweft/model';
+import { CROSSREF_WORKS, createProject, DATACITE_DOIS, lookupDoi, type Project } from '@loopweft/model';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -12,29 +12,24 @@ import type { Lookup } from '../src/sources/lookup.tsx';
 import { memoryRecovery } from '../src/state/recovery.ts';
 import { createStudioStore, type StudioStore } from '../src/state/store.ts';
 
-const FIXTURES = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/model/test/fixtures/crossref',
-);
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '../../../packages/model/test/fixtures');
 
-/** A lookup that answers from the recorded Crossref replies, as the real one would. */
-const recorded: Lookup = async (doi) => {
-  const name = `${doi
-    .toLowerCase()
-    .replace(/^https?:\/\/doi\.org\//, '')
-    .replace(/[^a-z0-9]+/g, '_')}.json`;
-  const body = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as {
-    message?: Record<string, unknown>;
-  };
-  if (!body.message) {
-    return {
-      ok: false,
-      doi,
-      failure: { kind: 'notFound', status: 404, message: `Crossref has no record of ${doi}.` },
-    } satisfies LookupResult;
-  }
-  return { ok: true, draft: referenceFromCrossref(body.message) };
-};
+/** Crossref and DataCite, answered from their recorded replies: no network. */
+const replay = (async (url: string | URL | Request) => {
+  const address = String(url);
+  const agency = address.startsWith(DATACITE_DOIS) ? 'datacite' : 'crossref';
+  const doi = decodeURIComponent(
+    address.slice((agency === 'datacite' ? DATACITE_DOIS : CROSSREF_WORKS).length),
+  );
+  const file = join(FIXTURES, agency, `${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`);
+  if (!existsSync(file)) return new Response('Not found', { status: 404 });
+  const body = JSON.parse(readFileSync(file, 'utf8')) as { status?: unknown; text?: string };
+  if (typeof body.status === 'number') return new Response(body.text ?? '', { status: body.status });
+  return new Response(JSON.stringify(body));
+}) as typeof fetch;
+
+/** The Studio's lookup, as it runs for real, over the recorded replies. */
+const recorded: Lookup = (doi, signal) => lookupDoi(doi, { signal, fetch: replay });
 
 /** A small map with one cited source. */
 function cited(): Project {
@@ -134,14 +129,35 @@ describe('the Sources workspace', () => {
     const { user } = await openSources();
     await user.click(screen.getByRole('button', { name: 'Add a source' }));
     const dialog = screen.getByRole('dialog', { name: 'Add a source' });
-    await user.type(within(dialog).getByRole('textbox', { name: 'DOI' }), '10.6084/m9.figshare.c.6858564');
+    await user.type(within(dialog).getByRole('textbox', { name: 'DOI' }), '10.9999/not.registered.anywhere');
     await user.click(within(dialog).getByRole('button', { name: 'Look up' }));
-    await waitFor(() => expect(within(dialog).getByText('No reference from Crossref')).toBeTruthy());
-    expect(within(dialog).getByText('Crossref has no record of 10.6084/m9.figshare.c.6858564.')).toBeTruthy();
+    await waitFor(() => expect(within(dialog).getByText('No reference found')).toBeTruthy());
+    expect(within(dialog).getByText(/^Neither Crossref nor DataCite has a record of 10\.9999/)).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: 'Enter it by hand' }));
     expect((within(dialog).getByRole('textbox', { name: 'DOI' }) as HTMLInputElement).value).toBe(
-      '10.6084/m9.figshare.c.6858564',
+      '10.9999/not.registered.anywhere',
     );
+  });
+
+  it('finds a DOI that only DataCite holds, such as the example’s supplement', async () => {
+    const { store, user } = await openSources();
+    await user.click(screen.getByRole('button', { name: 'Add a source' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add a source' });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'DOI' }),
+      '10.6084/m9.figshare.c.6858564{Enter}',
+    );
+    const reference = (await within(dialog).findByRole('textbox', {
+      name: /^Reference \(APA 7\)/,
+    })) as HTMLTextAreaElement;
+    expect(reference.value).toMatch(/\[Collection\]\. The Royal Society\. https:\/\/doi\.org\/10\.6084/);
+    await user.click(within(dialog).getByRole('button', { name: 'Add source' }));
+    expect(store.getState().project.sources.at(-1)).toMatchObject({
+      id: 'søgaardjørgensen2023',
+      label: 'Søgaard Jørgensen et al. (2023)',
+      doi: '10.6084/m9.figshare.c.6858564',
+      licence: 'CC BY 4.0',
+    });
   });
 
   it('changes a source, refuses a DOI that is not one, and removes it with its citations', async () => {

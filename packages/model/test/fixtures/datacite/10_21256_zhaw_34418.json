@@ -1,0 +1,91 @@
+{
+  "data": {
+    "id": "10.21256/zhaw-34418",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.21256/zhaw-34418",
+      "prefix": "10.21256",
+      "suffix": "zhaw-34418",
+      "creators": [
+        {
+          "name": "Rakowski, Judith J.",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Schaan, Linn N.",
+          "nameType": "Personal"
+        },
+        {
+          "name": "van Klink, Roel",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Herzon, Iryna",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Arth, Adina",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Hagedorn, Gregor",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Rode, Julian",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Creutzig, Felix",
+          "nameType": "Personal"
+        },
+        {
+          "name": "Pe&apos;er, Guy",
+          "nameType": "Personal"
+        }
+      ],
+      "titles": [
+        {
+          "title": "Characterizing the global polycrisis : a systematic review of recent literature"
+        }
+      ],
+      "publisher": "Annual Reviews",
+      "container": {},
+      "publicationYear": 2025,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2025-11-03T14:37:01",
+          "dateType": "Available"
+        },
+        {
+          "date": "2025-08-25",
+          "dateType": "Available"
+        }
+      ],
+      "language": "en",
+      "types": {
+        "ris": "JOUR",
+        "bibtex": "article",
+        "citeproc": "article-journal",
+        "schemaOrg": "ScholarlyArticle",
+        "resourceType": "Journal Article",
+        "resourceTypeGeneral": "Text"
+      },
+      "relatedIdentifiers": [],
+      "version": null,
+      "rightsList": [],
+      "url": "https://digitalcollection.zhaw.ch/handle/11475/34418",
+      "metadataVersion": 1,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "api",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2025-11-27T03:30:03.000Z",
+      "registered": "2025-11-27T03:30:04.000Z",
+      "published": "2025",
+      "updated": "2026-10-15T02:30:02.000Z"
+    }
+  }
+}

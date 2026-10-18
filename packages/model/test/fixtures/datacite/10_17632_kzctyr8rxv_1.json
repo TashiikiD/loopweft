@@ -1,0 +1,81 @@
+{
+  "data": {
+    "id": "10.17632/kzctyr8rxv.1",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.17632/kzctyr8rxv.1",
+      "prefix": "10.17632",
+      "suffix": "kzctyr8rxv.1",
+      "creators": [
+        {
+          "name": "Wijayaningtyas, Maranatha",
+          "nameType": "Personal",
+          "givenName": "Maranatha",
+          "familyName": "Wijayaningtyas"
+        }
+      ],
+      "titles": [
+        {
+          "title": "SWOT and Causal Loop Diagram Data for Maritime Fiscal Governance in East Kalimantan, Indonesia"
+        }
+      ],
+      "publisher": "Mendeley Data",
+      "container": {},
+      "publicationYear": 2026,
+      "contributors": [
+        {
+          "name": "Institut Teknologi Nasional Malang",
+          "nameType": "Organizational",
+          "contributorType": "Other"
+        }
+      ],
+      "dates": [
+        {
+          "date": "2026-10-06T14:24:41Z",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "DATA",
+        "bibtex": "misc",
+        "citeproc": "dataset",
+        "schemaOrg": "Dataset",
+        "resourceType": "Dataset",
+        "resourceTypeGeneral": "Dataset"
+      },
+      "relatedIdentifiers": [
+        {
+          "relationType": "IsVersionOf",
+          "relatedIdentifier": "10.17632/kzctyr8rxv",
+          "resourceTypeGeneral": "Dataset",
+          "relatedIdentifierType": "DOI"
+        }
+      ],
+      "version": null,
+      "rightsList": [
+        {
+          "rightsUri": "info:eu-repo/semantics/openAccess"
+        },
+        {
+          "rights": "Creative Commons Attribution 4.0 International",
+          "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "cc-by-4.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://data.mendeley.com/datasets/kzctyr8rxv/1",
+      "metadataVersion": 0,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "api",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2026-10-06T14:24:42.000Z",
+      "registered": "2026-10-06T14:24:43.000Z",
+      "published": "2026",
+      "updated": "2026-10-06T14:24:43.000Z"
+    }
+  }
+}

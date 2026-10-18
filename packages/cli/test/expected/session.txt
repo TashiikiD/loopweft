@@ -72,7 +72,7 @@ $ loopweft source lookup https://doi.org/10.1017/sus.2024.1
 Lawrence, M., Homer-Dixon, T., Janzwood, S., Rockström, J., Renn, O., & Donges, J. F. (2024). Global polycrisis: The causal mechanisms of crisis entanglement. *Global Sustainability*, *7*, Article e6. https://doi.org/10.1017/sus.2024.1
   label: Lawrence et al. (2024)
   licence: CC BY 4.0
-  Crossref type: journal-article
+  from Crossref, type: journal-article
   check: Crossref records a correction to this work (10.1017/sus.2024.48, 2024-01-17): check whether it changes what the map cites.
 [exit 0]
 
@@ -81,8 +81,13 @@ Added source brosig2025 (Brosig (2025)). (dry run: nothing was saved)
   Brosig, M. (2025). How do crises spread? The polycrisis and crisis transmission. *Global Sustainability*, *8*, Article e11. https://doi.org/10.1017/sus.2025.14
 [exit 0]
 
-$ loopweft source add pop.loopweft --doi 10.6084/m9.figshare.c.6858564
-Crossref has no record of 10.6084/m9.figshare.c.6858564. Check the DOI; if it is right, the DOI may be registered with another agency (DataCite registers many datasets and supplements), so enter the reference by hand.
+$ loopweft source add pop.loopweft --doi 10.6084/m9.figshare.c.6858564 --dry-run
+Added source søgaardjørgensen2023 (Søgaard Jørgensen et al. (2023)). (dry run: nothing was saved)
+  Søgaard Jørgensen, P., Jansen, R. E. V., Avila Ortega, D. I., Wang-Erlandsson, L., Donges, J. F., Österblom, H., Olsson, P., Nyström, M., Lade, S. J., Hahn, T., Folke, C., Peterson, G. D., & Crépin, A.-S. (2023). *Supplementary material from "Evolution of the polycrisis: Anthropocene traps that challenge global sustainability"* [Collection]. The Royal Society. https://doi.org/10.6084/m9.figshare.c.6858564
+[exit 0]
+
+$ loopweft source add pop.loopweft --doi 10.9999/not.registered.anywhere
+Neither Crossref nor DataCite has a record of 10.9999/not.registered.anywhere. Check the DOI; if it is right, it may be registered with another agency (such as mEDRA or JaLC), so enter the reference by hand.
 [exit 2]
 
 $ loopweft cite add pop.loopweft L1,L2 test2020 --pages 4–5 --strength moderate

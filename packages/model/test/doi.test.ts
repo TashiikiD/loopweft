@@ -5,37 +5,41 @@ import { describe, expect, it } from 'vitest';
 import {
   CROSSREF_WORKS,
   crossrefUrl,
+  DATACITE_DOIS,
+  dataciteUrl,
   initials,
   licenceName,
   lookupDoi,
   readDoi,
   readProject,
   referenceFromCrossref,
+  referenceFromDataCite,
 } from '../src/index.ts';
 import { repoFile } from './helpers.ts';
 
 const FIXTURES = new URL('./fixtures/crossref/', import.meta.url);
+const DATACITE = new URL('./fixtures/datacite/', import.meta.url);
 const fixtureName = (doi: string) => `${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`;
-const recorded = (doi: string) =>
-  JSON.parse(readFileSync(new URL(fixtureName(doi), FIXTURES), 'utf8')) as {
-    message?: Record<string, unknown>;
-    status?: number | string;
-    text?: string;
-  };
+type Recorded = {
+  message?: Record<string, unknown>;
+  data?: { attributes: Record<string, unknown> };
+  status?: number | string;
+  text?: string;
+};
+const recorded = (doi: string, folder = FIXTURES) =>
+  JSON.parse(readFileSync(new URL(fixtureName(doi), folder), 'utf8')) as Recorded;
 
-/** A fetch that answers from the recorded replies, and notes what it was asked. */
+/** A fetch that answers Crossref and DataCite from their recorded replies, and notes what it was asked. */
 function recordedFetch() {
   const asked: { url: string; init?: RequestInit }[] = [];
   const fake = (async (url: string | URL | Request, init?: RequestInit) => {
     asked.push({ url: String(url), init });
-    const doi = decodeURIComponent(String(url).slice(CROSSREF_WORKS.length));
-    let body: ReturnType<typeof recorded>;
-    try {
-      body = recorded(doi);
-    } catch {
-      return new Response('Resource not found.', { status: 404 });
-    }
-    // A recorded failure holds its HTTP status; a recorded work, Crossref's own "status": "ok".
+    const fromDataCite = String(url).startsWith(DATACITE_DOIS);
+    const doi = decodeURIComponent(String(url).slice((fromDataCite ? DATACITE_DOIS : CROSSREF_WORKS).length));
+    const folder = fromDataCite ? DATACITE : FIXTURES;
+    if (!existsSync(new URL(fixtureName(doi), folder))) return new Response('Not found', { status: 404 });
+    const body = recorded(doi, folder);
+    // A recorded failure holds its HTTP status; a recorded Crossref work, Crossref's own "status": "ok".
     if (typeof body.status === 'number') return new Response(body.text ?? '', { status: body.status });
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -210,6 +214,63 @@ describe('references from Crossref', () => {
   });
 });
 
+describe('references from DataCite', () => {
+  it('drafts every recorded record as the saved file shows', async () => {
+    const files = readdirSync(DATACITE)
+      .filter((f) => f.endsWith('.json'))
+      .sort();
+    const sections: string[] = [];
+    for (const file of files) {
+      const body = JSON.parse(readFileSync(new URL(file, DATACITE), 'utf8')) as Recorded;
+      if (!body.data) continue;
+      const draft = referenceFromDataCite(body.data.attributes);
+      sections.push(
+        [
+          `## ${draft.doi} (${draft.type})`,
+          '',
+          draft.apa,
+          '',
+          `- label: ${draft.label ?? '(none)'}`,
+          `- licence: ${draft.licence ?? '(none)'}`,
+          ...draft.notes.map((n) => `- ${n.level}: ${n.message}`),
+        ].join('\n'),
+      );
+    }
+    await expect(
+      `# References drafted from the recorded DataCite records\n\n${sections.join('\n\n')}\n`,
+    ).toMatchFileSnapshot('./expected/datacite-drafts.md');
+  });
+
+  it('gives the example’s supplement JS, but for its quotation marks, which DataCite writes straight', () => {
+    const read = readProject(repoFile('examples/polycrisis.loopweft'));
+    if (!read.ok) throw new Error('the example does not read');
+    const js = read.project.sources.find((s) => s.id === 'JS');
+    const body = recorded('10.6084/m9.figshare.c.6858564', DATACITE);
+    const draft = referenceFromDataCite(body.data?.attributes ?? {});
+    expect(draft.apa).not.toBe(js?.apa);
+    expect(draft.apa.replace(/"([^"]*)"/, '“$1”')).toBe(js?.apa);
+  });
+
+  it('splits a personal name given only as "Family, Given", and keeps an organisation whole', () => {
+    const draft = referenceFromDataCite({
+      doi: '10.1234/y',
+      creators: [
+        { name: 'Rakowski, Judith J.', nameType: 'Personal' },
+        { name: 'World Health Organization', nameType: 'Organizational' },
+      ],
+      titles: [{ title: 'Global data : a test' }],
+      publisher: { name: 'Zenodo' },
+      publicationYear: 2024,
+      version: 'v2',
+      types: { resourceTypeGeneral: 'Dataset' },
+    });
+    expect(draft.apa).toBe(
+      'Rakowski, J. J., & World Health Organization. (2024). *Global data: A test* (Version 2) [Data set]. Zenodo. https://doi.org/10.1234/y',
+    );
+    expect(draft.label).toBe('Rakowski and World Health Organization (2024)');
+  });
+});
+
 describe('looking a DOI up', () => {
   it('asks Crossref for the DOI alone and drafts the reference', async () => {
     const { fetch, asked } = recordedFetch();
@@ -221,6 +282,7 @@ describe('looking a DOI up', () => {
         apa: 'Brosig, M. (2025). How do crises spread? The polycrisis and crisis transmission. *Global Sustainability*, *8*, Article e11. https://doi.org/10.1017/sus.2025.14',
         label: 'Brosig (2025)',
         licence: 'CC BY 4.0',
+        agency: 'Crossref',
         type: 'journal-article',
         year: '2025',
         notes: [],
@@ -245,16 +307,83 @@ describe('looking a DOI up', () => {
     expect(asked).toEqual([]);
   });
 
-  it('says when Crossref has no record, as for a DataCite DOI', async () => {
-    const result = await lookupDoi('10.6084/m9.figshare.c.6858564', recordedFetch());
+  it('asks DataCite when Crossref has no record, as for the example’s supplement', async () => {
+    const { fetch, asked } = recordedFetch();
+    const result = await lookupDoi('10.6084/m9.figshare.c.6858564', { fetch });
+    expect(result).toMatchObject({
+      ok: true,
+      draft: {
+        doi: '10.6084/m9.figshare.c.6858564',
+        agency: 'DataCite',
+        type: 'Collection',
+        label: 'Søgaard Jørgensen et al. (2023)',
+        licence: 'CC BY 4.0',
+      },
+    });
+    expect(asked.map((a) => a.url)).toEqual([
+      'https://api.crossref.org/works/10.6084%2Fm9.figshare.c.6858564',
+      'https://api.datacite.org/dois/10.6084%2Fm9.figshare.c.6858564',
+    ]);
+    expect(asked[1]?.init?.headers).toEqual({ Accept: 'application/json' });
+    expect(dataciteUrl('10.1/a b')).toBe('https://api.datacite.org/dois/10.1%2Fa%20b');
+  });
+
+  it('says when neither Crossref nor DataCite has a record', async () => {
+    const result = await lookupDoi('10.9999/not.registered.anywhere', recordedFetch());
     expect(result).toEqual({
       ok: false,
-      doi: '10.6084/m9.figshare.c.6858564',
+      doi: '10.9999/not.registered.anywhere',
       failure: {
         kind: 'notFound',
         status: 404,
         message:
-          'Crossref has no record of 10.6084/m9.figshare.c.6858564. Check the DOI; if it is right, the DOI may be registered with another agency (DataCite registers many datasets and supplements), so enter the reference by hand.',
+          'Neither Crossref nor DataCite has a record of 10.9999/not.registered.anywhere. Check the DOI; if it is right, it may be registered with another agency (such as mEDRA or JaLC), so enter the reference by hand.',
+      },
+    });
+  });
+
+  it('asks DataCite only when Crossref says it has no record', async () => {
+    const asked: string[] = [];
+    const answers = (crossref: () => Response, datacite: () => Response) =>
+      (async (url: string | URL | Request) => {
+        asked.push(String(url));
+        return String(url).startsWith(DATACITE_DOIS) ? datacite() : crossref();
+      }) as typeof fetch;
+    const busy = await lookupDoi('10.1234/x', {
+      fetch: answers(
+        () => new Response('', { status: 503 }),
+        () => new Response('', { status: 404 }),
+      ),
+    });
+    expect(busy).toMatchObject({ ok: false, failure: { kind: 'busy' } });
+    expect(asked).toHaveLength(1);
+    asked.length = 0;
+    const dataciteBusy = await lookupDoi('10.1234/x', {
+      fetch: answers(
+        () => new Response('', { status: 404 }),
+        () => new Response('', { status: 503 }),
+      ),
+    });
+    expect(dataciteBusy).toMatchObject({
+      ok: false,
+      failure: {
+        kind: 'busy',
+        status: 503,
+        message:
+          'Crossref has no record of 10.1234/x, and DataCite could not be asked: DataCite is busy or unavailable (HTTP 503): try again in a minute, or enter the reference by hand.',
+      },
+    });
+    expect(asked).toHaveLength(2);
+    const odd = await lookupDoi('10.1234/x', {
+      fetch: answers(
+        () => new Response('', { status: 404 }),
+        () => new Response(JSON.stringify({ data: { type: 'clients' } })),
+      ),
+    });
+    expect(odd).toMatchObject({
+      failure: {
+        kind: 'badReply',
+        message: 'DataCite’s answer was not a DOI record: enter the reference by hand.',
       },
     });
   });

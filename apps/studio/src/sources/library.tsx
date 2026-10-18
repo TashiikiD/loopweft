@@ -166,7 +166,7 @@ export function SourceList({ query, onQuery }: { query: string; onQuery(next: st
 
 // ----- checking a source against Crossref -----
 
-function CrossrefCheck({ source, onDone }: { source: Source; onDone(): void }) {
+function RecordCheck({ source, onDone }: { source: Source; onDone(): void }) {
   const lookup = useLookup();
   const edit = useEdit();
   const [state, setState] = useState<
@@ -189,14 +189,14 @@ function CrossrefCheck({ source, onDone }: { source: Source; onDone(): void }) {
       <Group gap="xs">
         <Loader size="xs" />
         <Text size="sm" c="dimmed">
-          Asking Crossref about {source.doi}…
+          Looking up {source.doi}…
         </Text>
       </Group>
     );
   }
   if (state.state === 'failed') {
     return (
-      <Alert color="red" variant="light" title="No reference from Crossref">
+      <Alert color="red" variant="light" title="No reference found">
         {state.message}
       </Alert>
     );
@@ -207,7 +207,7 @@ function CrossrefCheck({ source, onDone }: { source: Source; onDone(): void }) {
     <Stack gap="sm">
       <DraftNotes notes={draft.notes} />
       <Text size="sm" fw={500}>
-        Crossref’s record gives
+        {draft.agency}’s record gives
       </Text>
       <div className="lw-reference-preview">
         <ReferenceText apa={draft.apa} />
@@ -228,13 +228,13 @@ function CrossrefCheck({ source, onDone }: { source: Source; onDone(): void }) {
             if (
               edit(
                 (p) => setSource(p, source.id, { apa: draft.apa }),
-                `Took Crossref’s reference for ${source.id}`,
+                `Took ${draft.agency}’s reference for ${source.id}`,
               )
             )
               onDone();
           }}
         >
-          {same ? 'They are the same' : 'Use Crossref’s reference'}
+          {same ? 'They are the same' : `Use ${draft.agency}’s reference`}
         </Button>
       </Group>
     </Stack>
@@ -358,7 +358,7 @@ export function SourceEditor({ source }: { source: Source }) {
             leftSection={<IconWorldSearch size={16} aria-hidden />}
             onClick={() => setChecking(true)}
           >
-            Check against Crossref
+            Check against its record
           </Button>
         )}
       </Group>
@@ -429,10 +429,10 @@ export function SourceEditor({ source }: { source: Source }) {
       <Modal
         opened={checking}
         onClose={() => setChecking(false)}
-        title={`Check ${source.id} against Crossref`}
+        title={`Check ${source.id} against its DOI record`}
         size="40rem"
       >
-        {checking && <CrossrefCheck source={source} onDone={() => setChecking(false)} />}
+        {checking && <RecordCheck source={source} onDone={() => setChecking(false)} />}
       </Modal>
     </Stack>
   );

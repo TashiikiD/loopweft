@@ -1,0 +1,81 @@
+{
+  "data": {
+    "id": "10.5281/zenodo.20272094",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.5281/zenodo.20272094",
+      "prefix": "10.5281",
+      "suffix": "zenodo.20272094",
+      "creators": [
+        {
+          "name": "Elliman, David",
+          "nameType": "Personal",
+          "givenName": "David",
+          "familyName": "Elliman"
+        }
+      ],
+      "titles": [
+        {
+          "title": "[WITHDRAWN] Holographic Dilution and the Emergence of Gravity: Deriving the Planck Mass from the Z3 ⊗ Q3 Error-Correcting Vacuum"
+        }
+      ],
+      "publisher": "Zenodo",
+      "container": {},
+      "publicationYear": 2026,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2026-06-07",
+          "dateType": "Issued"
+        }
+      ],
+      "language": "en",
+      "types": {
+        "ris": "GEN",
+        "bibtex": "misc",
+        "citeproc": "article",
+        "schemaOrg": "CreativeWork",
+        "resourceType": "",
+        "resourceTypeGeneral": "Preprint"
+      },
+      "relatedIdentifiers": [
+        {
+          "relationType": "HasVersion",
+          "relatedIdentifier": "10.5281/zenodo.20478682",
+          "relatedIdentifierType": "DOI"
+        },
+        {
+          "relationType": "HasVersion",
+          "relatedIdentifier": "10.5281/zenodo.20272095",
+          "relatedIdentifierType": "DOI"
+        },
+        {
+          "relationType": "HasVersion",
+          "relatedIdentifier": "10.5281/zenodo.20580672",
+          "relatedIdentifierType": "DOI"
+        }
+      ],
+      "version": "2.0",
+      "rightsList": [
+        {
+          "rights": "Creative Commons Attribution 4.0 International",
+          "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "cc-by-4.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://zenodo.org/doi/10.5281/zenodo.20272094",
+      "metadataVersion": 6,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "api",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2026-05-18T13:56:24.000Z",
+      "registered": "2026-05-18T13:56:24.000Z",
+      "published": "2026",
+      "updated": "2026-10-18T21:56:02.000Z"
+    }
+  }
+}

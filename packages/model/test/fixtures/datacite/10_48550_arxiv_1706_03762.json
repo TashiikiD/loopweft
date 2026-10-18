@@ -1,0 +1,179 @@
+{
+  "data": {
+    "id": "10.48550/arxiv.1706.03762",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.48550/arxiv.1706.03762",
+      "prefix": "10.48550",
+      "suffix": "arxiv.1706.03762",
+      "creators": [
+        {
+          "name": "Vaswani, Ashish",
+          "nameType": "Personal",
+          "givenName": "Ashish",
+          "familyName": "Vaswani"
+        },
+        {
+          "name": "Shazeer, Noam",
+          "nameType": "Personal",
+          "givenName": "Noam",
+          "familyName": "Shazeer"
+        },
+        {
+          "name": "Parmar, Niki",
+          "nameType": "Personal",
+          "givenName": "Niki",
+          "familyName": "Parmar"
+        },
+        {
+          "name": "Uszkoreit, Jakob",
+          "nameType": "Personal",
+          "givenName": "Jakob",
+          "familyName": "Uszkoreit"
+        },
+        {
+          "name": "Jones, Llion",
+          "nameType": "Personal",
+          "givenName": "Llion",
+          "familyName": "Jones"
+        },
+        {
+          "name": "Gomez, Aidan N.",
+          "nameType": "Personal",
+          "givenName": "Aidan N.",
+          "familyName": "Gomez"
+        },
+        {
+          "name": "Kaiser, Lukasz",
+          "nameType": "Personal",
+          "givenName": "Lukasz",
+          "familyName": "Kaiser"
+        },
+        {
+          "name": "Polosukhin, Illia",
+          "nameType": "Personal",
+          "givenName": "Illia",
+          "familyName": "Polosukhin"
+        }
+      ],
+      "titles": [
+        {
+          "title": "Attention Is All You Need"
+        }
+      ],
+      "publisher": "arXiv",
+      "container": {},
+      "publicationYear": 2017,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2017-06-12T17:57:34Z",
+          "dateType": "Submitted",
+          "dateInformation": "v1"
+        },
+        {
+          "date": "2017-06-13T00:13:31Z",
+          "dateType": "Updated",
+          "dateInformation": "v1"
+        },
+        {
+          "date": "2017-06-19T16:49:45Z",
+          "dateType": "Submitted",
+          "dateInformation": "v2"
+        },
+        {
+          "date": "2017-06-20T00:14:05Z",
+          "dateType": "Updated",
+          "dateInformation": "v2"
+        },
+        {
+          "date": "2017-06-20T05:20:02Z",
+          "dateType": "Submitted",
+          "dateInformation": "v3"
+        },
+        {
+          "date": "2017-06-21T00:04:53Z",
+          "dateType": "Updated",
+          "dateInformation": "v3"
+        },
+        {
+          "date": "2017-06-30T17:29:30Z",
+          "dateType": "Submitted",
+          "dateInformation": "v4"
+        },
+        {
+          "date": "2017-07-03T00:08:10Z",
+          "dateType": "Updated",
+          "dateInformation": "v4"
+        },
+        {
+          "date": "2017-12-06T03:30:32Z",
+          "dateType": "Submitted",
+          "dateInformation": "v5"
+        },
+        {
+          "date": "2017-12-07T01:03:11Z",
+          "dateType": "Updated",
+          "dateInformation": "v5"
+        },
+        {
+          "date": "2023-07-24T00:48:54Z",
+          "dateType": "Submitted",
+          "dateInformation": "v6"
+        },
+        {
+          "date": "2023-07-25T00:34:06Z",
+          "dateType": "Updated",
+          "dateInformation": "v6"
+        },
+        {
+          "date": "2023-08-02T00:41:18Z",
+          "dateType": "Submitted",
+          "dateInformation": "v7"
+        },
+        {
+          "date": "2023-08-03T00:07:25Z",
+          "dateType": "Updated",
+          "dateInformation": "v7"
+        },
+        {
+          "date": "2017-06",
+          "dateType": "Available",
+          "dateInformation": "v1"
+        },
+        {
+          "date": "2017",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "GEN",
+        "bibtex": "misc",
+        "citeproc": "article",
+        "schemaOrg": "CreativeWork",
+        "resourceType": "Article",
+        "resourceTypeGeneral": "Preprint"
+      },
+      "relatedIdentifiers": [],
+      "version": "7",
+      "rightsList": [
+        {
+          "rights": "arXiv.org perpetual, non-exclusive license",
+          "rightsUri": "http://arxiv.org/licenses/nonexclusive-distrib/1.0/"
+        }
+      ],
+      "url": "https://arxiv.org/abs/1706.03762",
+      "metadataVersion": 2,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "mds",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2022-03-04T06:13:33.000Z",
+      "registered": "2022-03-04T06:13:34.000Z",
+      "published": "2017",
+      "updated": "2025-04-09T22:52:25.000Z"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "data": {
+    "id": "10.5281/zenodo.23450603",
+    "type": "dois",
+    "attributes": {
+      "doi": "10.5281/zenodo.23450603",
+      "prefix": "10.5281",
+      "suffix": "zenodo.23450603",
+      "creators": [
+        {
+          "name": "Valantinaite, Juste",
+          "nameType": "Personal",
+          "givenName": "Juste",
+          "familyName": "Valantinaite"
+        },
+        {
+          "name": "Burinskas, Arunas",
+          "nameType": "Personal",
+          "givenName": "Arunas",
+          "familyName": "Burinskas"
+        }
+      ],
+      "titles": [
+        {
+          "title": "Dataset for \"National capabilities and the Nordic FDI association with patent citation links\""
+        }
+      ],
+      "publisher": "Zenodo",
+      "container": {},
+      "publicationYear": 2026,
+      "contributors": [],
+      "dates": [
+        {
+          "date": "2026-10-18",
+          "dateType": "Issued"
+        }
+      ],
+      "language": null,
+      "types": {
+        "ris": "DATA",
+        "bibtex": "misc",
+        "citeproc": "dataset",
+        "schemaOrg": "Dataset",
+        "resourceType": "",
+        "resourceTypeGeneral": "Dataset"
+      },
+      "relatedIdentifiers": [
+        {
+          "relationType": "IsVersionOf",
+          "relatedIdentifier": "10.5281/zenodo.23450602",
+          "relatedIdentifierType": "DOI"
+        }
+      ],
+      "version": null,
+      "rightsList": [
+        {
+          "rights": "Creative Commons Attribution 4.0 International",
+          "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+          "schemeUri": "https://spdx.org/licenses/",
+          "rightsIdentifier": "cc-by-4.0",
+          "rightsIdentifierScheme": "SPDX"
+        }
+      ],
+      "url": "https://zenodo.org/doi/10.5281/zenodo.23450603",
+      "metadataVersion": 0,
+      "schemaVersion": "http://datacite.org/schema/kernel-4",
+      "source": "api",
+      "isActive": true,
+      "state": "findable",
+      "reason": null,
+      "created": "2026-10-18T11:46:29.000Z",
+      "registered": "2026-10-18T11:46:30.000Z",
+      "published": "2026",
+      "updated": "2026-10-18T11:46:30.000Z"
+    }
+  }
+}

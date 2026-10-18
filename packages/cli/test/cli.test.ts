@@ -13,11 +13,14 @@ import { commandNames, main, today } from '../src/main.ts';
 const dir = mkdtempSync(join(tmpdir(), 'loopweft-cli-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-/** The DOI lookup answers from the Crossref replies recorded for the model's tests: no network. */
-const CROSSREF = new URL('../../model/test/fixtures/crossref/', import.meta.url);
+/** The DOI lookup answers from the Crossref and DataCite replies recorded for the model's tests: no network. */
+const FIXTURES = new URL('../../model/test/fixtures/', import.meta.url);
 const recordedFetch = (async (url: string | URL | Request) => {
-  const doi = decodeURIComponent(String(url).replace('https://api.crossref.org/works/', ''));
-  const file = new URL(`${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`, CROSSREF);
+  const [, host, encoded] =
+    /^https:\/\/api\.(crossref|datacite)\.org\/(?:works|dois)\/(.*)$/.exec(String(url)) ?? [];
+  const doi = decodeURIComponent(encoded ?? '');
+  const folder = new URL(`${host}/`, FIXTURES);
+  const file = new URL(`${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`, folder);
   if (!existsSync(file)) return new Response('Resource not found.', { status: 404 });
   const body = JSON.parse(readFileSync(file, 'utf8')) as { status: unknown; text?: string };
   if (typeof body.status === 'number') return new Response(body.text ?? '', { status: body.status });
@@ -139,7 +142,8 @@ describe('a session', () => {
       ],
       ['source', 'lookup', 'https://doi.org/10.1017/sus.2024.1'],
       ['source', 'add', 'pop.loopweft', '--doi', '10.1017/sus.2025.14', '--dry-run'],
-      ['source', 'add', 'pop.loopweft', '--doi', '10.6084/m9.figshare.c.6858564'],
+      ['source', 'add', 'pop.loopweft', '--doi', '10.6084/m9.figshare.c.6858564', '--dry-run'],
+      ['source', 'add', 'pop.loopweft', '--doi', '10.9999/not.registered.anywhere'],
       ['cite', 'add', 'pop.loopweft', 'L1,L2', 'test2020', '--pages', '4–5', '--strength', 'moderate'],
       ['cite', 'add', 'pop.loopweft', 'Births,L1', 'test2020', '--pages', '4–5'],
       ['cite', 'set', 'pop.loopweft', 'L1', 'test2020', '--strength', 'strong', '--note', 'Fig. 2'],
@@ -349,13 +353,22 @@ describe('the contract for agents', () => {
   it('says why a DOI lookup failed, in JSON too, and adds nothing', async () => {
     await run('new', 'doi.loopweft', '--title', 'DOI');
     const before = readFileSync(join(dir, 'doi.loopweft'), 'utf8');
-    const missing = await json('source', 'add', 'doi.loopweft', '--doi', 'doi:10.6084/m9.figshare.c.6858564');
+    const missing = await json(
+      'source',
+      'add',
+      'doi.loopweft',
+      '--doi',
+      'doi:10.9999/not.registered.anywhere',
+    );
     expect(missing.code).toBe(2);
     expect(missing.doc).toMatchObject({
       ok: false,
-      doi: '10.6084/m9.figshare.c.6858564',
+      doi: '10.9999/not.registered.anywhere',
       lookup: { kind: 'notFound', status: 404 },
-      error: { exitCode: 2, message: expect.stringMatching(/^Crossref has no record of 10\.6084/) },
+      error: {
+        exitCode: 2,
+        message: expect.stringMatching(/^Neither Crossref nor DataCite has a record of 10\.9999/),
+      },
     });
     const notDoi = await json('source', 'lookup', 'sus.2024.1');
     expect(notDoi).toMatchObject({ code: 2, doc: { ok: false, lookup: { kind: 'invalidDoi' } } });

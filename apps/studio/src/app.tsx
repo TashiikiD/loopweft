@@ -25,7 +25,7 @@ export interface AppProps {
   recovery?: RecoveryStore;
   /** `test`: Mantine without transitions or portals (component tests in jsdom). */
   env?: 'default' | 'test';
-  /** The DOI lookup (tests give one that answers from recorded replies); default: Crossref's. */
+  /** The DOI lookup (tests give one that answers from recorded replies); default: Crossref's, then DataCite's. */
   lookup?: Lookup;
 }
 
