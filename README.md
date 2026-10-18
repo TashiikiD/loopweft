@@ -28,7 +28,8 @@ that draws and animates a map's story plays [the example](https://tashiikid.gith
 the story editor, the presenter and the exports come in the next phases.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
-- [Importing maps](docs/import.md), [templates](docs/templates.md), and [loops and ripples](docs/analysis.md)
+- [Importing maps](docs/import.md), [templates](docs/templates.md), [loops and ripples](docs/analysis.md), and
+  [sources and citations](docs/sources.md)
 - [The polycrisis example](examples/README.md)
 
 ## Roadmap
@@ -58,7 +59,7 @@ text, in the custom field "DataViz sources".
 | Path | What it holds |
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
-| `docs/` | The format specification, how imports work, the templates, and what loops and ripples mean |
+| `docs/` | The format specification, how imports work, the templates, what loops and ripples mean, and how sources and citations work |
 | `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |

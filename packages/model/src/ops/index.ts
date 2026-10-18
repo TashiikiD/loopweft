@@ -1,6 +1,16 @@
 // The edits the Studio and the CLI share: one implementation of each. Every operation takes a project and
 // returns { project, result, summary } without changing its input; an expected failure is an OpError.
 export {
+  addCitation,
+  type Citable,
+  type CitationChanges,
+  type CitationInput,
+  findCitation,
+  removeCitation,
+  resolveCitable,
+  setCitation,
+} from './citations.ts';
+export {
   applyLayout,
   type HomeView,
   type LayoutResult,
@@ -22,6 +32,16 @@ export {
 } from './loops.ts';
 export { type MetaChanges, setMeta, setTheme, type ThemeChanges } from './meta.ts';
 export { addPalette, type PaletteChanges, type PaletteInput, removePalette, setPalette } from './palettes.ts';
+export {
+  addSource,
+  removeSource,
+  resolveSource,
+  type SourceChanges,
+  type SourceInput,
+  type SourceRemoveOptions,
+  setSource,
+  suggestSourceId,
+} from './sources.ts';
 export { pruneMap, pruneMentions, type Removed, stepKey, stepsMentioning } from './story-refs.ts';
 export {
   ensureValid,

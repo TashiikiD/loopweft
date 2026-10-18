@@ -1,6 +1,15 @@
 // @loopweft/model: the .loopweft file format and the operations on it. Everything here runs in Node
 // and in the browser; nothing reads the clock or draws random numbers.
 
+export {
+  type CitableKind,
+  type CoverageCount,
+  type EvidenceCoverage,
+  evidenceCoverage,
+  type SourceCoverage,
+  type SourceUse,
+  sourceUses,
+} from './evidence.ts';
 export { readFieldValue, resolveField } from './fields.ts';
 export * from './importers/index.ts';
 export {
