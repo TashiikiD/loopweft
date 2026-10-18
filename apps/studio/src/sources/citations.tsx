@@ -168,6 +168,8 @@ export function CiteForm({
       notifications.show({ message: out.summary, autoClose: 5000 });
     setPages('');
     setNote('');
+    // A strength is a judgement about one citation: it never carries over to the next.
+    setStrength('');
     onCited?.();
   };
   return (
@@ -181,6 +183,7 @@ export function CiteForm({
         value={source}
         onChange={setSource}
         nothingFoundMessage="No source matches"
+        allowDeselect={false}
         comboboxProps={{ withinPortal: true }}
       />
       <Group gap={6} grow align="flex-start">

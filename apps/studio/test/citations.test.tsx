@@ -89,6 +89,26 @@ describe('citing in the inspector', () => {
     expect(await screen.findByText('Cited T p. 4 on births and L3. L1 already cited it.')).toBeTruthy();
   });
 
+  it('keeps the source chosen for the next citation, but never its strength', async () => {
+    const { store, user } = renderStudio();
+    store.getState().select({ links: ['L2'] });
+    await screen.findByText('No source cited yet.');
+    await chooseSource(user, /^Other \(2021\)/);
+    const form = document.querySelector('.lw-cite-form') as HTMLElement;
+    await user.type(within(form).getByRole('textbox', { name: 'Pages' }), '1');
+    await user.click(within(form).getByRole('radio', { name: 'Strong' }));
+    await user.click(within(form).getByRole('button', { name: 'Cite' }));
+    // Choosing the same source again keeps it chosen; the strength is back to not rated.
+    await chooseSource(user, /^Other \(2021\)/);
+    expect((within(form).getByRole('radio', { name: 'Not rated' }) as HTMLInputElement).checked).toBe(true);
+    await user.type(within(form).getByRole('textbox', { name: 'Pages' }), '2');
+    await user.click(within(form).getByRole('button', { name: 'Cite' }));
+    expect(store.getState().project.links[1]?.citations).toEqual([
+      { source: 'U', pages: '1', strength: 'strong' },
+      { source: 'U', pages: '2' },
+    ]);
+  });
+
   it('opens the source of a citation in the library', async () => {
     const { store, user } = renderStudio();
     store.getState().select({ links: ['L1'] });

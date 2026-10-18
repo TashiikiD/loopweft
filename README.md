@@ -12,20 +12,25 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 2: the Map workspace**, reviewed at its checkpoint; Phase 3 (Sources) comes next.
+**Phase 3: Sources**, at its checkpoint; Phase 4 (Story) starts after its review.
 [The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
 - categories, roles, link types and custom fields; themes, and palettes (presets or the map's own),
   checked for colour-vision deficiencies and contrast;
-- automatic layouts, the map's feedback loops (found, counted and named) and a what-if ripple;
+- automatic layouts, the map's feedback loops (found, counted and named), a what-if ripple, the paths
+  between two variables, and the most-connected variables (with the caveat that connected does not mean
+  leverage);
+- a references library: add a source by its DOI (looked up at Crossref, Loopweft's only network call) or by
+  hand; cite it on variables, links and loops with pages and a strength; see what cites nothing; and the
+  APA reference list made from the sources;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
   CSV or Excel tables, Kumu or DataViz;
 - open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes.
 
 The `loopweft` command line does the same edits ([its commands](packages/cli/README.md)), and the engine
-that draws and animates a map's story plays [the example](https://tashiikid.github.io/loopweft/demo/). Sources,
-the story editor, the presenter and the exports come in the next phases.
+that draws and animates a map's story plays [the example](https://tashiikid.github.io/loopweft/demo/). The story
+editor, the presenter and the exports come in the next phases.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
 - [Importing maps](docs/import.md), [templates](docs/templates.md), [loops, ripples and paths](docs/analysis.md), and
