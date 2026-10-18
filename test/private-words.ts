@@ -14,6 +14,12 @@ const SUBMODULE = '160000';
 /** An object id of zeros names nothing: a deleted file, or a deleted ref. */
 const NONE = /^0+$/;
 
+/**
+ * Text as both checks compare it, words and what they look in alike: in lower case, and with each accented
+ * letter in one form (NFC), so é written as one character or as e and a combining accent is the same letter.
+ */
+const fold = (text: string): string => text.normalize('NFC').toLowerCase().normalize('NFC');
+
 /** Git, reading each object itself, never a local replacement for it (`git replace`), as a push does. */
 const git = (root: string, args: string[], input?: string): Buffer =>
   execFileSync('git', args, {
@@ -182,11 +188,11 @@ function held(root: string, destination: string): string[] {
  * Files git ignores, such as `.local.json` where the words are kept, are not read.
  */
 export function findPrivateWords(root: string, words: readonly string[]): string[] {
-  const wanted = words.map((w) => w.trim().toLowerCase()).filter(Boolean);
+  const wanted = words.map((w) => fold(w.trim())).filter(Boolean);
   if (wanted.length === 0) return [];
   const found: string[] = [];
   const read = (file: string, copy: 'staged' | 'working' | 'untracked', content: Buffer) => {
-    const text = readable(content, `${file} (${copy})`).toLowerCase();
+    const text = fold(readable(content, `${file} (${copy})`));
     for (const word of wanted) if (text.includes(word)) found.push(`${file} (${copy}): "${word}"`);
   };
   const onDisk = (file: string, copy: 'working' | 'untracked') => {
@@ -245,11 +251,11 @@ export function findPrivateWordsInPush(
   pushed: string | Buffer,
   destination?: string,
 ): string[] {
-  const wanted = words.map((w) => w.trim().toLowerCase()).filter(Boolean);
+  const wanted = words.map((w) => fold(w.trim())).filter(Boolean);
   if (wanted.length === 0) return [];
   const found: string[] = [];
   const read = (id: string, place: string, content: string) => {
-    const lower = content.toLowerCase();
+    const lower = fold(content);
     for (const word of wanted) if (lower.includes(word)) found.push(`${id.slice(0, 7)} ${place}: "${word}"`);
   };
 

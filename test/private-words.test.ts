@@ -153,6 +153,22 @@ describe('the private-word check', () => {
     expect(repo.found()).toEqual([]);
   });
 
+  it('finds an accented word written as one character or as a letter and a mark', () => {
+    const [composed, decomposed] = [ACCENTED.normalize('NFC'), ACCENTED.normalize('NFD')];
+    expect(decomposed).not.toBe(composed);
+    const repo = repository();
+    repo.write('notes.md', `Written by ${decomposed}.\n`);
+    repo.git('add', 'notes.md');
+    expect(findPrivateWords(repo.dir, [composed]).sort()).toEqual([
+      `notes.md (staged): "${composed}"`,
+      `notes.md (working): "${composed}"`,
+    ]);
+    // A word set in the other form finds the same letters.
+    repo.write('notes.md', `Written by ${composed}.\n`);
+    repo.git('add', 'notes.md');
+    expect(findPrivateWords(repo.dir, [decomposed])).toHaveLength(2);
+  });
+
   it('reads a UTF-16 text file, by its byte order mark', () => {
     const repo = repository();
     repo.write('notes.txt', UTF16(`private${WORD}\n`));
@@ -492,6 +508,22 @@ describe('the push check', () => {
       const stopped = repo.push('origin', 'HEAD:refs/heads/main');
       expect(stopped.status).not.toBe(0);
       expect(stopped.stderr).toContain('is not valid UTF-8');
+      expect(repo.git('ls-remote', 'origin')).toBe('');
+    });
+
+    it('stops an accented word written with a combining mark, in a name and a file name', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      const decomposed = ACCENTED.normalize('NFD');
+      repo.write(`notes-${decomposed}.md`, SAFE);
+      const id = repo.commit('Add the notes', { GIT_AUTHOR_NAME: `Dr ${decomposed}` });
+      const stopped = repo.push('origin', 'HEAD:refs/heads/main');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} author name: "${ACCENTED}"`);
+      // As git keeps the name: on macOS it may turn the mark into one character (core.precomposeUnicode).
+      const path = repo.git('ls-tree', '-z', '--name-only', 'HEAD').replace(/\0$/, '');
+      expect(stopped.stderr).toContain(`${short(id)} path ${path}: "${ACCENTED}"`);
       expect(repo.git('ls-remote', 'origin')).toBe('');
     });
 
