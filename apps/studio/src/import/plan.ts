@@ -10,6 +10,7 @@ import {
   type ImportSource,
   importSource,
   type KumuData,
+  kumuHasValue,
   LINK_KEYS,
   mappingProblems,
   normalizeToken,
@@ -227,7 +228,7 @@ export function kumuConnectionFields(data: KumuData): { value: string; label: st
   const seen = new Set<string>();
   for (const connection of data.connections)
     for (const [key, value] of Object.entries(connection))
-      if (!KUMU_STRUCTURE.has(key.toLowerCase()) && value !== '' && value !== null) seen.add(key);
+      if (!KUMU_STRUCTURE.has(key.toLowerCase()) && kumuHasValue(value)) seen.add(key);
   return [...seen].map((key) => ({ value: key, label: data.fieldNames[normalizeToken(key)] ?? key }));
 }
 
