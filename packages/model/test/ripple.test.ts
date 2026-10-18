@@ -89,6 +89,20 @@ describe('a ripple', () => {
     expect(ripple(p, 'a', 'up', { includeOptional: true, maxSteps: 3 }).capped).toBe(false);
   });
 
+  it('says it was capped when only feedback or a push the other way lies past the cap', () => {
+    // A → B → A: past one step, only the feedback to A is left.
+    const loop = map('a>b:+', 'b>a:-');
+    expect(ripple(loop, 'a', 'up', { maxSteps: 1 })).toMatchObject({ feedback: [], capped: true });
+    expect(ripple(loop, 'a', 'up').feedback).toEqual([{ link: 'L2', trend: 'down', step: 2 }]);
+    expect(ripple(loop, 'a', 'up', { maxSteps: 2 }).capped).toBe(false);
+    // A → B and A → C → B: past one step, only C's push the other way on B is left.
+    const twoWays = map('a>b:+', 'a>c:+', 'c>b:-');
+    expect(ripple(twoWays, 'a', 'up', { maxSteps: 1 }).capped).toBe(true);
+    expect(ripple(twoWays, 'a', 'up').reached.find((r) => r.variable === 'b')?.against).toEqual(['L3']);
+    // The same way again tells nothing new.
+    expect(ripple(map('a>b:+', 'a>c:+', 'c>b:+'), 'a', 'up', { maxSteps: 1 }).capped).toBe(false);
+  });
+
   it('refuses a variable that is not on the map, or a direction that is neither up nor down', () => {
     expect(() => ripple(map('a>b:+'), 'z', 'up')).toThrow(OpError);
     expect(() => ripple(map('a>b:+'), 'a', 'sideways' as never)).toThrow(/a rise \(up\) or a fall \(down\)/);
