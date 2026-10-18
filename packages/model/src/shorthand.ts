@@ -1,7 +1,9 @@
 // Source: DataViz packages/normalize/src/shorthand.ts @ efcdbe2 (TashiikiD/DataViz, private), adapted for
 // Loopweft. parseShorthand is DataViz's parser with Loopweft's field names (`strength=` sets `weight`;
-// there is no `label=`, since links have no label). applyShorthand is rewritten for the .loopweft model:
-// it adds variables and links, and `@group` sets categories.
+// there is no `label=`, since links have no label), and brackets at the end of a line always hold the link's
+// details: DataViz reads brackets that hold none as part of the effect's name, here they are an error.
+// applyShorthand is rewritten for the .loopweft model: it adds variables and links, and `@group` sets
+// categories.
 
 import { ensureValid, type OpOutput, parseElement, plural } from './ops/support.ts';
 import { elementIds } from './refs.ts';
@@ -248,8 +250,9 @@ function parseAttributes(text: string): {
  *     @group social: Births, Population
  *     # comment
  *
- * Arrows: `->`, `-->`, `→`. Labels may be quoted to contain arrows, commas or brackets. A trailing
- * bracket that holds no recognized item is part of the label (e.g. `Temperature (Celsius)`).
+ * Arrows: `->`, `-->`, `→`. Labels may be quoted to contain arrows, commas or brackets. Brackets at the end
+ * of a line hold the link's details, and an item in them that is not one is an error, so an effect whose
+ * name ends in brackets is quoted: `A -> "Temperature (Celsius)"`.
  */
 export function parseShorthand(text: string): ShorthandParse {
   const result: ShorthandParse = { relations: [], groups: [], issues: [], forms: [] };
@@ -316,31 +319,42 @@ export function parseShorthand(text: string): ShorthandParse {
       const inside = rest.trimEnd().slice(open + 1, -1);
       const parsed = parseAttributes(inside);
       const at = (offset: number) => restStart + open + 2 + offset;
-      if (parsed.recognized > 0) {
-        for (const unknown of parsed.unknown) {
-          issue(
-            'error',
-            line,
-            at(unknown.offset),
-            `Unknown item "${unknown.item}" (use a sign, delay, conf=, weight= or field=value).`,
-          );
-        }
-        for (const error of parsed.errors) issue('error', line, at(error.offset), error.message);
-        for (const form of parsed.forms) {
-          result.forms.push({ line, column: at(form.offset), name: form.name, key: form.key });
-        }
-        const { cells: written = [], ...others } = parsed.attributes;
-        attributes = others;
-        cells = written.map(({ offset, ...cell }) => ({ ...cell, column: at(offset) }));
-        rest = rest.trimEnd().slice(0, open);
+      // Brackets that hold no detail at all were most likely meant as part of the name: say how to write it.
+      const named = parsed.recognized
+        ? ''
+        : `; if the brackets belong to the name, quote it: "${unquote(rest.trimEnd())}"`;
+      if (!inside.trim()) {
+        issue(
+          'error',
+          line,
+          restStart + open + 1,
+          `The brackets are empty: write the link's sign in them, e.g. (+)${named}.`,
+        );
       }
+      for (const unknown of parsed.unknown) {
+        issue(
+          'error',
+          line,
+          at(unknown.offset),
+          `Unknown item "${unknown.item}" (use a sign, delay, conf=, weight= or field=value)${named}.`,
+        );
+      }
+      for (const error of parsed.errors) issue('error', line, at(error.offset), error.message);
+      for (const form of parsed.forms) {
+        result.forms.push({ line, column: at(form.offset), name: form.name, key: form.key });
+      }
+      const { cells: written = [], ...others } = parsed.attributes;
+      attributes = others;
+      cells = written.map(({ offset, ...cell }) => ({ ...cell, column: at(offset) }));
+      rest = rest.trimEnd().slice(0, open);
     }
     const to = unquote(rest);
     if (!from) issue('error', line, indent + 1, 'The relation has no cause before the arrow.');
     if (!to) issue('error', line, arrow.at + arrow.length + 1, 'The relation has no effect after the arrow.');
     if (!from || !to) return;
     const { sign, ...others } = attributes;
-    if (sign === undefined)
+    // A line with an error adds nothing, so a missing sign is not worth a warning there too.
+    if (sign === undefined && !result.issues.some((i) => i.line === line && i.severity === 'error'))
       issue('warning', line, arrow.at + 1, `No sign given for ${from} -> ${to}; recorded as unknown (?).`);
     result.relations.push({
       line,

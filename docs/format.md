@@ -486,6 +486,8 @@ Fertility -> Births (?, conf=M)
 - In the brackets: a sign (`+`, `-`, `?`, or words such as `positive`, `opposite`), `delay` with an optional
   label, `conf=` (`low`, `medium`, `high`, or `L`, `M`, `H`), `weight=` or `strength=`, and `field=value` for
   `type`, `conditional`, `rationale`, `delayLabel` or a custom field (by id or name).
+- Brackets at the end of a line always hold the link's details: anything else in them is an error, so an
+  effect whose name ends in brackets is quoted, `A -> "Temperature (Celsius)"`.
 - A line without a sign records `?`, with a warning. `@group name: A, B` puts variables in a category,
   making it if needed.
 - Values are read strictly: `weight=heavy` is an error, not text. A link that already exists is an error.
@@ -493,9 +495,8 @@ Fertility -> Births (?, conf=M)
 
 ## 18. Decisions
 
-These choices refine the plan's sketch. Items 1–15 were confirmed at the Phase 0 checkpoint review and 16–19 at the
-Phase 1 checkpoint review; 20 is to be confirmed at the Phase 2 checkpoint review. Each can still change before
-version 1 is released.
+These choices refine the plan's sketch. Items 1–15 were confirmed at the Phase 0 checkpoint review; each later
+item says when it was added and confirmed. Each can still change before version 1 is released.
 
 1. **`pinned` lives in the layout** (`layout.positions.<id>.pinned`), not on the variable, so all layout
    state is in one place.
@@ -534,5 +535,9 @@ version 1 is released.
 19. **An optional home view in the layout** (`layout.home`; added in Phase 2, as agreed at the Phase 1 checkpoint
     review): the whole-map camera, set from the Studio's canvas. The example takes the presentation's own
     (centre 960, 478; zoom 0.9), so its whole-map steps are framed as the presentation framed them.
-20. **Palettes are named presets** (`theme.palette`; added in Phase 2): an unknown name is an error, never a quiet
-    fallback, and a category's own colour always wins. The colour checks are advice, not validation.
+20. **Palettes are named presets** (`theme.palette`; added in Phase 2, to be confirmed at its checkpoint review): an
+    unknown name is an error, never a quiet fallback, and a category's own colour always wins. The colour checks
+    are advice, not validation.
+21. **Brackets at the end of a shorthand line hold the link's details** (confirmed at the Phase 2 checkpoint
+    review): anything else in them is an error, so a name that ends in brackets is quoted. DataViz's parser reads
+    such brackets as part of the name, with a warning; that let a mistyped sign become part of a variable's name.

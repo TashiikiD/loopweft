@@ -77,7 +77,7 @@ describe('parseShorthand', () => {
   });
 
   it('records a missing sign as unknown and warns', () => {
-    const parsed = parseShorthand('A -> B\nC -> D (Celsius)');
+    const parsed = parseShorthand('A -> B\nC -> "D (Celsius)"');
     expect(parsed.relations.map((r) => [r.to, r.sign, r.signGiven])).toEqual([
       ['B', '?', false],
       ['D (Celsius)', '?', false],
@@ -98,6 +98,8 @@ describe('parseShorthand', () => {
         '@group : A',
         '@team x: A',
         'P -> "Q (+)',
+        'X -> Y (sideways)',
+        'X -> Y ()',
       ].join('\n'),
     );
     expect(parsed.issues.map((i) => `${i.line}:${i.column} ${i.message}`)).toEqual([
@@ -108,6 +110,9 @@ describe('parseShorthand', () => {
       '5:1 Write groups as "@group <name>: A, B".',
       '6:1 Unknown directive "@team"; only @group is supported.',
       '7:6 Unterminated quote.',
+      // Brackets at the end hold the link's details: with none in them, quoting the name is the way out.
+      '8:9 Unknown item "sideways" (use a sign, delay, conf=, weight= or field=value); if the brackets belong to the name, quote it: "Y (sideways)".',
+      `9:8 The brackets are empty: write the link's sign in them, e.g. (+); if the brackets belong to the name, quote it: "Y ()".`,
     ]);
   });
 });
