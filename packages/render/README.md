@@ -16,7 +16,10 @@ The pure part, which runs in Node as well as the browser:
 - **`ambientWalker`**: the soft pulses that wander a held step, true to the link signs.
 - **`shapeGlyph`**, **`TREND_GLYPH`**, **`LOOP_ARROW`**: the glyphs, as plain element descriptions.
 - **`THEMES`**, **`themeTokens`**: the colour and type tokens of each base theme (the cinematic one is the
-  deck's), and **`categoryColours`** for categories that name no colour.
+  deck's), and **`categoryColours`**: each category's own colour, else its place in the theme's palette.
+- **`checkCategories`**, **`checkPalette`**: which colours become hard to tell apart for the three common
+  colour-vision deficiencies and in greyscale (DataViz's check, copied in `colour/`), and which stand out too
+  little from the stage.
 
 The browser part, animated with `@loopweft/motion`:
 

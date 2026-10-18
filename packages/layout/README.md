@@ -14,8 +14,8 @@ same positions, bends and label sides.
   corridors most, when that is a clear improvement. Bends set by hand are kept.
 - **Label placement** (`placeLabels`): the deck's eight-spot search around each variable, avoiding lit links,
   variables, other labels and reserved regions.
-- **Camera maths** (`fitCamera`, `project`): frames on the 1920 × 1080 stage, and a whole-map view fitted to
-  the map.
+- **Camera maths** (`fitCamera`, `project`): frames on the 1920 × 1080 stage, and the whole-map view: the
+  project's home view (`homeCamera`), else the map fitted below the caption band.
 
 Copied code keeps a `Source:` header: `geometry.ts`, `labels.ts` and `camera.ts` from the polycrisis deck;
 `force.ts`, `route-diagnostics.ts` and `route-geometry.ts` from DataViz (commit `efcdbe2`), which ported

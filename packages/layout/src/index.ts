@@ -19,6 +19,7 @@ export {
   FRAMES,
   type Frame,
   fitCamera,
+  homeCamera,
   inView,
   MAP_FRAME,
   project,

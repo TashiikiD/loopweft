@@ -4,7 +4,7 @@
 //
 // Turns a step's map state into concrete levels, labels and a camera. Pure, so the presenter and the tests
 // can use it too.
-import { type Camera, fitCamera, inView } from '@loopweft/layout';
+import { type Camera, fitCamera, homeCamera, inView } from '@loopweft/layout';
 import { LEVELS, type Level, type MapState, type Project, resolveLevels, type Trend } from '@loopweft/model';
 import { type Graph, positionsOf } from './graph.ts';
 
@@ -41,7 +41,7 @@ export function resolveMap(project: Project, graph: Graph, state: MapState | und
   for (const id of graph.nodes.keys()) nodeLevel.set(id, levels.variables.get(id) ?? 'hidden');
   for (const id of graph.edges.keys()) edgeLevel.set(id, levels.links.get(id) ?? 'hidden');
 
-  const camera = fitCamera(positionsOf(graph), s.camera);
+  const camera = fitCamera(positionsOf(graph), s.camera, homeCamera(project.layout));
   // "focus" labels name only the variables the step lists at focus or active, not those a base level lifts.
   const listed = new Set([...(s.variables?.focus ?? []), ...(s.variables?.active ?? [])]);
   const mode = s.labels ?? 'view';

@@ -5,6 +5,7 @@ import {
   type Box,
   type Camera,
   cameraTransform,
+  homeCamera,
   type LabelRequest,
   type LabelSide,
   placeLabels,
@@ -157,7 +158,7 @@ export class MapView {
     this.graph = options.graph ?? buildGraph(options.project);
     this.loops = namedLoops(options.project, this.graph);
     this.#prefix = `lw${++views}`;
-    this.#cam = wholeMapCamera(positionsOf(this.graph));
+    this.#cam = wholeMapCamera(positionsOf(this.graph), homeCamera(options.project.layout));
 
     this.root = document.createElement('div');
     this.root.className = 'map';

@@ -7,6 +7,7 @@
 // - Optional scalars are left out when absent; their documented default applies (e.g. `sign` has none).
 // - Shape order here is the key order of canonical files.
 import { z } from 'zod';
+import { PALETTE_IDS } from './palettes.ts';
 import { ID_PATTERN } from './text/ids.ts';
 
 export const FORMAT = 'loopweft';
@@ -94,7 +95,10 @@ export const ThemeSchema = z
       .enum(['cinematic-dark', 'light', 'high-contrast'])
       .default('cinematic-dark')
       .describe('The look the map is drawn in.'),
-    palette: IdSchema.optional().describe('A named palette preset (defined in Phase 1).'),
+    palette: z
+      .enum(PALETTE_IDS)
+      .optional()
+      .describe('The colour preset for categories that name no colour of their own. Absent: loopweft.'),
     fonts: z
       .strictObject({
         heading: Text.optional(),
@@ -326,6 +330,14 @@ export const LayoutSchema = z
       .record(IdSchema, z.number().min(-1).max(1))
       .default(() => ({}))
       .describe('Curvature overrides by link id: the bow as a fraction of the link’s length; + bends left.'),
+    home: z
+      .strictObject({
+        x: z.number().describe('The map point at the centre of the stage.'),
+        y: z.number(),
+        zoom: z.number().positive().describe('Stage pixels per map unit.'),
+      })
+      .optional()
+      .describe('The whole-map view, as the camera frames it. Absent: fitted to the map.'),
   })
   .meta({ id: 'Layout', description: 'Where things are drawn.' });
 export type Layout = z.infer<typeof LayoutSchema>;

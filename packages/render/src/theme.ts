@@ -1,7 +1,7 @@
 // How a project looks: the colour and type tokens of each base theme, and the colour of each category. Pure
 // data, so an export without a browser uses the same colours as the screen. The cinematic theme's tokens
 // are the polycrisis deck's (PolycrisisPresentation src/styles/tokens.css @ 539bc8e, private).
-import type { Project, Theme } from '@loopweft/model';
+import { PALETTES, type Project, paletteOf, type Theme } from '@loopweft/model';
 
 export type ThemeBase = Theme['base'];
 
@@ -63,7 +63,7 @@ export const THEMES: Record<ThemeBase, ThemeTokens> = {
     fontSans: `'Inter Variable', 'Inter', ${SANS_FALLBACK}`,
     fontSerif: `'Fraunces Variable', 'Fraunces', ${SERIF_FALLBACK}`,
   },
-  // A first light theme; palettes made for light backgrounds, with colour-vision checks, come in Phase 2.
+  // A light stage: the colour checks flag category colours that stand out too little from it.
   light: {
     bg: '#f6f4ee',
     bgDeep: '#e6e2d6',
@@ -109,31 +109,19 @@ export const THEMES: Record<ThemeBase, ThemeTokens> = {
 };
 
 /**
- * Colours for categories that name none, in order: the deck's seven domain colours, then five more. Named
- * palettes and colour-vision checks come in Phase 2.
+ * Colours for categories that name none, when a project names no palette (the `loopweft` preset): the
+ * deck's seven domain colours, then five more.
  */
-export const DEFAULT_PALETTE = [
-  '#5ECBA9',
-  '#F2B36B',
-  '#F6D36C',
-  '#C5A6FF',
-  '#F0919C',
-  '#87C9F4',
-  '#A5E88A',
-  '#E7A3E0',
-  '#9FB4FF',
-  '#D8C29A',
-  '#7FD4D9',
-  '#FFB3A1',
-];
+export const DEFAULT_PALETTE: readonly string[] = PALETTES.loopweft.colours;
 
-/** Each category's colour: its own, else the next palette colour by its place in the list. */
+/**
+ * Each category's colour: its own, else the colour of its place in the list, from the theme's palette. A
+ * colour a category names never shifts the others.
+ */
 export function categoryColours(project: Project): Map<string, string> {
+  const colours = paletteOf(project.theme).colours;
   return new Map(
-    project.types.categories.map((c, i) => [
-      c.id,
-      c.colour ?? (DEFAULT_PALETTE[i % DEFAULT_PALETTE.length] as string),
-    ]),
+    project.types.categories.map((c, i) => [c.id, c.colour ?? (colours[i % colours.length] as string)]),
   );
 }
 

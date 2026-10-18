@@ -54,6 +54,11 @@ describe('the polycrisis example', () => {
     expect(serializeProject(example)).toBe(TEXT);
   });
 
+  it("frames the whole map as the deck's camera did", () => {
+    // PolycrisisPresentation src/map/camera.ts FULL_CAMERA, read from the deck by the converter.
+    expect(example.layout.home).toEqual({ x: 960, y: 478, zoom: 0.9 });
+  });
+
   it('keeps the whole map, its types, loops and sources', () => {
     expect(example.variables).toHaveLength(41);
     expect(example.links).toHaveLength(132);
@@ -419,6 +424,11 @@ describe('the polycrisis converter', () => {
     expect(() => convertPolycrisis(miniDeck(), { ...MINI_CLEANUP, deckBends: ['E9'] })).toThrow(
       'Clean-up rules that no longer match the deck: no link E9 to keep',
     );
+  });
+
+  it("takes the whole-map view from the deck's camera", () => {
+    expect(project.layout.home).toEqual({ x: 950, y: 470, zoom: 0.85 });
+    expect(notes).toContain("Took the whole-map view from the deck's camera: centre (950, 470), zoom 0.85.");
   });
 
   it('says what it left out and reworded', () => {

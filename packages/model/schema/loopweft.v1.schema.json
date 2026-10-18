@@ -147,8 +147,14 @@
           ]
         },
         "palette": {
-          "description": "A named palette preset (defined in Phase 1).",
-          "$ref": "#/$defs/Id"
+          "description": "The colour preset for categories that name no colour of their own. Absent: loopweft.",
+          "type": "string",
+          "enum": [
+            "loopweft",
+            "okabe-ito",
+            "tol-bright",
+            "tol-muted"
+          ]
         },
         "fonts": {
           "description": "Font families for headings and body text.",
@@ -168,13 +174,6 @@
       },
       "additionalProperties": false,
       "description": "How the project looks."
-    },
-    "Id": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 80,
-      "pattern": "^[\\p{L}\\p{N}_-]+$",
-      "description": "An identifier: letters, digits, \"_\" and \"-\"."
     },
     "Types": {
       "type": "object",
@@ -236,6 +235,13 @@
       ],
       "additionalProperties": false,
       "description": "A category of variables, drawn in its colour (e.g. a domain such as \"Earth systems\")."
+    },
+    "Id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[\\p{L}\\p{N}_-]+$",
+      "description": "An identifier: letters, digits, \"_\" and \"-\"."
     },
     "Colour": {
       "type": "string",
@@ -614,6 +620,30 @@
             "minimum": -1,
             "maximum": 1
           }
+        },
+        "home": {
+          "description": "The whole-map view, as the camera frames it. Absent: fitted to the map.",
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "description": "The map point at the centre of the stage."
+            },
+            "y": {
+              "type": "number"
+            },
+            "zoom": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Stage pixels per map unit."
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "zoom"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,

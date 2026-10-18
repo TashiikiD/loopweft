@@ -179,6 +179,8 @@ export interface PolycrisisDeck {
   hubNodes: string[];
   /** src/map/graph.ts buildGraph(): the bend the deck draws each link with, by link id. */
   bends: Record<string, number>;
+  /** src/map/camera.ts FULL_CAMERA: the deck's whole-map view, set by hand. */
+  camera: { cx: number; cy: number; zoom: number };
   /** The assembled deck (src/scenes/index.ts DECK): scenes and their builds, in order. */
   scenes: DeckScene[];
 }
@@ -814,6 +816,8 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
       ),
       groups,
       bends: { ...(layout.bends ?? {}), ...keptBends },
+      // The deck's whole-map view, as its camera sets it.
+      home: { x: deck.camera.cx, y: deck.camera.cy, zoom: deck.camera.zoom },
     },
     loops,
     sources,
@@ -858,6 +862,7 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
           `Kept the deck's curves for ${cleanup.deckBends.length} links that crossing refinement would re-bend: ${cleanup.deckBends.join(', ')}.`,
         ]
       : []),
+    `Took the whole-map view from the deck's camera: centre (${deck.camera.cx}, ${deck.camera.cy}), zoom ${deck.camera.zoom}.`,
     'Title page: kept the title and subtitle; left out the presenter, programme, course and university lines.',
     'Left out: the full scripts and bridges, the fake title page, pathways, the Fig. 9 stages, the Anthropocene trap layer, the authoring rules, revision notes, node scale (all "global"), and source file names and notes.',
   ];

@@ -202,6 +202,25 @@ describe('schema errors', () => {
       path: ['story', 'scenes', 0, 'steps', 1, 'overlays', 2, 'items', 1, 'icon'],
     });
     expect(icon.message).toMatch(/^Expected one of "circle", .*"balancing", .*"root"; got "loop"\.$/);
+
+    // A palette is one of the presets: an unknown name is an error, never a quiet fallback.
+    const palette = firstIssue(parseChanged({ 'theme.palette': 'rainbow' }));
+    expect(palette).toMatchObject({ code: 'invalidValue', path: ['theme', 'palette'] });
+    expect(palette.message).toBe(
+      'Expected one of "loopweft", "okabe-ito", "tol-bright", "tol-muted"; got "rainbow".',
+    );
+  });
+
+  it('reads a home view: a centre and a zoom above 0', () => {
+    const home = { x: 960, y: 478, zoom: 0.9 };
+    const ok = parseChanged({ 'layout.home': home });
+    expect(ok.ok && ok.project.layout.home).toEqual(home);
+    expect(problems(parseChanged({ 'layout.home': { ...home, zoom: 0 } }))).toEqual([
+      'tooSmall layout.home.zoom',
+    ]);
+    expect(problems(parseChanged({ 'layout.home': { x: 960, zoom: 1 } }))).toEqual([
+      'missingField layout.home.y',
+    ]);
   });
 
   it('checks ids, colours, dates, DOIs and empty text', () => {

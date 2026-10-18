@@ -6,6 +6,7 @@ import {
   edgeGeometry,
   FRAMES,
   fitCamera,
+  homeCamera,
   mapGeometry,
   placeLabels,
   project,
@@ -87,6 +88,19 @@ describe('the camera', () => {
   it('shrinks the whole map into a frame when a step frames no subject', () => {
     const inset = fitCamera(positions, { frame: 'inset' });
     expect(inset.zoom).toBeLessThan(wholeMapCamera(positions).zoom);
+  });
+
+  it('frames the whole map with the home view a project sets, and never zooms further out for a subject', () => {
+    const home = homeCamera({ home: { x: 900, y: 500, zoom: 1.2 } });
+    expect(home).toEqual({ cx: 900, cy: 500, zoom: 1.2 });
+    expect(homeCamera({})).toBeNull();
+    expect(wholeMapCamera(positions, home)).toEqual(home);
+    expect(fitCamera(positions, undefined, home)).toEqual(home);
+    expect(fitCamera(positions, { frame: 'center' }, home)).toEqual(home);
+    // The whole map's variables, framed as a subject: as wide as the home view allows, no wider.
+    expect(fitCamera(positions, { fit: [...positions.keys()] }, home).zoom).toBe(1.2);
+    // Frames that set the whole map aside for an overlay keep their own scale.
+    expect(fitCamera(positions, { frame: 'inset' }, home)).toEqual(fitCamera(positions, { frame: 'inset' }));
   });
 });
 

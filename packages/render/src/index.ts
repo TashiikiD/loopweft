@@ -14,6 +14,23 @@ export {
   type Tone,
   TRAVEL,
 } from './choreo.ts';
+export {
+  type ColourCheck,
+  type ColourItem,
+  checkCategories,
+  checkColourSet,
+  checkPalette,
+  MIN_CONTRAST,
+} from './colour/checks.ts';
+export { contrastRatio, relativeLuminance } from './colour/color.ts';
+export {
+  type ColorCollision,
+  DISTINCT_DELTA_E,
+  simulateVision,
+  VISIONS,
+  type Vision,
+  type VisionCheck,
+} from './colour/cvd.ts';
 export { glyph, h, svg, typeset } from './dom.ts';
 export { FLAG_MARK, type GlyphPart, LOOP_ARROW, shapeGlyph, TREND_GLYPH } from './glyphs.ts';
 export {

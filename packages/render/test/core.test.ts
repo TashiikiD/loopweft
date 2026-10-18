@@ -115,6 +115,19 @@ describe('map states', () => {
     expect(resolveMap(project, graph, { labels: 'none' }).labels.size).toBe(0);
   });
 
+  it("frames the whole map with the project's home view, and fits the map when it has none", () => {
+    // The example's home view is the deck's whole-map camera.
+    expect(resolveMap(project, graph, {}).camera).toEqual({ cx: 960, cy: 478, zoom: 0.9 });
+    const unset = example();
+    delete unset.layout.home;
+    const fitted = resolveMap(unset, buildGraph(unset), {}).camera;
+    expect(fitted).not.toEqual({ cx: 960, cy: 478, zoom: 0.9 });
+    expect(Math.abs(fitted.zoom - 0.9)).toBeLessThan(0.05);
+    // A framed subject is never shown smaller than the home view shows the whole map.
+    const framed = resolveMap(project, graph, { camera: { fit: [...graph.nodes.keys()] } }).camera;
+    expect(framed.zoom).toBe(0.9);
+  });
+
   it('keeps optional links hidden unless a step lists them', () => {
     expect(resolveMap(project, graph, {}).edgeLevel.get('E128')).toBe('hidden');
     expect(resolveMap(project, graph, { links: { focus: ['E128'] } }).edgeLevel.get('E128')).toBe('focus');

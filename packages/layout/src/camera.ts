@@ -1,6 +1,6 @@
 // Source: PolycrisisPresentation src/map/camera.ts @ 539bc8e (private), adapted for Loopweft: it fits any
 // map's variables instead of the deck's graph, the deck's "core" frame is "inset", and the whole-map view is
-// fitted to the map rather than fixed for one layout.
+// the project's home view (`layout.home`, as the deck's FULL_CAMERA was) or else fitted to the map.
 //
 // Camera maths (pure). A camera puts world point (cx, cy) at the stage centre, magnified by `zoom`. World
 // units equal stage pixels at zoom 1.
@@ -80,8 +80,16 @@ function frameBox(
   };
 }
 
-/** The whole map, fitted below the caption band. */
-export function wholeMapCamera(positions: ReadonlyMap<string, Pt>): Camera {
+/** A project's home view (`layout.home`) as a camera, or null when it has none. */
+export function homeCamera(layout: {
+  home?: { x: number; y: number; zoom: number } | undefined;
+}): Camera | null {
+  return layout.home ? { cx: layout.home.x, cy: layout.home.y, zoom: layout.home.zoom } : null;
+}
+
+/** The whole map: the home view when the project sets one, else the map fitted below the caption band. */
+export function wholeMapCamera(positions: ReadonlyMap<string, Pt>, home: Camera | null = null): Camera {
+  if (home) return { ...home };
   const pts = [...positions.values()];
   if (pts.length === 0) return { cx: STAGE.w / 2, cy: STAGE.h / 2, zoom: 1 };
   const b = bounds(pts);
@@ -95,17 +103,26 @@ export function wholeMapCamera(positions: ReadonlyMap<string, Pt>): Camera {
 
 /**
  * The camera for a step: its subject (or, with a frame other than full or center and no subject, the whole
- * map shrunk into that frame, leaving room for an overlay) placed in its frame.
+ * map shrunk into that frame, leaving room for an overlay) placed in its frame. A subject is never shown
+ * smaller than the whole-map view shows it (`home`, else the fitted map).
  */
-export function fitCamera(positions: ReadonlyMap<string, Pt>, spec: CameraSpec | undefined): Camera {
+export function fitCamera(
+  positions: ReadonlyMap<string, Pt>,
+  spec: CameraSpec | undefined,
+  home: Camera | null = null,
+): Camera {
   const wholeMapAside =
     !spec?.fit?.length && spec?.frame !== undefined && spec.frame !== 'full' && spec.frame !== 'center';
-  if (!spec?.fit?.length && !wholeMapAside) return wholeMapCamera(positions);
+  if (!spec?.fit?.length && !wholeMapAside) return wholeMapCamera(positions, home);
   const ids = spec?.fit?.length ? spec.fit : [...positions.keys()];
   const pts = ids.map((id) => positions.get(id)).filter((p): p is Pt => !!p);
-  if (pts.length === 0 || !spec) return wholeMapCamera(positions);
+  if (pts.length === 0 || !spec) return wholeMapCamera(positions, home);
   const b = bounds(pts);
-  const minZoom = wholeMapAside ? (spec.frame === 'inset' ? 0.25 : 0.4) : wholeMapCamera(positions).zoom;
+  const minZoom = wholeMapAside
+    ? spec.frame === 'inset'
+      ? 0.25
+      : 0.4
+    : wholeMapCamera(positions, home).zoom;
   return frameBox(
     { x0: b.x0 - PAD_X, x1: b.x1 + PAD_X, y0: b.y0 - PAD_Y, y1: b.y1 + PAD_Y },
     FRAMES[spec.frame ?? 'center'],

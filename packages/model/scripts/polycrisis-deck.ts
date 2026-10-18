@@ -54,6 +54,10 @@ export async function readDeck(folder: string): Promise<PolycrisisDeck> {
     // Pure: the deck's map geometry from its own content files.
     buildGraph: () => { edges: Map<string, { bend: number }> };
   };
+  const { FULL_CAMERA } = (await module('src/map/camera.ts')) as {
+    // The deck's whole-map view, set by hand.
+    FULL_CAMERA: { cx: number; cy: number; zoom: number };
+  };
   // Only the parts the converter reads, as plain data.
   const scenes: DeckScene[] = DECK.scenes.map((s) => ({
     id: s.id,
@@ -79,6 +83,7 @@ export async function readDeck(folder: string): Promise<PolycrisisDeck> {
     visuals: json('content/visuals.json'),
     hubNodes: [...HUB_NODES],
     bends: Object.fromEntries([...buildGraph().edges].map(([id, e]) => [id, e.bend])),
+    camera: { cx: FULL_CAMERA.cx, cy: FULL_CAMERA.cy, zoom: FULL_CAMERA.zoom },
     scenes,
   });
 }

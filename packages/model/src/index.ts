@@ -27,6 +27,14 @@ export {
 } from './loops.ts';
 export { type JsonObject, MIGRATIONS, type MigrateResult, type Migration, migrate } from './migrate.ts';
 export * from './ops/index.ts';
+export {
+  DEFAULT_PALETTE_ID,
+  PALETTE_IDS,
+  PALETTES,
+  type PaletteId,
+  type PalettePreset,
+  paletteOf,
+} from './palettes.ts';
 export { createProject } from './project.ts';
 export {
   citedIn,

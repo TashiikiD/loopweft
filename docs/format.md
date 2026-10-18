@@ -135,8 +135,23 @@ every section.
 | Field | Meaning |
 |---|---|
 | `base` | The look: `cinematic-dark` (the default), `light` or `high-contrast`. |
-| `palette` | The id of a colour preset. Reserved: the presets arrive in Phase 1. |
+| `palette` | The colour preset for categories that name no colour of their own (below). Left out: `loopweft`. |
 | `fonts` | `heading` and `body` font families, e.g. `Fraunces` and `Inter`. |
+
+A category without a `colour` takes the colour of its place in the category list from the palette, starting
+again at the first after the last, so a colour that a category names never shifts the others.
+
+| Palette | Colours |
+|---|---|
+| `loopweft` | The polycrisis presentation's seven domain colours, then five more like them (12). |
+| `okabe-ito` | Okabe and Ito's Color Universal Design colours, without black, which would vanish on a dark stage (7). |
+| `tol-bright` | Paul Tol's bright qualitative scheme (7). |
+| `tol-muted` | Paul Tol's muted qualitative scheme (9). |
+
+Loopweft measures how a project's category colours look to people with the three common colour-vision
+deficiencies (protanopia, deuteranopia, tritanopia) and in greyscale, names the pairs that become hard to tell
+apart, and names the colours that stand out too little from the theme's stage (a contrast below 3:1, as WCAG
+2.1 asks of graphics). These are advice, not errors: the project stays valid.
 
 ## 4. types
 
@@ -291,6 +306,7 @@ Where things are drawn, in map units. The polycrisis layout fills a 1920 × 1080
 | `positions` | By variable id: `x`, `y`, an optional `labelSide` (`above`, `below`, `left`, `right`; left out: placed automatically) and `pinned` (`true`: automatic layouts leave it where it is). A variable without a position is placed automatically. |
 | `groups` | Visual groups, usually one per category: an `id`, an optional `category` (for the colour), `label`, `halo` (`x`, `y`, `r`: a soft circle behind the group) and `labelAt` (`x`, `y`). |
 | `bends` | By link id: the curve of a link as a fraction of its length, from −1 to 1; positive bends to the left. Links not listed are curved automatically. |
+| `home` | The whole-map view: the map point at the centre of the stage (`x`, `y`) and the `zoom` (stage pixels per map unit). Steps that show the whole map use it, and a step that frames some variables never shows them smaller than it. Left out: the whole map is fitted below the caption band. |
 
 ## 10. story
 
@@ -477,8 +493,9 @@ Fertility -> Births (?, conf=M)
 
 ## 18. Decisions
 
-These choices refine the plan's sketch. Items 1–15 were confirmed at the Phase 0 checkpoint review and 16–18 at the
-Phase 1 checkpoint review; each can still change before version 1 is released.
+These choices refine the plan's sketch. Items 1–15 were confirmed at the Phase 0 checkpoint review and 16–19 at the
+Phase 1 checkpoint review; 20 is to be confirmed at the Phase 2 checkpoint review. Each can still change before
+version 1 is released.
 
 1. **`pinned` lives in the layout** (`layout.positions.<id>.pinned`), not on the variable, so all layout
    state is in one place.
@@ -514,3 +531,8 @@ Phase 1 checkpoint review; each can still change before version 1 is released.
 18. **The example keeps the presentation's curves** (confirmed at the Phase 1 checkpoint): where Loopweft's
     crossing refinement would re-bend a link of the example, its bend is written into `layout.bends`. Other
     maps get the refinement.
+19. **An optional home view in the layout** (`layout.home`; added in Phase 2, as agreed at the Phase 1 checkpoint
+    review): the whole-map camera, set from the Studio's canvas. The example takes the presentation's own
+    (centre 960, 478; zoom 0.9), so its whole-map steps are framed as the presentation framed them.
+20. **Palettes are named presets** (`theme.palette`; added in Phase 2): an unknown name is an error, never a quiet
+    fallback, and a category's own colour always wins. The colour checks are advice, not validation.

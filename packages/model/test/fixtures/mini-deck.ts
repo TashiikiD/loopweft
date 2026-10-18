@@ -191,6 +191,8 @@ export function miniDeck(): PolycrisisDeck {
     hubNodes: ['crops'],
     // As the deck's own code bends each link (E4 set by hand in its layout).
     bends: { E1: 0.12, E2: 0.18, E3: 0.12, E4: -0.2 },
+    // A whole-map view set by hand, as the deck's camera has one.
+    camera: { cx: 950, cy: 470, zoom: 0.85 },
     scenes: [
       {
         id: 'S00',
