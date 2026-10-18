@@ -159,6 +159,7 @@ test('import a Kumu map', async ({ page }) => {
   await expect(notes).toContainText('undirected');
   await shot(page, 'kumu-2-check');
   await page.getByRole('button', { name: 'Open the imported map' }).click();
+  await expect(page.getByRole('dialog', { name: 'Import a map' })).toBeHidden();
   await expect(page.getByRole('img', { name: 'The map: 4 variables and 5 links' })).toBeVisible();
   await shot(page, 'kumu-3-map');
 
@@ -179,6 +180,7 @@ test('import a DataViz project', async ({ page }) => {
   await expect(page.getByRole('list', { name: 'What the import says' })).toBeVisible();
   await shot(page, 'dataviz-1-check');
   await page.getByRole('button', { name: 'Open the imported map' }).click();
+  await expect(page.getByRole('dialog', { name: 'Import a map' })).toBeHidden();
   await expect(page.getByRole('button', { name: 'Garden (test data) (rename)' })).toBeVisible();
   await shot(page, 'dataviz-2-map');
   // The same map as a table.

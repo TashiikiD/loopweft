@@ -1,7 +1,7 @@
 // The Layout, Loops and Ripple panels in jsdom: an automatic layout as one step, loops found and named, and
 // a what-if ripple shown by step.
-import { createProject, type Project } from '@loopweft/model';
-import { render, screen } from '@testing-library/react';
+import { addLink, createProject, type Project } from '@loopweft/model';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -93,6 +93,12 @@ describe('the Loops panel', () => {
     ]);
     expect(screen.getByText('Named R1: More births')).toBeTruthy();
     expect(store.getState().selection.loop).toBe('R1');
+    // Naming a loop leaves the search true; a new link does not.
+    expect(screen.queryByText(/The map has changed since/)).toBeNull();
+    act(() => {
+      store.getState().edit((p) => addLink(p, { from: 'deaths', to: 'births', sign: '-' }));
+    });
+    expect(screen.getByText(/The map has changed since/)).toBeTruthy();
   });
 
   it('edits a named loop, and removes its name only', async () => {

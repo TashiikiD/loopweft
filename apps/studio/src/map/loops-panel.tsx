@@ -297,7 +297,10 @@ function LoopFinder() {
         : [],
     [answer],
   );
-  const stale = answer !== null && answer.of !== project;
+  // Only the links and their types make the loops: naming one, say, leaves the search as true as it was.
+  const stale =
+    answer !== null &&
+    (answer.of.links !== project.links || answer.of.types.linkTypes !== project.types.linkTypes);
 
   return (
     <Stack gap="xs">
