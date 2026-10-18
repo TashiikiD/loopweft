@@ -72,13 +72,15 @@ holds the rest:
 
 - **What the map shows.** Kumu keeps in a project what was removed from a map, and the export holds it
   too. Loopweft takes only the elements, connections and loops the export's maps show, as Kumu's own
-  spreadsheet export does, and names what it leaves out.
+  spreadsheet export does, and names what it leaves out. A connection to an element id the export does
+  not have stops the import: it is never made into a new variable.
 - **The title and description** of the Kumu project.
 - **Places.** When the default map places every element, each is placed there, moved and scaled (the same
   across as down) to fill Loopweft's view, and pinned when Kumu pins it. When some element has no place,
-  only the elements Kumu pins keep theirs, moved and scaled to fill the view by themselves, and the rest,
-  which float in Kumu, are laid out around them. A blueprint or a spreadsheet holds no places, so the whole
-  map is laid out.
+  the map is laid out around the elements Kumu pins, which keep their places, so the pins alone are scaled
+  to fill the view (the others' places, scaled the same way, are kept only when the map is not laid out:
+  `--layout none`, or None in the Studio). A blueprint or a spreadsheet holds no places, so the whole map
+  is laid out.
 - **Named loops.** A loop of the map whose connections close one loop becomes a named loop, named by its
   Kumu label. Its polarity follows its links' signs; a label of R or B that says otherwise is named in the
   notes. A loop without a label, or whose connections do not close one loop, is left out and named.
