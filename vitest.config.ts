@@ -9,9 +9,11 @@ export default defineConfig({
           include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'test/**/*.test.ts'],
           exclude: ['**/node_modules/**', 'apps/studio/**'],
           environment: 'node',
-          // Counting every loop of the polycrisis example takes a few seconds on a slow runner.
-          testTimeout: 30_000,
-          hookTimeout: 30_000,
+          // Counting every loop of the polycrisis example, or playing its whole story, takes a few seconds
+          // alone and up to a minute on a busy laptop (on battery, other work beside the tests), where a
+          // tighter limit failed the merge gate on load alone. A test that hangs still fails.
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
         },
       },
       {
@@ -23,8 +25,8 @@ export default defineConfig({
           exclude: ['**/node_modules/**'],
           environment: 'jsdom',
           setupFiles: ['apps/studio/test/setup.ts'],
-          testTimeout: 30_000,
-          hookTimeout: 30_000,
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
         },
       },
     ],
