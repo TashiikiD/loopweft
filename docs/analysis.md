@@ -1,6 +1,6 @@
 # Loops, ripples, paths and connections
 
-The Studio's Loops and Ripple panels, and `loopweft loops list`, `ripple`, `paths` and
+The Studio's Loops, Ripple, Paths and Connected panels, and `loopweft loops list`, `ripple`, `paths` and
 `connected` on the command line, read a map's structure: its variables, its links and their signs. They
 never use amounts, rates or timing, because a causal map has none. What they find is a property of the map
 as drawn, not a forecast.

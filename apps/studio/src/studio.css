@@ -83,6 +83,8 @@ body {
 .lw-rail {
   flex: none;
   width: 64px;
+  flex-wrap: nowrap;
+  overflow-y: auto;
 }
 
 .lw-rail-tab {
@@ -614,4 +616,15 @@ body {
   box-sizing: border-box;
   border-left: 1px solid var(--mantine-color-default-border);
   overflow: auto;
+}
+
+.lw-path {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.lw-path:hover {
+  background: var(--mantine-color-default-hover);
 }

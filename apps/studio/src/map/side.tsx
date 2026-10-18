@@ -1,5 +1,6 @@
 // The panel beside the canvas or the table, with a rail to switch it: the inspector, the shorthand box, the
-// map's types and its look, its layout, its loops and the what-if ripple.
+// map's types and its look, its layout, its loops, the what-if ripple, the paths between two variables and the
+// most-connected variables.
 import { Tabs } from '@mantine/core';
 import {
   IconAdjustmentsHorizontal,
@@ -8,13 +9,17 @@ import {
   IconPalette,
   IconRepeat,
   IconRipple,
+  IconRoute,
   IconTags,
+  IconTopologyStar3,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { ConnectedPanel } from './connected-panel.tsx';
 import { Inspector } from './inspector.tsx';
 import { LayoutPanel } from './layout-panel.tsx';
 import { LookPanel } from './look-panel.tsx';
 import { LoopsPanel } from './loops-panel.tsx';
+import { PathsPanel } from './paths-panel.tsx';
 import { RipplePanel } from './ripple-panel.tsx';
 import { ShorthandPanel } from './shorthand.tsx';
 import { TypesPanel } from './types-panel.tsx';
@@ -27,6 +32,8 @@ const PANELS = [
   { id: 'layout', label: 'Layout', Icon: IconLayoutDashboard, Panel: LayoutPanel },
   { id: 'loops', label: 'Loops', Icon: IconRepeat, Panel: LoopsPanel },
   { id: 'ripple', label: 'Ripple', Icon: IconRipple, Panel: RipplePanel },
+  { id: 'paths', label: 'Paths', Icon: IconRoute, Panel: PathsPanel },
+  { id: 'connected', label: 'Connected', Icon: IconTopologyStar3, Panel: ConnectedPanel },
 ] as const;
 
 export type PanelId = (typeof PANELS)[number]['id'];
