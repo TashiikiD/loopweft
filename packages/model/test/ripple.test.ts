@@ -99,6 +99,16 @@ describe('a ripple', () => {
     const twoWays = map('a>b:+', 'a>c:+', 'c>b:-');
     expect(ripple(twoWays, 'a', 'up', { maxSteps: 1 }).capped).toBe(true);
     expect(ripple(twoWays, 'a', 'up').reached.find((r) => r.variable === 'b')?.against).toEqual(['L3']);
+    // The last variables reached still name the links not crossed from them.
+    const p = map('a>b:+', 'b>c:?', 'b>d:+');
+    p.types.linkTypes = [{ id: 'side', name: 'Side-effect', optional: true }];
+    (p.links[2] as Project['links'][number]).type = 'side';
+    expect(ripple(p, 'a', 'up', { maxSteps: 1 })).toMatchObject({
+      reached: [{ variable: 'b' }],
+      unknownLinks: ['L2'],
+      optionalLinks: ['L3'],
+      capped: false,
+    });
     // The same way again tells nothing new.
     expect(ripple(map('a>b:+', 'a>c:+', 'c>b:+'), 'a', 'up', { maxSteps: 1 }).capped).toBe(false);
   });
