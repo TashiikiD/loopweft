@@ -164,11 +164,11 @@ function PaletteColour({
   // Typing gives a colour at every valid step (#abc on the way to #abcdef): it counts when the field is left
   // or Enter is pressed. A colour picked counts at once (picking leaves the focus in the field): the picker
   // places a click on the next frame but may say it is done before, so the colour it last gave counts, a
-  // frame later.
+  // frame later. `typing` marks only the text change in progress (a key or a paste, until the field has
+  // taken it), so a colour picked after typing, even an unfinished one, still counts at once.
   const typing = useRef(false);
   const latest = useRef(value);
   const commit = (next: string) => {
-    typing.current = false;
     const colour = next.trim();
     if (!COLOUR.test(colour)) {
       setDraft(value);
@@ -188,6 +188,10 @@ function PaletteColour({
         onChange={(next) => {
           latest.current = next;
           setDraft(next);
+          // The field reports a typed colour as done straight after this; the mark ends once it has.
+          queueMicrotask(() => {
+            typing.current = false;
+          });
         }}
         onChangeEnd={() => {
           if (!typing.current) requestAnimationFrame(() => commit(latest.current));
@@ -197,6 +201,9 @@ function PaletteColour({
           if (event.key === 'Enter') commit(draft);
           else if (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete')
             typing.current = true;
+        }}
+        onKeyUp={() => {
+          typing.current = false;
         }}
         onPaste={() => {
           typing.current = true;
