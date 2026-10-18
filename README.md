@@ -12,11 +12,23 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 0: Foundations.** Nothing to try in a browser yet. This phase sets up the repository and the
-`@loopweft/model` package: the `.loopweft` file format, its validation and integrity checks, the edit
-operations, the link shorthand, loop counting, and the polycrisis example.
+**Phase 2: the Map workspace**, awaiting its checkpoint review. [The Studio](https://tashiikid.github.io/loopweft/studio/)
+runs in Chrome or Edge:
+
+- draw a map on the canvas, or edit it as a table or in the link shorthand;
+- categories, roles, link types and custom fields; themes and palettes, checked for colour-vision
+  deficiencies and contrast;
+- automatic layouts, the map's feedback loops (found, counted and named) and a what-if ripple;
+- a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
+  CSV or Excel tables, Kumu or DataViz;
+- open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes.
+
+The `loopweft` command line does the same edits ([its commands](packages/cli/README.md)), and the engine
+that draws and animates a map's story plays [the example](https://tashiikid.github.io/loopweft/demo/). Sources,
+the story editor, the presenter and the exports come in the next phases.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
+- [Importing maps](docs/import.md), [templates](docs/templates.md), and [loops and ripples](docs/analysis.md)
 - [The polycrisis example](examples/README.md)
 
 ## Roadmap

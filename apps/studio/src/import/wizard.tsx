@@ -327,7 +327,7 @@ function Wizard({ initial, onDone }: { initial: File | null; onDone(): void }) {
   const open = () => {
     if (!checked?.ok || !mayDiscard(store)) return;
     const project = { ...checked.project, meta: { ...checked.project.meta, created: today() } };
-    store.getState().open(project, null, { saved: false });
+    store.getState().open(project, null, { saved: false, fresh: true });
     notifications.show({
       title: `Imported ${file?.name ?? 'the file'}`,
       message: `${plural(project.variables.length, 'variable')} and ${plural(project.links.length, 'link')}. Save the map to keep it.`,

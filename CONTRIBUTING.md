@@ -4,7 +4,8 @@ Thank you for helping. Loopweft is built in small, reviewed slices; this page ex
 
 ## Setting up
 
-1. Install Node 24 (the version in `.nvmrc`).
+1. Install Node 24 (the version in `.nvmrc`), and Chrome or Edge: the Studio's end-to-end tests drive the
+   browser already on the computer, so none is downloaded (`LOOPWEFT_CHROME` names another one).
 2. Clone the repository and run `npm install`. This also points git at the versioned hooks in `.githooks/`,
    so `git push` first runs the fast checks.
 3. Run `npm run verify`. It should pass before you change anything.

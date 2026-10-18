@@ -35,6 +35,11 @@ export interface StudioState {
   future: Entry[];
   /** The project as last opened or saved; null for one never saved. */
   saved: Project | null;
+  /**
+   * A new map nobody has changed since it opened (the blank map at the start, a template, an import):
+   * leaving it loses nothing, though it was never saved.
+   */
+  fresh: boolean;
   file: FileRef | null;
   selection: Selection;
   /** Counts the projects opened, so views can start afresh for each. */
@@ -48,8 +53,11 @@ export interface StudioState {
   /** Undoes the last step; returns what it was, or null when there is none. */
   undo(): string | null;
   redo(): string | null;
-  /** Opens a project: the history starts again. `saved`: it is the file's own content (default true). */
-  open(project: Project, file: FileRef | null, options?: { saved?: boolean }): void;
+  /**
+   * Opens a project: the history starts again. `saved`: it is the file's own content (default true);
+   * `fresh`: a new map, made rather than recovered (default false).
+   */
+  open(project: Project, file: FileRef | null, options?: { saved?: boolean; fresh?: boolean }): void;
   /** After a save: the project as written (with its new `modified` date) and where. */
   markSaved(project: Project, file: FileRef): void;
   select(selection: Partial<Selection>): void;
@@ -75,7 +83,12 @@ function valid(selection: Selection, project: Project): Selection {
   return same ? selection : kept;
 }
 
-export function createStudioStore(project: Project, file: FileRef | null = null, saved = true): StudioStore {
+export function createStudioStore(
+  project: Project,
+  file: FileRef | null = null,
+  saved = true,
+  fresh = false,
+): StudioStore {
   return createStore<StudioState>()((set, get) => {
     const step = (next: Project, label: string) => {
       const state = get();
@@ -87,6 +100,7 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
         past: [...state.past, entry].slice(-HISTORY_LIMIT),
         future: [],
         selection: valid(state.selection, shared),
+        fresh: false,
       });
       return shared;
     };
@@ -96,6 +110,7 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
       past: [],
       future: [],
       saved: saved ? project : null,
+      fresh,
       file,
       selection: NOTHING,
       generation: 0,
@@ -145,6 +160,7 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
           past: [],
           future: [],
           saved: options.saved === false ? null : next,
+          fresh: options.fresh === true,
           file: nextFile,
           selection: NOTHING,
           generation: get().generation + 1,
@@ -172,3 +188,7 @@ export function createStudioStore(project: Project, file: FileRef | null = null,
 /** True when the project differs from the file it was opened from or last saved to. */
 export const isDirty = (state: Pick<StudioState, 'project' | 'saved'>): boolean =>
   state.project !== state.saved;
+
+/** True when leaving the map would lose work: it is not saved, and it is not a fresh, unchanged new map. */
+export const hasUnsavedWork = (state: Pick<StudioState, 'project' | 'saved' | 'fresh'>): boolean =>
+  isDirty(state) && !state.fresh;

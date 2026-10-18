@@ -50,8 +50,9 @@ reviews before the next one starts. The file format is specified in [docs/format
 
 - Each phase is split into slices; each slice is one pull request on its own branch
   (`slice/<phase>-<slug>`), with the `npm run verify` summary in its description.
-- `npm run verify` is the merge gate: typecheck, lint and tests. GitHub Actions runs it on Windows, macOS
-  and Linux for every push and pull request. The pre-push hook runs `npm run verify:fast`.
+- `npm run verify` is the merge gate: typecheck, lint, unit tests and the Studio's end-to-end tests (in the
+  computer's own Chrome or Edge). GitHub Actions runs it on Windows, macOS and Linux for every push and pull
+  request. The pre-push hook runs `npm run verify:fast` (no end-to-end tests).
 - Keep slices vertical and shippable; don't leave half-wired code on `main`.
 - A change to the `.loopweft` format updates the zod schema (`packages/model/src/schema.ts`), the JSON
   Schema (`npm run schema`) and the specification ([docs/format.md](docs/format.md)); once version 1 is
@@ -65,6 +66,7 @@ reviews before the next one starts. The file format is specified in [docs/format
 | `npm run typecheck` | `tsc --noEmit` over all packages |
 | `npm run lint` | Biome lint and format check (`npm run format` fixes) |
 | `npm test` | Vitest unit tests |
+| `npm run test:e2e` | Playwright end-to-end tests of the Studio in this computer's Chrome or Edge (`LOOPWEFT_CHROME` names another; `LOOPWEFT_REVIEW=<folder>` also saves screens there) |
 | `npm run verify` | The full merge gate, with a Markdown summary |
 | `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
 | `npm run studio` | Serves the Studio on this machine (`?example` opens the polycrisis example) |
@@ -87,10 +89,11 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 | `layout` | Automatic layouts (constellation, force, flow), link curves, label placement, camera maths, and `applyAutoLayout` (the edit both front ends use to lay a map out) |
 | `render` | The drawable graph, themes, palettes and colour-vision checks, and the SVG map view and story view |
 | `player` | Phase 5: the presentation runtime (placeholder) |
-| `cli` | The `loopweft` command line (Phase 2 basics: `new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `layout`); see its README |
+| `cli` | The `loopweft` command line (Phase 2 basics: `new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `layout`, `import`); see its README |
 
 Apps live in `apps/*`: `viewer` plays a project's story (published at `/demo/`), and `studio` is the editor,
-in React and Mantine (published at `/studio/`; its tests run in jsdom, in the `studio` Vitest project).
+in React and Mantine (published at `/studio/`; its tests run in jsdom, in the `studio` Vitest project, and
+its end-to-end tests in `apps/studio/e2e`, with Playwright).
 
 Every edit to a project is an operation in `@loopweft/model` (`src/ops/`): a project goes in, and
 `{ project, result, summary }` comes out, with the input untouched; an expected failure is an `OpError`

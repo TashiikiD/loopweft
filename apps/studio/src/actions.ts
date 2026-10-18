@@ -6,12 +6,12 @@ import { notifications } from '@mantine/notifications';
 import exampleText from '../../../examples/polycrisis.loopweft?raw';
 import { refused } from './context.tsx';
 import { pickFile, readMap, saveMap, today } from './state/files.ts';
-import { type FileRef, isDirty, type StudioStore } from './state/store.ts';
+import { type FileRef, hasUnsavedWork, type StudioStore } from './state/store.ts';
 
 /** True when there is nothing unsaved to lose, or the person agrees to lose it. */
 export function mayDiscard(store: StudioStore): boolean {
   const state = store.getState();
-  if (!isDirty(state)) return true;
+  if (!hasUnsavedWork(state)) return true;
   return window.confirm(`“${state.project.meta.title}” has unsaved changes. Discard them?`);
 }
 
@@ -35,7 +35,7 @@ export function startMap(store: StudioStore, template: string, title?: string): 
   if (title) project = { ...project, meta: { ...project.meta, title } };
   if (template === 'blank' && !title) project = createProject({ title: 'Untitled map' });
   project = { ...project, meta: { ...project.meta, created: today() } };
-  store.getState().open(project, null, { saved: false });
+  store.getState().open(project, null, { saved: false, fresh: true });
   return true;
 }
 

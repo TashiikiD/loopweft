@@ -15,7 +15,7 @@ import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
 import { StatusBar } from './shell/status-bar.tsx';
 import { browserRecovery, type RecoveryCopy, type RecoveryStore, watchRecovery } from './state/recovery.ts';
-import { createStudioStore, isDirty, type StudioStore } from './state/store.ts';
+import { createStudioStore, hasUnsavedWork, type StudioStore } from './state/store.ts';
 
 export interface AppProps {
   /** The map to start with (tests); default: an untitled blank map, or the example with ?example. */
@@ -29,7 +29,7 @@ export interface AppProps {
 function startStore(): StudioStore {
   const example = typeof location !== 'undefined' && new URLSearchParams(location.search).has('example');
   const start: Project = example ? exampleProject() : createProject({ title: 'Untitled map' });
-  return createStudioStore(start, null, false);
+  return createStudioStore(start, null, false, true);
 }
 
 /** Offers back a map that had unsaved changes when the Studio last closed. */
@@ -88,7 +88,7 @@ export function App({ store: given, recovery: givenRecovery, env = 'default' }: 
   // Closing the tab with unsaved changes asks first.
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (isDirty(store.getState())) event.preventDefault();
+      if (hasUnsavedWork(store.getState())) event.preventDefault();
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);

@@ -1,6 +1,6 @@
 // The Studio's components in jsdom: the header, the inspector's edits and their undo, the canvas, the File
 // menu, and the offer to bring back a map from a crash.
-import { createProject, type Project, serializeProject } from '@loopweft/model';
+import { createProject, type Project, serializeProject, setMeta } from '@loopweft/model';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -155,6 +155,28 @@ describe('the Studio', () => {
       'Fix',
       'Unintended consequence',
     ]);
+  });
+
+  it('leaves a new map nobody has changed without asking, and asks once it has changed', async () => {
+    const store = createStudioStore(createProject({ title: 'Untitled map' }), null, false, true);
+    renderStudio(store);
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await user.click(screen.getByRole('button', { name: 'File' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New from a template…' }));
+    await user.click(screen.getByRole('button', { name: 'Escalation' }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(store.getState().project.meta.title).toBe('Escalation');
+    expect(store.getState().fresh).toBe(true);
+
+    act(() => {
+      store.getState().edit((p) => setMeta(p, { title: 'Arms race' }));
+    });
+    expect(store.getState().fresh).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'File' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New blank map' }));
+    expect(confirm).toHaveBeenCalledWith('“Arms race” has unsaved changes. Discard them?');
+    expect(store.getState().project.meta.title).toBe('Arms race');
   });
 
   it('offers back a map that had unsaved changes when the Studio last closed', async () => {

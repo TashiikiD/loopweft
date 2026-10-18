@@ -6,10 +6,12 @@
     "packages/*/scripts",
     "apps/*/src",
     "apps/*/test",
+    "apps/*/e2e",
     "apps/*/vite.config.ts",
     "tools",
     "scripts",
     "test",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "playwright.config.ts"
   ]
 }

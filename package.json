@@ -18,6 +18,7 @@
     "format": "biome check --write .",
     "test": "vitest run --project unit --project studio",
     "test:watch": "vitest --project unit --project studio",
+    "test:e2e": "playwright test",
     "verify": "node scripts/verify.mjs",
     "verify:fast": "node scripts/verify.mjs --fast",
     "prepare": "node scripts/install-hooks.mjs",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.63.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.7",
