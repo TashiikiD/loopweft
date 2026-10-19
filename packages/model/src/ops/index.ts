@@ -77,6 +77,7 @@ export {
   type StepInput,
   setScene,
   setStep,
+  stepsNamed,
   type Where,
 } from './story.ts';
 export {

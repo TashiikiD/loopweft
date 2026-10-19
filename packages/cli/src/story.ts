@@ -54,6 +54,7 @@ import {
   setStepTrend,
   spreadTrend,
   stepSources,
+  stepsNamed,
   type Where,
 } from '@loopweft/model';
 import { type CommandResult, cleared, edit, MARK, WAY } from './commands.ts';
@@ -85,6 +86,13 @@ function where(o: PlaceOptions, count: () => number, beside: (ref: string) => st
   return undefined;
 }
 
+/** "a", "a or b", "a, b or c". */
+const orList = (items: readonly string[]) =>
+  items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`;
+
+/** A dot with something on each side, which may part a scene from its step. */
+const DOTTED = /.\../s;
+
 /** A scene named by its id or title, as its id. */
 const sceneId = (project: Project) => (ref: string) => resolveScene(project, ref).scene.id;
 
@@ -105,39 +113,39 @@ const stepId = (project: Project, scene: Scene) => (ref: string) => {
       'usage',
     );
   }
-  // The step the reference names as "<scene>.<step>", by ids, titles or labels, in any scene.
-  let named: FoundStep | undefined;
-  let failure: OpError | undefined;
-  if (ref.includes('.')) {
-    try {
-      named = resolveStep(project, ref);
-    } catch (error) {
-      if (!(error instanceof OpError)) throw error;
-      failure = error;
-    }
+  // Every step the reference could name: here by id or label, or as "<scene>.<step>" anywhere.
+  const candidates = [
+    ...(local ? [{ key: `${scene.id}.${local.id}`, sceneId: scene.id, id: local.id, own: false }] : []),
+    ...(DOTTED.test(ref) ? stepsNamed(project, ref) : []).map((n) => ({
+      key: n.key,
+      sceneId: n.scene.id,
+      id: n.step.id,
+      own: n.key === ref,
+    })),
+  ].filter((c, i, all) => all.findIndex((d) => d.key === c.key) === i);
+  // Those here all count, and one elsewhere named by its own key; one elsewhere named through titles and labels
+  // cannot be placed beside, so it counts only when nothing here does.
+  const here = candidates.filter((c) => c.sceneId === scene.id);
+  const counted = here.length
+    ? [...here, ...candidates.filter((c) => c.sceneId !== scene.id && c.own)]
+    : candidates;
+  if (counted.length > 1) {
+    const keys = counted.map((c) => c.key);
+    throw new OpError(
+      local
+        ? `"${ref}" is the label of step ${keys[0]} and also names ${keys.length === 2 ? 'step' : 'steps'} ${listing(keys.slice(1))}; use ${orList(keys)}.`
+        : `"${ref}" names steps ${listing(keys)}; use ${orList(keys)}.`,
+      'usage',
+    );
   }
-  if (local) {
-    const key = `${scene.id}.${local.id}`;
-    // Another step counts when it is in this scene or named by its own key; one elsewhere by titles cannot be
-    // placed beside, so the label here is meant.
-    if (named && named.key !== key && (named.scene.id === scene.id || named.key === ref)) {
-      throw new OpError(
-        `"${ref}" is the label of step ${key} and also names step ${named.key}; use ${key} or ${named.key}.`,
-        'usage',
-      );
-    }
-    return local.id;
+  const only = counted[0];
+  if (only && only.sceneId === scene.id) return only.id;
+  if (only) {
+    throw new OpError(
+      `Step ${only.key} is in scene ${only.sceneId}; name a step of scene ${scene.id}, where it goes.`,
+      'usage',
+    );
   }
-  if (named) {
-    if (named.scene.id !== scene.id) {
-      throw new OpError(
-        `Step ${named.key} is in scene ${named.scene.id}; name a step of scene ${scene.id}, where it goes.`,
-        'usage',
-      );
-    }
-    return named.step.id;
-  }
-  if (failure?.kind === 'usage') throw failure;
   throw new OpError(
     scene.steps.length === 0
       ? `Scene ${scene.id} has no steps yet.`
@@ -323,7 +331,8 @@ const within = (path: readonly (string | number)[], prefix: readonly (string | n
 /**
  * What `story show` names: a scene, by its id or title, or a step, "<scene>.<step>". A scene's title may have
  * a dot in it ("Version 1.0"), so a reference with a dot that is a whole title is that scene, unless it is
- * also a step's own key (S1.2), which is the step; one that names a step another way too is refused.
+ * also a step's own key (S1.2), which is the step; one that names any step another way too, or several, is
+ * refused.
  */
 function sceneOrStep(project: Project, ref: string): FoundScene | FoundStep {
   const attempt = <T>(find: () => T): T | OpError => {
@@ -335,19 +344,23 @@ function sceneOrStep(project: Project, ref: string): FoundScene | FoundStep {
     }
   };
   const scene = attempt(() => resolveScene(project, ref));
-  if (!ref.includes('.')) {
+  if (!DOTTED.test(ref)) {
     if (scene instanceof OpError) throw scene;
     return scene;
   }
-  const step = attempt(() => resolveStep(project, ref));
-  if (!(step instanceof OpError)) {
-    if (scene instanceof OpError || step.key === ref) return step;
+  if (!(scene instanceof OpError)) {
+    const steps = stepsNamed(project, ref);
+    const [first] = steps;
+    if (!first) return scene;
+    if (steps.length === 1 && first.key === ref) return first;
+    const keys = steps.map((s) => s.key);
     throw new OpError(
-      `"${ref}" is the title of scene ${scene.scene.id} and also names step ${step.key}; use ${scene.scene.id} or ${step.key}.`,
+      `"${ref}" is the title of scene ${scene.scene.id} and also names ${keys.length === 1 ? 'step' : 'steps'} ${listing(keys)}; use ${orList([scene.scene.id, ...keys])}.`,
       'usage',
     );
   }
-  if (!(scene instanceof OpError)) return scene;
+  const step = attempt(() => resolveStep(project, ref));
+  if (!(step instanceof OpError)) return step;
   // Neither: about the step when a scene is named before one of the dots, else about the scene.
   const sceneBeforeDot = [...ref.matchAll(/\./g)].some(
     (dot) => !(attempt(() => resolveScene(project, ref.slice(0, dot.index))) instanceof OpError),

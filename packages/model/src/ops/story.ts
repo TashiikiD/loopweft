@@ -141,6 +141,40 @@ export function resolveStep(project: Project, ref: string): FoundStep {
 }
 
 /**
+ * Every step a reference "<scene>.<step>" could name, each dot tried as the separator as resolveStep tries it:
+ * the scene by id or by title, the step by id or by label, every scene or step that shares a title or label
+ * included. resolveStep takes a reference that names one step; this says which steps an ambiguous one names.
+ */
+export function stepsNamed(project: Project, ref: string): FoundStep[] {
+  const found = new Map<string, FoundStep>();
+  const scenes = project.story.scenes;
+  for (let i = 1; i < ref.length - 1; i++) {
+    if (ref[i] !== '.') continue;
+    const sceneRef = ref.slice(0, i);
+    const stepRef = ref.slice(i + 1);
+    const byId = scenes.findIndex((s) => s.id === sceneRef);
+    const sceneIndexes =
+      byId >= 0
+        ? [byId]
+        : scenes.flatMap((s, k) => (normalizeToken(s.title) === normalizeToken(sceneRef) ? [k] : []));
+    for (const sceneIndex of sceneIndexes) {
+      const scene = scenes[sceneIndex] as Scene;
+      const exact = scene.steps.findIndex((t) => t.id === stepRef);
+      const stepIndexes =
+        exact >= 0
+          ? [exact]
+          : scene.steps.flatMap((t, k) => (normalizeToken(t.label) === normalizeToken(stepRef) ? [k] : []));
+      for (const stepIndex of stepIndexes) {
+        const step = scene.steps[stepIndex] as Step;
+        const key = stepKey(scene.id, step.id);
+        found.set(key, { sceneIndex, stepIndex, scene, step, key });
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+/**
  * The next free scene id: S followed by one more than the highest number of an `S<n>` id, padded to as many
  * digits as the existing ones use (S00 … S10 gives S11); S1 for a story with none.
  */

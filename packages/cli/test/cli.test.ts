@@ -1020,6 +1020,22 @@ describe('story show', () => {
   });
 });
 
+describe('story show, when a reference names several steps', () => {
+  it('refuses a scene title that also names several steps', async () => {
+    const file = 'show-many.loopweft';
+    await run('new', file, '--title', 'Many');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'x');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'x');
+    await run('story', 'scene', 'add', file, '--title', 'One.x');
+    const both = await json('story', 'show', file, 'One.x');
+    expect(both.code).toBe(2);
+    expect((both.doc.error as { message: string }).message).toBe(
+      '"One.x" is the title of scene S2 and also names steps S1.1 and S1.2; use S2, S1.1 or S1.2.',
+    );
+  });
+});
+
 describe('placing scenes and steps', () => {
   /** A new project: scene S1 ("One") with step S1.1 ("b"), and scene S2 ("Two") with step S2.1 ("x"). */
   async function twoScenes(file: string) {
@@ -1063,6 +1079,25 @@ describe('placing scenes and steps', () => {
       'Step S2.1 is in scene S2; name a step of scene S1, where it goes.',
     );
     expect((await json('story', 'step', 'move', file, 'S1.1', '--after', 'S1.9')).code).toBe(2);
+    expect(readFileSync(join(dir, file), 'utf8')).toBe(before);
+  });
+
+  it('refuses a label with dots that another reading names too in the scene it goes to', async () => {
+    const file = 'place-many.loopweft';
+    await run('new', file, '--title', 'Many');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'scene', 'add', file, '--title', 'One.foo');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'One.foo.bar');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'foo.bar');
+    await run('story', 'step', 'add', file, 'S2', '--label', 'bar');
+    const before = readFileSync(join(dir, file), 'utf8');
+    // "One.foo.bar": S1.1 by its label, S1.2 as scene "One", step "foo.bar", and S2.1 as scene "One.foo", step
+    // "bar". Two of them are in the scene the step goes to: refused.
+    const out = await json('story', 'step', 'add', file, 'S1', '--label', 'New', '--before', 'One.foo.bar');
+    expect(out.code).toBe(2);
+    expect((out.doc.error as { message: string }).message).toBe(
+      '"One.foo.bar" is the label of step S1.1 and also names step S1.2; use S1.1 or S1.2.',
+    );
     expect(readFileSync(join(dir, file), 'utf8')).toBe(before);
   });
 
