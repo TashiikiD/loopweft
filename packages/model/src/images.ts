@@ -98,7 +98,7 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         const kind = String.fromCharCode(...bytes.subarray(at, at + 4));
         const size = u32le(bytes, at + 4);
         if (at + 8 + size > end) return STOPS;
-        if ((kind === 'VP8 ' || kind === 'VP8L' || kind === 'ANMF') && size > 0) picture = true;
+        if (webpPicture(bytes, kind, at + 8, size)) picture = true;
         at += 8 + size + (size % 2);
       }
       return picture ? null : EMPTY;
@@ -114,11 +114,84 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
       let body = text.trimEnd();
       while (body.endsWith('-->') && body.includes('<!--'))
         body = body.slice(0, body.lastIndexOf('<!--')).trimEnd();
-      if (/<\/svg\s*>$/i.test(body)) return null;
       const root = body.match(/<svg[\s>][^>]*>|<svg\/>/i);
-      return root?.[0].endsWith('/>') && body.endsWith(root[0]) ? null : STOPS;
+      const closed = /<\/svg\s*>$/i.test(body) || (root?.[0].endsWith('/>') && body.endsWith(root[0]));
+      if (!closed) return STOPS;
+      return nests(text) ? null : 'its tags do not match up';
     }
   }
+}
+
+/**
+ * Whether a WebP chunk starts as a picture: a lossy frame with its start code, a lossless one with its
+ * signature, or an animation frame holding either. (The picture itself is not decoded.)
+ */
+function webpPicture(bytes: Uint8Array, kind: string, from: number, size: number): boolean {
+  if (kind === 'VP8 ')
+    return size >= 10 && bytes[from + 3] === 0x9d && bytes[from + 4] === 0x01 && bytes[from + 5] === 0x2a;
+  if (kind === 'VP8L') return size >= 5 && bytes[from] === 0x2f;
+  if (kind !== 'ANMF') return false;
+  // After the frame's 16-byte header, its own chunks.
+  for (let at = from + 16; at + 8 <= from + size; ) {
+    const sub = String.fromCharCode(...bytes.subarray(at, at + 4));
+    const length = u32le(bytes, at + 4);
+    if (at + 8 + length > from + size) return false;
+    if (webpPicture(bytes, sub, at + 8, length)) return true;
+    at += 8 + length + (length % 2);
+  }
+  return false;
+}
+
+/**
+ * Whether an SVG document's tags nest, with one root: each element opened is closed in turn, comments, CDATA,
+ * processing instructions, the doctype and quoted attribute values passed over. (Not a full XML parser:
+ * names, attributes and entities are not checked.)
+ */
+function nests(text: string): boolean {
+  const open: string[] = [];
+  let roots = 0;
+  let at = 0;
+  const past = (end: string, from: number) => {
+    const found = text.indexOf(end, from);
+    return found < 0 ? -1 : found + end.length;
+  };
+  for (;;) {
+    const lt = text.indexOf('<', at);
+    if (lt < 0) break;
+    if (text.startsWith('<!--', lt)) at = past('-->', lt + 4);
+    else if (text.startsWith('<![CDATA[', lt)) at = past(']]>', lt + 9);
+    else if (text.startsWith('<?', lt)) at = past('?>', lt + 2);
+    else {
+      // A doctype (its internal subset in brackets), or a tag: to its closing ">", past quoted values.
+      const doctype = text.startsWith('<!', lt);
+      let i = lt + 1;
+      let quote = '';
+      let depth = 0;
+      for (; i < text.length; i++) {
+        const c = text[i];
+        if (quote) {
+          if (c === quote) quote = '';
+        } else if (c === '"' || c === "'") quote = c;
+        else if (doctype && c === '[') depth++;
+        else if (doctype && c === ']') depth--;
+        else if (c === '>' && depth <= 0) break;
+      }
+      if (i >= text.length) return false;
+      at = i + 1;
+      if (doctype) continue;
+      const tag = text.slice(lt + 1, i);
+      if (tag.startsWith('/')) {
+        if (open.pop() !== tag.slice(1).trim()) return false;
+        continue;
+      }
+      const name = /^[^\s/>]+/.exec(tag)?.[0];
+      if (!name) return false;
+      if (open.length === 0) roots++;
+      if (!tag.trimEnd().endsWith('/')) open.push(name);
+    }
+    if (at < 0) return false;
+  }
+  return open.length === 0 && roots === 1;
 }
 
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -149,8 +222,8 @@ export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg';
   if (starts(bytes, 0, 'GIF87a') || starts(bytes, 0, 'GIF89a')) return 'gif';
   if (starts(bytes, 0, 'RIFF') && starts(bytes, 8, 'WEBP')) return 'webp';
-  // TextDecoder drops a byte-order mark.
-  const head = new TextDecoder().decode(bytes.subarray(0, 2048)).trimStart();
+  // The whole text, however long the preamble before the root; TextDecoder drops a byte-order mark.
+  const head = new TextDecoder().decode(bytes).trimStart();
   if (/^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(head))
     return 'svg+xml';
   return null;

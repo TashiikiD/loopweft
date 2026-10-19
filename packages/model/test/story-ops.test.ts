@@ -472,6 +472,29 @@ describe('embedded images', () => {
     expect(not(uri('jpeg', [...jpeg.subarray(0, scan), 0xff, 0xd9]))).toBe(
       'The image data is not a whole JPEG image: it has no picture in it.',
     );
+    // A WebP whose picture chunk is too short to start a picture.
+    const riff = (chunk: number[]) => {
+      const size = 4 + chunk.length;
+      return [
+        ...new TextEncoder().encode('RIFF'),
+        size & 255,
+        (size >> 8) & 255,
+        0,
+        0,
+        ...new TextEncoder().encode('WEBP'),
+        ...chunk,
+      ];
+    };
+    expect(not(uri('webp', riff([...new TextEncoder().encode('VP8 '), 1, 0, 0, 0, 0, 0])))).toBe(
+      'The image data is not a whole WEBP image: it has no picture in it.',
+    );
+    // An SVG whose tags do not match up, and one with a long preamble before a whole root.
+    const svg = (text: string) => uri('svg+xml', [...new TextEncoder().encode(text)]);
+    expect(not(svg('<svg xmlns="http://www.w3.org/2000/svg"><g></svg>'))).toBe(
+      'The image data is not a whole SVG image: its tags do not match up.',
+    );
+    const preamble = svg(`<!--${' '.repeat(3000)}--><svg xmlns="http://www.w3.org/2000/svg"><g/></svg>`);
+    expect(addAsset(richProject(), { data: preamble, id: 'long' }).result.id).toBe('long');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(
