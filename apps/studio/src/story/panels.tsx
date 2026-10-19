@@ -2,12 +2,13 @@
 // headline, target time and the sources it draws on beyond those its steps light).
 import { setScene, setStep, stepSources } from '@loopweft/model';
 import { MultiSelect, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconListDetails, IconMap2, IconMovie } from '@tabler/icons-react';
+import { IconLayersSubtract, IconListDetails, IconMap2, IconMovie } from '@tabler/icons-react';
 import { type ComponentType, useState } from 'react';
 import { useEdit, useStudio } from '../context.tsx';
 import { CommitText, NumberValue } from '../map/inputs.tsx';
 import { type Current, useCurrent } from './current.ts';
 import { MapPanel } from './map-panel.tsx';
+import { OverlaysPanel } from './overlays-panel.tsx';
 
 function StepPanel({ current }: { current: Current }) {
   const edit = useEdit();
@@ -73,6 +74,18 @@ function StepMapPanel({ current }: { current: Current }) {
   return <MapPanel stepKey={current.key} step={current.step} />;
 }
 
+function StepOverlaysPanel({ current }: { current: Current }) {
+  if (!current.step)
+    return (
+      <div className="lw-panel-body">
+        <Text size="sm" c="dimmed">
+          Choose a step in the outline to set up what is drawn over its map.
+        </Text>
+      </div>
+    );
+  return <OverlaysPanel stepKey={current.key} step={current.step} />;
+}
+
 const seconds = (s: number) =>
   s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}`;
 
@@ -136,6 +149,7 @@ interface PanelSpec {
 const PANELS: PanelSpec[] = [
   { id: 'step', label: 'Step', Icon: IconListDetails, Panel: StepPanel },
   { id: 'map', label: 'Map', Icon: IconMap2, Panel: StepMapPanel },
+  { id: 'overlays', label: 'Overlays', Icon: IconLayersSubtract, Panel: StepOverlaysPanel },
   { id: 'scene', label: 'Scene', Icon: IconMovie, Panel: ScenePanel },
 ];
 
