@@ -76,11 +76,17 @@ export async function readDeck(folder: string): Promise<PolycrisisDeck> {
       ...(b.spec.viz ? { viz: b.spec.viz } : {}),
     })),
   }));
+  // The cameo's figure, from the deck's public folder, and the alt text the deck's code gives it.
+  const visuals = json('content/visuals.json');
+  const alt = readFileSync(join(folder, 'src/viz/cameo.ts'), 'utf8').match(/\balt: '([^']+)'/)?.[1];
+  if (!alt) throw new Error("The deck's cameo has no alt text in src/viz/cameo.ts.");
+  const figure: string = visuals.cameo.image;
   return structuredClone({
     map: json('content/map.json'),
     layout: json('content/layout.json'),
     narration: json('content/narration.json'),
-    visuals: json('content/visuals.json'),
+    visuals: { ...visuals, cameo: { ...visuals.cameo, alt } },
+    media: { [figure]: new Uint8Array(readFileSync(join(folder, 'public', figure))) },
     hubNodes: [...HUB_NODES],
     bends: Object.fromEntries([...buildGraph().edges].map(([id, e]) => [id, e.bend])),
     camera: { cx: FULL_CAMERA.cx, cy: FULL_CAMERA.cy, zoom: FULL_CAMERA.zoom },

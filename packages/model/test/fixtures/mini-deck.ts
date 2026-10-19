@@ -1,6 +1,7 @@
 // A tiny deck in the polycrisis deck's shapes, so the converter's rules are tested everywhere (the real deck
 // is private and not on CI). Test data: the map, sources and talk are made up and say so.
 import type { Cleanup, PolycrisisDeck } from '../../src/importers/polycrisis.ts';
+import { TINY_PNG } from '../helpers.ts';
 
 export function miniDeck(): PolycrisisDeck {
   return {
@@ -187,6 +188,19 @@ export function miniDeck(): PolycrisisDeck {
           items: [{ title: 'Break' }, { title: 'Balance' }, { title: 'Root' }, { title: 'Deeper' }],
         },
       },
+      // Another study's figure (a 1×1 test image), which no build shows unless a test says so.
+      cameo: {
+        image: 'media/test-figure.png',
+        caption: 'A test figure: 1 pixel',
+        credit: 'Fig. 1, a made-up study · CC BY 4.0',
+        alt: 'A one-pixel test image',
+        source: { source_id: 'A', page: 4 },
+      },
+    },
+    media: {
+      'media/test-figure.png': Uint8Array.from(atob(TINY_PNG.split(',')[1] as string), (c) =>
+        c.charCodeAt(0),
+      ),
     },
     hubNodes: ['crops'],
     // As the deck's own code bends each link (E4 set by hand in its layout).

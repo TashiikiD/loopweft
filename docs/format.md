@@ -580,3 +580,11 @@ item says when it was added and confirmed. Each can still change before version 
     map whose categories take the palette's colours, a palette that passes more of the checks does help.
     Before v1.0, the viewer gets a mode that names each shown variable's category in words, so membership
     never rests on colour alone (Phase 5, with the presenter).
+23. **The example shows the Richards et al. (2021) figure as an image** (added in Phase 4, confirmed at the
+    Phase 4 review). The presentation set Fig. 5 of that study beside the map in scene 5 (step 6b). The example
+    embeds the presentation's own file, as an image overlay with its caption, its credit and a citation of the
+    study (RI, p. 13). The study is CC BY 4.0, which allows showing the figure with credit. The image is about
+    half the example's size (some 270 KB of 510 KB). The presentation's other one-off visuals stay out, and
+    their steps keep their map and caption: the timeline, the "why now" panel, the stability landscape, the
+    conditional-transmission schematic, the loop counter and the ring of traps. They are drawings and
+    animations made for the one talk, which no overlay type reproduces.

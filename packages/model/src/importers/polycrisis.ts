@@ -8,6 +8,7 @@
 // place, and every rule must still match the deck: if the deck changes, the conversion stops instead of
 // guessing. Nothing is invented: a value the deck does not have stays out.
 import { loopPolarity } from '../loops.ts';
+import { imageDataUri } from '../ops/overlays.ts';
 import {
   type CardIcon,
   type Citation,
@@ -29,6 +30,7 @@ import {
   type Step,
   type Variable,
 } from '../schema.ts';
+import { slugify } from '../text/ids.ts';
 import { validateProject } from '../validate.ts';
 
 // ----- The deck's shapes (the parts the converter reads) -----
@@ -134,6 +136,11 @@ export interface DeckVisuals {
   title: { title: string; subtitle: string };
   mechanisms: { items: { id: string; title: string }[]; source: SourcePage };
   cards: Record<string, { title: string; items: CardItem[]; source?: string }>;
+  /**
+   * Another study's figure, shown as published: the file (under the deck's public folder), its caption, credit
+   * and source page, and the alt text the deck's code gives it (src/viz/cameo.ts).
+   */
+  cameo?: { image: string; caption: string; credit: string; alt: string; source: SourcePage };
 }
 
 /** The deck's map state for one build (src/map/types.ts). */
@@ -183,6 +190,8 @@ export interface PolycrisisDeck {
   camera: { cx: number; cy: number; zoom: number };
   /** The assembled deck (src/scenes/index.ts DECK): scenes and their builds, in order. */
   scenes: DeckScene[];
+  /** The files of the deck's public folder that its visuals show, by the path the visuals give. */
+  media?: Record<string, Uint8Array>;
 }
 
 // ----- The clean-up, as data -----
@@ -377,7 +386,6 @@ export const ONE_OFF_VISUALS: ReadonlySet<string> = new Set([
   'landscape',
   'schematic',
   'counter',
-  'cameo',
 ]);
 
 /** The deck's fonts (its @fontsource dependencies). */
@@ -502,6 +510,9 @@ function convertMapState(state: DeckMapState | undefined, sideEffects: string[],
 interface Dropped {
   /** One-off visuals left out, by kind: the builds that showed them. */
   visuals: Map<string, string[]>;
+  /** Images carried over, by asset id, and the builds that show each. */
+  assets: Record<string, string>;
+  images: Map<string, string[]>;
 }
 
 function convertViz(
@@ -588,6 +599,26 @@ function convertViz(
           active: [index],
           place: 'top-right',
           citations: [cite(deck.visuals.mechanisms.source)],
+        });
+        break;
+      }
+      case 'cameo': {
+        // Another study's figure, shown as published with its caption, credit and citation (its licence allows
+        // it), at the right of the stage beside the map, where the deck set it. Embedded as the deck's file.
+        const cameo = deck.visuals.cameo;
+        const bytes = cameo ? deck.media?.[cameo.image] : undefined;
+        if (!cameo || !bytes) throw new Error(`${key}: the deck has no figure for its cameo`);
+        const asset = slugify(cameo.image.replace(/^.*\//, '').replace(/\.[a-z0-9]+$/i, ''));
+        dropped.assets[asset] = imageDataUri(bytes, cameo.image);
+        dropped.images.set(asset, [...(dropped.images.get(asset) ?? []), key]);
+        overlays.push({
+          type: 'image',
+          asset,
+          alt: cameo.alt,
+          caption: cameo.caption,
+          credit: cameo.credit,
+          place: 'right',
+          citations: [cite(cameo.source)],
         });
         break;
       }
@@ -767,7 +798,7 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
     { id: 'hub', halo: { ...layout.hub } },
   ];
 
-  const dropped: Dropped = { visuals: new Map() };
+  const dropped: Dropped = { visuals: new Map(), assets: {}, images: new Map() };
   const scenes: Scene[] = deck.scenes.map((ds) => {
     const ns = narration.scenes.find((s) => s.id === ds.id);
     if (!ns) throw new Error(`Scene ${ds.id} is not in narration.json`);
@@ -890,6 +921,7 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
     loops,
     sources,
     story: { scenes },
+    assets: dropped.assets,
   });
 
   // The deck's loop types must agree with the signs.
@@ -927,6 +959,10 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
     ),
     ...[...dropped.visuals].map(
       ([kind, keys]) => `Left out the one-off visual "${kind}" (it stays in the deck) on ${keys.join(', ')}.`,
+    ),
+    ...[...dropped.images].map(
+      ([asset, keys]) =>
+        `Embedded the cameo's figure as image ${asset}, shown with its caption, credit and citation on ${keys.join(', ')}.`,
     ),
     ...(cleanup.deckBends.length
       ? [

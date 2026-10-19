@@ -14,6 +14,7 @@ institutional web pages for the history of the word), not a calibrated causal mo
 | Sources | 14 sources with full APA 7 references, DOIs, licences and what the map draws from each |
 | Layout | The talk's hand-tuned positions, short map labels, domain halos and one link bend |
 | Story | 11 scenes and 70 steps, each with its map state, overlays, a cue for the presenter and speaker notes |
+| Images | One: Fig. 5 of Richards, Lupton and Allwood (2021), CC BY 4.0, shown with its credit and citation in scene 5 |
 
 ### Where it comes from
 
@@ -45,12 +46,20 @@ The talk was one person's presentation; the example is for anyone. So:
   year it was published online. The reference, the label and the two key facts that cite it (scenes 6 and 10)
   say 2024; its supplement (JS) keeps its own date, 2023. Agreed at the Phase 3 checkpoint review.
 
+### Another study's figure
+
+In scene 5 (step 6b) the talk set Fig. 5 of Richards, Lupton and Allwood (2021), their empirical causal loop
+diagram, beside the map. The example shows it as an image overlay: the talk's own file, with its caption, its
+credit and a citation of the study (source RI, p. 13). The study is published under CC BY 4.0, which allows
+showing the figure with credit. It is the example's only image and about half its size (some 270 KB of
+510 KB). Confirmed at the Phase 4 review.
+
 ### What stays in the talk
 
-The talk's one-off visuals have no Loopweft equivalent yet, so the steps that showed them keep their map
-state and captions but not the visual: the timeline of the word (scene 2), the "why now" panel (scene 3),
-the stability landscape (scenes 3 and 10), the conditional-transmission schematic (scene 4), the loop
-counter and a cameo of another study's diagram (scene 5), and the ring of Anthropocene traps (scene 6).
+The talk's other one-off visuals stay in the talk, so the steps that showed them keep their map state and
+captions but not the visual: the timeline of the word (scene 2), the "why now" panel (scene 3), the stability
+landscape (scenes 3 and 10), the conditional-transmission schematic (scene 4), the loop counter (scene 5), and
+the ring of Anthropocene traps (scene 6).
 
 Also not carried over: the four named pathways and the Fig. 9 stages (the steps that use them keep their lit
 links), the trap reference layer, the authoring rules, revision notes, node scale (every node was

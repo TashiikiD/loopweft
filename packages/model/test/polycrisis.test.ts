@@ -16,7 +16,7 @@ import {
   serializeProject,
 } from '../src/index.ts';
 import { MINI_CLEANUP, miniDeck } from './fixtures/mini-deck.ts';
-import { repoFile } from './helpers.ts';
+import { repoFile, TINY_PNG } from './helpers.ts';
 
 const TEXT = repoFile('examples/polycrisis.loopweft');
 const read = readProject(TEXT);
@@ -191,6 +191,26 @@ describe('the polycrisis example', () => {
       ],
     });
     expect(step('S06', '4b').label).toBe('Where the traps show up on the map');
+  });
+
+  it('shows the Richards et al. (2021) figure where the talk did, credited and cited', () => {
+    expect(step('S05', '6b').overlays).toEqual([
+      {
+        type: 'image',
+        asset: 'richards_2021_fig5',
+        alt: 'Richards et al. (2021), Fig. 5: an empirical causal loop diagram of climate change, food insecurity and societal collapse',
+        caption: 'Richards et al. (2021): 41 studies · 39 variables · 105 links · about 32,000 loops',
+        credit: 'Fig. 5, Richards, Lupton & Allwood (2021), Climatic Change 164:49 · CC BY 4.0',
+        place: 'right',
+        citations: [{ source: 'RI', pages: '13' }],
+      },
+      { type: 'caption' },
+    ]);
+    // The figure is the deck's own file, a WebP image; it is the example's only image, and its source's licence
+    // allows showing it.
+    expect(Object.keys(example.assets)).toEqual(['richards_2021_fig5']);
+    expect(example.assets.richards_2021_fig5).toMatch(/^data:image\/webp;base64,UklGR/);
+    expect(example.sources.find((s) => s.id === 'RI')?.licence).toBe('CC BY 4.0');
   });
 
   it('lists side-effect links where the deck showed them, so they stay hidden elsewhere', () => {
@@ -432,6 +452,33 @@ describe('the polycrisis converter', () => {
       },
       { type: 'caption' },
     ]);
+  });
+
+  it("shows another study's figure as an embedded image, with its caption, credit and citation", () => {
+    expect(project.assets).toEqual({});
+    const deck = miniDeck();
+    const build = deck.scenes[1]?.builds[2] as { viz: Record<string, unknown> };
+    build.viz = { ...build.viz, cameo: true };
+    const shown = convertPolycrisis(deck, MINI_CLEANUP);
+    expect(shown.project.story.scenes[1]?.steps[2]?.overlays).toContainEqual({
+      type: 'image',
+      asset: 'test_figure',
+      alt: 'A one-pixel test image',
+      caption: 'A test figure: 1 pixel',
+      credit: 'Fig. 1, a made-up study · CC BY 4.0',
+      place: 'right',
+      citations: [{ source: 'A', pages: '4' }],
+    });
+    // The deck's own file, as it is.
+    expect(shown.project.assets).toEqual({ test_figure: TINY_PNG });
+    expect(shown.notes).toContain(
+      "Embedded the cameo's figure as image test_figure, shown with its caption, credit and citation on S01.3.",
+    );
+    // Without the file, the conversion stops.
+    delete deck.media;
+    expect(() => convertPolycrisis(deck, MINI_CLEANUP)).toThrow(
+      'S01.3: the deck has no figure for its cameo',
+    );
   });
 
   it("keeps the deck's curve for the links the clean-up names, beside the bends it set by hand", () => {
