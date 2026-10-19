@@ -25,7 +25,8 @@ function stop(error: unknown): never {
 const [remote, url] = process.argv.slice(2);
 let words: string[];
 try {
-  words = privateWords();
+  // The words of the checkout the push is made from: git runs the hook at its root.
+  words = privateWords(process.cwd());
 } catch (error) {
   stop(error);
 }

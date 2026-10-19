@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,6 +117,18 @@ function repository(at?: string) {
     push: (...args: string[]) => push({}, args),
     /** The same, with `env` too, which git passes on to the hook. */
     pushWith: (env: Record<string, string>, ...args: string[]) => push(env, args),
+    /**
+     * A real `git push` with no private words given (no LOOPWEFT_PRIVATE_WORDS), so the hook finds them in
+     * `.local.json`, as on this machine.
+     */
+    pushWithSettings: (...args: string[]) =>
+      spawnSync('git', ['push', '--quiet', ...args], {
+        cwd: dir,
+        env: Object.fromEntries(
+          Object.entries(ENV).filter(([name]) => name.toUpperCase() !== 'LOOPWEFT_PRIVATE_WORDS'),
+        ),
+        encoding: 'utf8',
+      }),
     found: () => findPrivateWords(dir, [WORD]).sort(),
   };
 }
@@ -371,6 +383,32 @@ describe('the push check', () => {
       side.git('commit', '--quiet', '--amend', '--message=Notes');
       const sent = side.push('origin', 'HEAD:refs/heads/side');
       expect(sent.status, sent.stderr).toBe(0);
+      expect(side.git('ls-remote', 'origin')).toBe(`${side.git('rev-parse', 'HEAD')}\trefs/heads/side`);
+    });
+
+    // A linked worktree shares the repository but not its git-ignored files, so it has no `.local.json` of its
+    // own: the hook reads the main checkout's.
+    it("stops a word set only in the main checkout's .local.json, pushed from a linked worktree", () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.write('.gitignore', '.local.json\n');
+      repo.commit('Start');
+      repo.write('.local.json', `{ "privateWords": ["${WORD}"] }\n`);
+      const side = repository(repo.worktree('side'));
+      expect(existsSync(join(side.dir, '.local.json'))).toBe(false);
+      side.write('notes.md', SAFE);
+      const id = side.commit(`Notes for ${WORD}`);
+      const stopped = side.pushWithSettings('origin', 'HEAD:refs/heads/side');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
+      expect(side.git('ls-remote', 'origin')).toBe('');
+
+      side.git('commit', '--quiet', '--amend', '--message=Notes');
+      const sent = side.pushWithSettings('origin', 'HEAD:refs/heads/side');
+      expect(sent.status, sent.stderr).toBe(0);
+      // Checked, not skipped for want of words.
+      expect(sent.stdout).toContain('No private word in what this push sends.');
       expect(side.git('ls-remote', 'origin')).toBe(`${side.git('rev-parse', 'HEAD')}\trefs/heads/side`);
     });
 
