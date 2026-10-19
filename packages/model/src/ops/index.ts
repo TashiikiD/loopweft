@@ -31,6 +31,20 @@ export {
   setLoop,
 } from './loops.ts';
 export { type MetaChanges, setMeta, setTheme, type ThemeChanges } from './meta.ts';
+export {
+  addAsset,
+  addOverlay,
+  assetUses,
+  imageDataUri,
+  imageType,
+  moveOverlay,
+  OVERLAY_NAMES,
+  type OverlayChanges,
+  removeAsset,
+  removeOverlay,
+  setAsset,
+  setOverlay,
+} from './overlays.ts';
 export { addPalette, type PaletteChanges, type PaletteInput, removePalette, setPalette } from './palettes.ts';
 export {
   addSource,
@@ -42,6 +56,45 @@ export {
   setSource,
   suggestSourceId,
 } from './sources.ts';
+export {
+  addScene,
+  addStep,
+  copyStep,
+  type FoundScene,
+  type FoundStep,
+  moveScene,
+  moveStep,
+  nextSceneId,
+  nextStepId,
+  removeScene,
+  removeStep,
+  resolveScene,
+  resolveStep,
+  type SceneChanges,
+  type SceneInput,
+  type StepChanges,
+  type StepInput,
+  setScene,
+  setStep,
+  type Where,
+} from './story.ts';
+export {
+  addPulseHop,
+  type ElementKind,
+  type MapChanges,
+  pulseRoundLoop,
+  setStepBase,
+  setStepLevel,
+  setStepLoops,
+  setStepMap,
+  setStepTrend,
+  spreadTrend,
+  withBase,
+  withHop,
+  withLevel,
+  withLoops,
+  withTrend,
+} from './story-map.ts';
 export { pruneMap, pruneMentions, type Removed, stepKey, stepsMentioning } from './story-refs.ts';
 export {
   ensureValid,

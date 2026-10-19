@@ -642,9 +642,12 @@ export const StorySchema = z
   .meta({ id: 'Story', description: 'The animated story: scenes of steps, one keypress each.' });
 export type Story = z.infer<typeof StorySchema>;
 
-const AssetSchema = z.string().regex(/^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+=*$/, {
-  error: 'Embed images as base64 data URIs (PNG, JPEG, GIF, WebP or SVG).',
-});
+/** An embedded image: a base64 data URI. */
+export const AssetSchema = z
+  .string()
+  .regex(/^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+=*$/, {
+    error: 'Embed images as base64 data URIs (PNG, JPEG, GIF, WebP or SVG).',
+  });
 
 // ----- the project -----
 

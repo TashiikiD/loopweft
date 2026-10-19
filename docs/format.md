@@ -333,7 +333,7 @@ a key, and the map and overlays move from the last step's state to this one's.
 | `headline` | The scene's one-line message, shown in its caption. |
 | `targetSeconds` | How long the scene should take. Left out: untimed (like a title page). |
 | `notes` | Speaker notes in Markdown, for the presenter only. |
-| `script` | A full script, for the presenter only; `[>]` marks each keypress. |
+| `script` | A full script, for the presenter only. `[>]` marks each keypress: the n-th mark brings up step n + 1, and one more after the closing line moves on to the next scene (the last scene has none), so a scene of 4 steps has 4 marks (3 in the last scene). |
 | `sources` | Sources the scene draws on beyond those its lit links and overlays cite. |
 | `steps` | The steps. **Required** (may be empty while being written). |
 
@@ -458,6 +458,14 @@ The last finds **warnings**: the project is valid, but something should be looke
 | `loopNameWithoutBadge` | A loop name shown without its badge. |
 | `trendBarelyVisible` | A trend on a variable that is barely visible. |
 | `listedTwice` | An id listed at two emphasis levels. |
+| `fitHidden` | The camera frames a variable the step hides. |
+| `revealHidden` | A reveal grows from, or names in its sequence, something the step hides. |
+| `ambientFromHidden` | Ambient pulses start at a variable the step hides. |
+| `badgeOnHiddenLoop` | A loop's badge shows while some of its links are hidden (links of an optional type, hidden unless listed, are left out). |
+| `scriptKeyMarks` | A scene's script has more or fewer `[>]` key marks than its steps need. |
+| `stepTimeOrder` | A step is due (`at`) before the step before it. |
+| `stepPastTarget` | A step is due (`at`) after its scene's `targetSeconds`. |
+| `unusedAsset` | An embedded image that no step shows. |
 
 The polycrisis example has no errors and no warnings.
 

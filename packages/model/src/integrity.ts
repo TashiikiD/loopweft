@@ -6,9 +6,10 @@
 // person should look. The deck treated several of these as errors because it was one finished talk; in a
 // project being edited they flag work still to do.
 import { hasErrors, type Issue } from './issues.ts';
+import { listing } from './ops/support.ts';
 import { checkReferences } from './refs.ts';
 import { type Citation, LEVELS, type Project } from './schema.ts';
-import { atLeast, resolveLevels } from './story.ts';
+import { atLeast, countKeyMarks, KEY_MARK, keyMarksNeeded, resolveLevels } from './story.ts';
 import { normalizeToken } from './text/vocabulary.ts';
 
 type Path = (string | number)[];
@@ -119,6 +120,15 @@ export function checkEvidence(project: Project): Issue[] {
     if (scene.steps.length === 0)
       warn('emptyScene', ['story', 'scenes', i, 'steps'], `Scene ${scene.id} has no steps.`);
   });
+
+  const shown = new Set(
+    project.story.scenes.flatMap((s) =>
+      s.steps.flatMap((t) => t.overlays.flatMap((o) => (o.type === 'image' ? [o.asset] : []))),
+    ),
+  );
+  for (const id of Object.keys(project.assets)) {
+    if (!shown.has(id)) warn('unusedAsset', ['assets', id], `Image ${id} is not shown on any step.`);
+  }
   return issues;
 }
 
@@ -129,12 +139,52 @@ export function checkEvidence(project: Project): Issue[] {
 export function checkStory(project: Project): Issue[] {
   const issues: Issue[] = [];
   const linkById = new Map(project.links.map((l) => [l.id, l]));
+  const loopById = new Map(project.loops.map((l) => [l.id, l]));
+  const optionalTypes = new Set(project.types.linkTypes.filter((t) => t.optional).map((t) => t.id));
+  const optionalLinks = new Set(
+    project.links.filter((l) => l.type !== undefined && optionalTypes.has(l.type)).map((l) => l.id),
+  );
   const responseRoles = new Set(project.types.roles.filter((r) => r.response).map((r) => r.id));
   const responses = new Set(
     project.variables.filter((v) => v.role !== undefined && responseRoles.has(v.role)).map((v) => v.id),
   );
 
-  project.story.scenes.forEach((scene, s) => {
+  const scenes = project.story.scenes;
+  scenes.forEach((scene, s) => {
+    const scenePath: Path = ['story', 'scenes', s];
+    const sceneWarn = (code: string, at: Path, message: string) =>
+      issues.push({ severity: 'warning', code, message, path: [...scenePath, ...at] });
+    if (scene.script !== undefined) {
+      const marks = countKeyMarks(scene.script);
+      const needed = keyMarksNeeded(scene.steps.length, s === scenes.length - 1);
+      if (marks !== needed) {
+        sceneWarn(
+          'scriptKeyMarks',
+          ['script'],
+          `Scene ${scene.id}: its script has ${marks} ${KEY_MARK} key ${marks === 1 ? 'mark' : 'marks'}, but its ${scene.steps.length} ${scene.steps.length === 1 ? 'step needs' : 'steps need'} ${needed} (one per step after the first${s === scenes.length - 1 ? '' : ', and one to leave the scene'}).`,
+        );
+      }
+    }
+    let lastAt: { at: number; id: string } | null = null;
+    scene.steps.forEach((step, t) => {
+      if (step.at === undefined) return;
+      const at: Path = ['steps', t, 'at'];
+      if (lastAt && step.at < lastAt.at) {
+        sceneWarn(
+          'stepTimeOrder',
+          at,
+          `Step ${scene.id}.${step.id} is due at ${step.at} s, before step ${scene.id}.${lastAt.id} (${lastAt.at} s).`,
+        );
+      }
+      if (scene.targetSeconds !== undefined && step.at > scene.targetSeconds) {
+        sceneWarn(
+          'stepPastTarget',
+          at,
+          `Step ${scene.id}.${step.id} is due at ${step.at} s, after the scene's target of ${scene.targetSeconds} s.`,
+        );
+      }
+      lastAt = { at: step.at, id: step.id };
+    });
     scene.steps.forEach((step, t) => {
       const path: Path = ['story', 'scenes', s, 'steps', t, 'map'];
       const who = `Step ${scene.id}.${step.id}`;
@@ -160,6 +210,47 @@ export function checkStory(project: Project): Issue[] {
           warn('trendBarelyVisible', ['trends', id], `${id} is marked ${trend} but is barely visible.`);
         }
       }
+
+      const hiddenVariable = (id: string) => levels.variables.get(id) === 'hidden';
+      const hiddenElement = (id: string) =>
+        levels.variables.get(id) === 'hidden' || levels.links.get(id) === 'hidden';
+      map.camera?.fit?.forEach((id, k) => {
+        if (hiddenVariable(id))
+          warn('fitHidden', ['camera', 'fit', k], `the camera frames ${id}, which is hidden.`);
+      });
+      map.reveal?.from?.forEach((id, k) => {
+        if (hiddenVariable(id))
+          warn('revealHidden', ['reveal', 'from', k], `the reveal grows from ${id}, which is hidden.`);
+      });
+      map.reveal?.sequence?.forEach((id, k) => {
+        if (hiddenElement(id))
+          warn(
+            'revealHidden',
+            ['reveal', 'sequence', k],
+            `the reveal sequence names ${id}, which is hidden.`,
+          );
+      });
+      map.ambient?.from.forEach((id, k) => {
+        if (hiddenVariable(id))
+          warn(
+            'ambientFromHidden',
+            ['ambient', 'from', k],
+            `ambient pulses start at ${id}, which is hidden.`,
+          );
+      });
+      map.loops?.forEach((id, k) => {
+        // Links of an optional type stay hidden unless listed, so a loop through one may still be badged.
+        const gone =
+          loopById.get(id)?.links.filter((l) => levels.links.get(l) === 'hidden' && !optionalLinks.has(l)) ??
+          [];
+        if (gone.length) {
+          warn(
+            'badgeOnHiddenLoop',
+            ['loops', k],
+            `loop ${id}'s badge shows, but its ${gone.length === 1 ? 'link' : 'links'} ${listing(gone)} ${gone.length === 1 ? 'is' : 'are'} hidden.`,
+          );
+        }
+      });
 
       // Polarity: along a lit link, the target moves as the source does times the link's sign.
       // ± (mixed) marks a variable where opposing influences meet; the net is left open. A response at the

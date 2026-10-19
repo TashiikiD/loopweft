@@ -119,7 +119,17 @@ export {
   type ShorthandResult,
   type ShorthandSign,
 } from './shorthand.ts';
-export { atLeast, type ResolvedLevels, resolveLevels, sceneSources, stepSources } from './story.ts';
+export {
+  atLeast,
+  countKeyMarks,
+  KEY_MARK,
+  keyMarksNeeded,
+  type ResolvedLevels,
+  resolveLevels,
+  sceneSources,
+  scriptSegments,
+  stepSources,
+} from './story.ts';
 export { ARCHETYPE_SOURCE, TEMPLATES, type Template, templateById } from './templates.ts';
 export { compareStrings, ID_PATTERN, nextSequentialId, slugify, uniqueId } from './text/ids.ts';
 export { closest, didYouMean, editDistanceRatio, typoDistanceRatio } from './text/similarity.ts';

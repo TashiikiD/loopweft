@@ -85,3 +85,23 @@ export function stepSources(project: Project, step: Step): string[] {
 export function sceneSources(project: Project, scene: Scene): string[] {
   return [...new Set([...scene.sources, ...scene.steps.flatMap((step) => stepSources(project, step))])];
 }
+
+// Source: PolycrisisPresentation src/core/text.ts (KEY_MARK, scriptSegments, countKeyMarks) and
+// src/core/integrity.ts (the key-mark rule) @ 539bc8e (private).
+
+/**
+ * In a scene's script, "[>]" marks the moment to press the next key: the n-th mark brings up the scene's
+ * step n + 1, and one more mark after the closing line moves on to the next scene (the last scene has none).
+ */
+export const KEY_MARK = '[>]';
+
+/** The script cut at its key marks: one more part than there are marks, each with its spacing tidied. */
+export function scriptSegments(script: string): string[] {
+  return script.split(KEY_MARK).map((s) => s.replace(/\s+/g, ' ').trim());
+}
+
+/** How many key marks a script has. */
+export const countKeyMarks = (script: string): number => script.split(KEY_MARK).length - 1;
+
+/** The key marks a scene's script needs: one per step after the first, and one to leave the scene unless it is the last. */
+export const keyMarksNeeded = (steps: number, last: boolean): number => Math.max(0, steps - (last ? 1 : 0));
