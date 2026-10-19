@@ -1,5 +1,6 @@
 // Reference checks: every id a project names must exist, and ids must be unique. These are errors: a
 // project that fails them cannot be drawn or presented. (integrity.ts adds the evidence and story checks.)
+import { imageProblem } from './images.ts';
 import { formatPath, type Issue } from './issues.ts';
 import { isPresetId, PALETTE_IDS } from './palettes.ts';
 import {
@@ -109,6 +110,11 @@ export function checkReferences(project: Project): Issue[] {
   const role = known('role', roles, 'unknownRole');
   const linkType = known('link type', linkTypes, 'unknownLinkType');
   const asset = known('asset', assets, 'unknownAsset');
+  // An image must be one an overlay can show: a whole image of the type its data URI names.
+  for (const [id, data] of Object.entries(project.assets)) {
+    const problem = imageProblem(data);
+    if (problem) error('invalidImage', ['assets', id], `Image ${id} cannot be shown. ${problem}`);
+  }
   const element = (id: string, path: Path, who: string) => {
     if (!variables.has(id) && !links.has(id))
       error(

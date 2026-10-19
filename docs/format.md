@@ -417,7 +417,9 @@ Small built-in icons, drawn in the card's text colour:
 
 ## 13. assets
 
-Embedded images, by id, as base64 data URIs: PNG, JPEG, GIF, WebP or SVG.
+Embedded images, by id, as base64 data URIs: PNG, JPEG, GIF, WebP or SVG. Each must be a whole image of the
+type its data URI names, read from its bytes: one that is cut off, has no picture in it, or holds another type
+is an error (`invalidImage`), as it is when an image is added or replaced.
 
 ```json
 "assets": { "chart": "data:image/png;base64,iVBORw0KGgo..." }
@@ -432,7 +434,8 @@ The last finds **warnings**: the project is valid, but something should be looke
    newer Loopweft).
 2. **Structure:** `missingField`, `unknownField`, `invalidType`, `invalidValue`, `invalidFormat` (an id,
    colour, date, DOI or address written wrongly), `invalidId`, `empty`, `tooFew`, `tooMany`, `tooSmall`,
-   `tooBig`, `tooLong`, `choiceWithoutOptions`, `optionsWithoutChoice`, `delayLabelWithoutDelay`.
+   `tooBig`, `tooLong`, `choiceWithoutOptions`, `optionsWithoutChoice`, `delayLabelWithoutDelay`,
+   `invalidImage` (an embedded image that is not a whole image of the type it names).
 3. **References:** every id must exist and be unique. `duplicateId`, `unknownVariable`, `unknownLink`,
    `unknownLoop`, `unknownSource`, `unknownCategory`, `unknownRole`, `unknownLinkType`, `unknownField`,
    `unknownAsset`, `unknownElement`, `fieldNotApplicable`, `invalidFieldValue`, `brokenLoop` (a loop's links

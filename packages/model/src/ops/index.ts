@@ -1,5 +1,7 @@
 // The edits the Studio and the CLI share: one implementation of each. Every operation takes a project and
 // returns { project, result, summary } without changing its input; an expected failure is an OpError.
+
+export { imageProblem, imageType } from '../images.ts';
 export {
   addCitation,
   type Citable,
@@ -36,7 +38,6 @@ export {
   addOverlay,
   assetUses,
   imageDataUri,
-  imageType,
   moveOverlay,
   OVERLAY_NAMES,
   type OverlayChanges,

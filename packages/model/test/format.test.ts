@@ -9,7 +9,7 @@ import {
   SCHEMA_URL,
   serializeProject,
 } from '../src/index.ts';
-import { parseChanged, repoFile, richInput, richProject } from './helpers.ts';
+import { parseChanged, repoFile, richInput, richProject, TINY_PNG } from './helpers.ts';
 
 /** The issues of an invalid document, as `code path` lines (paths dotted). */
 const problems = (result: ReturnType<typeof parseProject>): string[] =>
@@ -330,6 +330,20 @@ describe('reference errors', () => {
       'Link L2: field "evidence" is one of "explicit", "synthesis", not "rumour".',
     );
     expect(problems(more)).toEqual(['unknownAsset story.scenes.0.steps.1.overlays.5.asset']);
+  });
+
+  it('refuses a file whose embedded image is cut off, or another type than it says, as adding it would', () => {
+    // The test PNG without its last chunk (IEND), and a JPEG start labelled as a PNG.
+    const whole = Uint8Array.from(atob(TINY_PNG.slice(TINY_PNG.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+    const cut = `data:image/png;base64,${btoa(String.fromCharCode(...whole.slice(0, -12)))}`;
+    const result = parseChanged({ assets: { chart: cut, photo: 'data:image/png;base64,/9j/4AAQ' } });
+    expect(result.ok).toBe(false);
+    expect(problems(result)).toEqual(['invalidImage assets.chart', 'invalidImage assets.photo']);
+    expect(result.issues.map((i) => i.message)).toEqual([
+      'Image chart cannot be shown. The image data is not a whole PNG image: it stops before its end.',
+      'Image photo cannot be shown. The image data says image/png but holds a JPEG image.',
+    ]);
+    expect(parseChanged({}).ok).toBe(true);
   });
 
   it('keeps variable, link and loop ids in one namespace', () => {
