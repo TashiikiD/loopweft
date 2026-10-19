@@ -123,7 +123,7 @@ describe('the Map panel', () => {
     await user.click(screen.getByRole('button', { name: 'Loop badges' }));
     await user.click(screen.getByRole('button', { name: 'Pulses' }));
     // A loop's badge and name, then the pulse round it.
-    await user.click(screen.getByRole('checkbox', { name: 'Name R1' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Name R1' }, { timeout: 5000 }));
     expect(map(store)).toMatchObject({ loops: ['R1'], loopNames: ['R1'] });
     await user.click(screen.getByRole('checkbox', { name: 'Badge R1' }));
     expect(map(store)?.loops).toBeUndefined();
@@ -167,7 +167,8 @@ describe('the Map panel', () => {
     expect(map(store)?.camera).toEqual({ fit: ['births', 'population'] });
 
     await user.click(screen.getByRole('button', { name: 'Ambient pulses' }));
-    await user.click(screen.getByRole('combobox', { name: 'Start from' }));
+    // The section opens with a transition: wait for its field.
+    await user.click(await screen.findByRole('combobox', { name: 'Start from' }, { timeout: 5000 }));
     await user.click(screen.getByRole('option', { name: 'Deaths (deaths)' }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(map(store)?.ambient).toEqual({ from: ['deaths'], tone: 'harm' });
