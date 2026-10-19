@@ -29,14 +29,20 @@ const BRACKETS: Record<string, string> = {
   Preprint: 'Preprint',
 };
 
+/** A name kept as the record writes it, though it may be a person's: whether the record says it is. */
+interface Unsplit {
+  name: string;
+  personal: boolean;
+}
+
 /**
  * DataCite's creators: a personal name as family and given names (or, for a creator the record calls a
  * person, "Family, Given" when only that is given); an organisation, or a name the record does not split, as
- * written. `untyped` are the names kept as written because the record does not say whether they are a person.
+ * written. `unsplit` are the names kept as written that may be a person's, to check.
  */
-function readCreators(value: unknown): { people: Person[]; unnamed: number; untyped: string[] } {
+function readCreators(value: unknown): { people: Person[]; unnamed: number; unsplit: Unsplit[] } {
   const people: Person[] = [];
-  const untyped: string[] = [];
+  const unsplit: Unsplit[] = [];
   let unnamed = 0;
   for (const c of Array.isArray(value) ? value.filter(isObject) : []) {
     const name = text(c.name);
@@ -49,12 +55,16 @@ function readCreators(value: unknown): { people: Person[]; unnamed: number; unty
       const g = rest.join(',').trim();
       people.push({ family: (f as string).trim(), ...(g ? { given: g } : {}) });
     } else if (name) {
+      // Never a guess at where a family name starts: the name stays whole, with a note.
       people.push({ name });
-      if (!organisation && c.nameType !== 'Personal') untyped.push(name);
+      if (!organisation) unsplit.push({ name, personal: c.nameType === 'Personal' });
     } else unnamed++;
   }
-  return { people, unnamed, untyped };
+  return { people, unnamed, unsplit };
 }
+
+/** Rights addresses that say who may read a work (open, embargoed, restricted, closed), not its licence. */
+const ACCESS_RIGHTS = /^info:eu-repo\/semantics\//i;
 
 /** The licence the record gives: a Creative Commons licence by its address, or one named by an SPDX id. */
 function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
@@ -63,11 +73,16 @@ function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
   for (const r of Array.isArray(work.rightsList) ? work.rightsList.filter(isObject) : []) {
     const uri = text(r.rightsUri) ?? '';
     const rights = text(r.rights);
+    // An access statement, such as info:eu-repo/semantics/openAccess ("Open Access"), is not a licence.
+    if (ACCESS_RIGHTS.test(uri)) continue;
     const cc = licenceName(uri);
     if (cc) named.add(cc);
     else if (r.rightsIdentifierScheme === 'SPDX' && rights) named.add(rights);
-    else if (rights) other.push(rights);
-    // An entry without words, such as info:eu-repo/semantics/openAccess, says who may read it, not a licence.
+    else {
+      // Any other terms, in words, by an address or by an identifier, may limit a licence.
+      const terms = rights ?? (uri || text(r.rightsIdentifier));
+      if (terms) other.push(terms);
+    }
   }
   // A licence only when it is all the record says about rights: another statement may limit it.
   if (named.size === 1 && other.length === 0) return [...named][0];
@@ -80,7 +95,7 @@ function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
   return undefined;
 }
 
-/** Other works the record links: what this one supplements, is a version or a part of. */
+/** Other works the record links: what this one supplements, is a version or a part of, or is replaced by. */
 function readRelations(work: Json, notes: DraftNote[]): void {
   const said: Record<string, string> = {
     IsSupplementTo: 'a supplement to',
@@ -93,6 +108,13 @@ function readRelations(work: Json, notes: DraftNote[]): void {
   for (const r of Array.isArray(work.relatedIdentifiers) ? work.relatedIdentifiers.filter(isObject) : []) {
     const relation = typeof r.relationType === 'string' ? said[r.relationType] : undefined;
     const target = text(r.relatedIdentifier);
+    if (r.relationType === 'IsObsoletedBy' && target) {
+      notes.push({
+        level: 'warning',
+        message: `DataCite records that this work is replaced by ${target}. Read why before citing it; the replacement may be the one to cite.`,
+      });
+      continue;
+    }
     if (!relation || !target) continue;
     const doi = r.relatedIdentifierType === 'DOI';
     notes.push({
@@ -125,10 +147,12 @@ export function referenceFromDataCite(work: Json, askedDoi = ''): ReferenceDraft
       message: `DataCite lists ${creators.unnamed === 1 ? 'a creator' : `${creators.unnamed} creators`} without a name; ${creators.unnamed === 1 ? 'it is' : 'they are'} left out.`,
     });
   }
-  for (const name of creators.untyped) {
+  for (const { name, personal } of creators.unsplit) {
     notes.push({
       level: 'check',
-      message: `DataCite does not say whether the creator “${name}” is a person or an organisation, so the name is written as the record gives it. If it is a person, APA writes the family name and initials (Family, A. B.).`,
+      message: personal
+        ? `DataCite calls the creator “${name}” a person but does not give the family name apart, so the name is written as the record gives it. APA writes the family name and initials (Family, A. B.): correct it by hand.`
+        : `DataCite does not say whether the creator “${name}” is a person or an organisation, so the name is written as the record gives it. If it is a person, APA writes the family name and initials (Family, A. B.).`,
     });
   }
 
@@ -156,15 +180,25 @@ export function referenceFromDataCite(work: Json, askedDoi = ''): ReferenceDraft
           'DataCite writes the title with most words capitalized. APA writes it in sentence case (capitals for the first word, the first word after a colon, and proper nouns only); Loopweft cannot tell proper nouns, so it keeps DataCite’s capitals: correct them by hand.',
       });
     }
-    if (/^\[?\s*(withdrawn|retracted)\b/i.test(title)) {
-      notes.push({
-        level: 'warning',
-        message: 'The title says this work was withdrawn or retracted. Read why before citing it.',
-      });
-    }
     title = capitalizeSubtitles(title);
   } else {
     notes.push({ level: 'missing', message: 'DataCite gives no title.' });
+  }
+  // Withdrawn: the date DataCite records for it or, without one, a title that says so.
+  const withdrawal = (Array.isArray(work.dates) ? work.dates.filter(isObject) : []).find(
+    (d) => d.dateType === 'Withdrawn',
+  );
+  if (withdrawal) {
+    const on = text(withdrawal.date);
+    notes.push({
+      level: 'warning',
+      message: `DataCite records that this work was withdrawn${on ? ` on ${on}` : ''}. Read why before citing it.`,
+    });
+  } else if (title && /^\[?\s*(withdrawn|retracted)\b/i.test(title)) {
+    notes.push({
+      level: 'warning',
+      message: 'The title says this work was withdrawn or retracted. Read why before citing it.',
+    });
   }
 
   const publisherField = work.publisher;

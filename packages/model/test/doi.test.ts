@@ -292,6 +292,26 @@ describe('references from DataCite', () => {
     ]);
   });
 
+  it('keeps a person’s name whole when the record does not give the family name apart, and says so', () => {
+    const draft = referenceFromDataCite({
+      doi: '10.1234/y',
+      creators: [{ name: 'Jane Doe', nameType: 'Personal' }],
+      titles: [{ title: 'Survey data' }],
+      publisher: 'Zenodo',
+      publicationYear: 2024,
+      types: { resourceTypeGeneral: 'Dataset' },
+    });
+    // Not "Doe, J.": where the family name starts is not guessed.
+    expect(draft.apa).toBe('Jane Doe. (2024). *Survey data* [Data set]. Zenodo. https://doi.org/10.1234/y');
+    expect(draft.notes).toEqual([
+      {
+        level: 'check',
+        message:
+          'DataCite calls the creator “Jane Doe” a person but does not give the family name apart, so the name is written as the record gives it. APA writes the family name and initials (Family, A. B.): correct it by hand.',
+      },
+    ]);
+  });
+
   it('fills in a licence only when it is the one rights statement recorded', () => {
     const rights = (rightsList: unknown[]) =>
       referenceFromDataCite({
@@ -307,9 +327,10 @@ describe('references from DataCite', () => {
       rights: 'Creative Commons Attribution 4.0 International',
       rightsUri: 'https://creativecommons.org/licenses/by/4.0/legalcode',
     };
-    // An entry that only says who may read it is not a rights statement.
+    // An entry that only says who may read it is not a rights statement, with words or without.
     const open = { rightsUri: 'info:eu-repo/semantics/openAccess' };
     expect(rights([cc, open]).licence).toBe('CC BY 4.0');
+    expect(rights([cc, { ...open, rights: 'Open Access' }]).licence).toBe('CC BY 4.0');
     const mixed = rights([cc, { rights: 'All rights reserved for the underlying data' }]);
     expect(mixed.licence).toBeUndefined();
     expect(mixed.notes).toEqual([
@@ -317,6 +338,51 @@ describe('references from DataCite', () => {
         level: 'check',
         message:
           'DataCite records rights that are not one named licence (CC BY 4.0; All rights reserved for the underlying data), so no licence is filled in.',
+      },
+    ]);
+    // Other terms given only by their address count as much as terms in words.
+    const linked = rights([cc, { rightsUri: 'https://example.org/restricted-license' }]);
+    expect(linked.licence).toBeUndefined();
+    expect(linked.notes).toEqual([
+      {
+        level: 'check',
+        message:
+          'DataCite records rights that are not one named licence (CC BY 4.0; https://example.org/restricted-license), so no licence is filled in.',
+      },
+    ]);
+  });
+
+  it('warns when the record says the work was withdrawn or replaced, whatever its title', () => {
+    const record = (extra: Record<string, unknown>, title = 'Survey data') =>
+      referenceFromDataCite({
+        doi: '10.1234/y',
+        creators: [{ name: 'Rakowski, Judith J.', nameType: 'Personal' }],
+        titles: [{ title }],
+        publisher: 'Zenodo',
+        publicationYear: 2024,
+        types: { resourceTypeGeneral: 'Dataset' },
+        ...extra,
+      }).notes;
+    const withdrawn = { dates: [{ date: '2024-05-01', dateType: 'Withdrawn' }] };
+    expect(record(withdrawn)).toEqual([
+      {
+        level: 'warning',
+        message: 'DataCite records that this work was withdrawn on 2024-05-01. Read why before citing it.',
+      },
+    ]);
+    // One warning, not two, when the title says so as well.
+    expect(record(withdrawn, '[WITHDRAWN] Survey data').filter((n) => n.level === 'warning')).toHaveLength(1);
+    expect(
+      record({
+        relatedIdentifiers: [
+          { relationType: 'IsObsoletedBy', relatedIdentifierType: 'DOI', relatedIdentifier: '10.1234/z' },
+        ],
+      }),
+    ).toEqual([
+      {
+        level: 'warning',
+        message:
+          'DataCite records that this work is replaced by 10.1234/z. Read why before citing it; the replacement may be the one to cite.',
       },
     ]);
   });

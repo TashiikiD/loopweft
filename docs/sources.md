@@ -42,18 +42,20 @@ after `doi:`. A full stop at the end is read as the sentence's.
 The draft is shown before anything is added, with notes of three kinds:
 
 - **warnings**: Crossref records a retraction, withdrawal or expression of concern for the work, or the DOI
-  is the notice itself rather than the work; or a DataCite record's title says it was withdrawn;
+  is the notice itself rather than the work; or a DataCite record says the work was withdrawn (by a
+  withdrawal date or, without one, its title) or replaced by another work;
 - **missing**: a part APA asks for that the record does not give (a date, the book's editors, pages or an
   article number). It is left out, never filled in;
 - **to check**: things Loopweft cannot settle, such as capitals, the year of an article published online
   before its issue, a kind of work the record names loosely, a version or work a DataCite record says
-  this one belongs to, or a DataCite creator the record does not call a person or an organisation.
+  this one belongs to, or a DataCite creator's name that the record does not split into family and given
+  names.
 
 How the draft is written, following the APA Publication Manual (7th ed.):
 
 | Part | Rule |
 |---|---|
-| Authors | Family name and initials (`Donges, J. F.`; `Crépin, A.-S.`); `&` before the last; up to 20, then the first 19, `. . .` and the last. An organisation is written as the record names it, and so is a DataCite name the record does not say is a person's (with a note). With no author, the title comes first; for a book, its editors (`(Ed.)`, `(Eds.)`). |
+| Authors | Family name and initials (`Donges, J. F.`; `Crépin, A.-S.`); `&` before the last; up to 20, then the first 19, `. . .` and the last. An organisation is written as the record names it, and so is a DataCite name that the record does not split into family and given names (with a note: Loopweft never guesses where a family name starts). With no author, the title comes first; for a book, its editors (`(Ed.)`, `(Eds.)`). |
 | Year | For a journal article in an issue, the issue's year; otherwise the earliest date Crossref gives, or DataCite's year of publication. No date: `(n.d.)`. |
 | Title | As the record writes it, except the first word after a colon, which APA capitalizes. Loopweft cannot tell proper nouns from other words, so it does not change a title in title case into APA's sentence case; it says so, for you to correct. Italics marked in the title are kept, and digits set as sub- or superscripts (CO₂). |
 | Journal articles | `*Journal*, *volume*(issue), pages` or `Article <number>`. |
@@ -63,7 +65,7 @@ How the draft is written, following the APA Publication Manual (7th ed.):
 | Other kinds | Written as a stand-alone work, with a note to check them against APA's rules. |
 | DOI | `https://doi.org/<DOI>` at the end. |
 | In-text label | `Brosig (2025)`, `Liu and Renn (2025)`, `Lawrence et al. (2024)`. |
-| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`), when it is the only rights statement DataCite records (otherwise a note lists them); anything else is left out. |
+| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`), when it is the only rights statement DataCite records, in words, by an address or by an identifier (otherwise a note lists them); an access statement such as `info:eu-repo/semantics/openAccess` is not a rights statement. Anything else is left out. |
 
 A found draft says which agency's record it came from. When the lookup fails, it says why and what to do
 (it says there is no record only when the agencies said so, never when they could not be asked): the text
