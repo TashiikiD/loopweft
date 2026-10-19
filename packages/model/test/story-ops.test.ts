@@ -540,6 +540,13 @@ describe('embedded images', () => {
         ),
       ),
     ).toBe('The image data is not a whole WEBP image: it has no picture in it.');
+    // A PNG whose end chunk is not empty; an SVG with a processing instruction after its root is taken.
+    const iend = [0, 0, 0, 1, ...new TextEncoder().encode('IEND'), 0, 0, 0, 0, 0];
+    expect(not(uri('png', [...png.subarray(0, -12), ...iend]))).toBe(
+      'The image data is not a whole PNG image: its end chunk is not empty.',
+    );
+    const after = svg('<svg xmlns="http://www.w3.org/2000/svg"/><?note ok?>');
+    expect(addAsset(richProject(), { data: after, id: 'after' }).result.id).toBe('after');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(

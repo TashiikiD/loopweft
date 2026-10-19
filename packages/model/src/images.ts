@@ -30,7 +30,7 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         // The header's width and height, each above 0.
         if (first && (u32be(bytes, at + 8) === 0 || u32be(bytes, at + 12) === 0)) return EMPTY;
         if (kind === 'IDAT' && length > 0) data = true;
-        if (kind === 'IEND') return data ? null : EMPTY;
+        if (kind === 'IEND') return length !== 0 ? 'its end chunk is not empty' : data ? null : EMPTY;
         at += 12 + length;
       }
     }
@@ -128,8 +128,14 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
       }
       // The root closes at the end, comments and spaces aside: `</svg>`, or a root that closes itself.
       let body = text.trimEnd();
-      while (body.endsWith('-->') && body.includes('<!--'))
-        body = body.slice(0, body.lastIndexOf('<!--')).trimEnd();
+      for (;;) {
+        // After the root, comments and processing instructions may follow.
+        if (body.endsWith('-->') && body.includes('<!--'))
+          body = body.slice(0, body.lastIndexOf('<!--')).trimEnd();
+        else if (body.endsWith('?>') && body.includes('<?'))
+          body = body.slice(0, body.lastIndexOf('<?')).trimEnd();
+        else break;
+      }
       // Or a root that closes itself, its tag read to its ">" past quoted values.
       const start = body.search(/<svg[\s>/]/i);
       const end = start < 0 ? -1 : tagEnd(body, start);
