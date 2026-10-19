@@ -269,6 +269,99 @@ describe('references from DataCite', () => {
     );
     expect(draft.label).toBe('Rakowski and World Health Organization (2024)');
   });
+
+  it('keeps a name whole when the record does not say it is a person, and says so', () => {
+    const draft = referenceFromDataCite({
+      doi: '10.1234/y',
+      creators: [{ name: 'University of Example, Research Centre' }],
+      titles: [{ title: 'Survey data' }],
+      publisher: 'Zenodo',
+      publicationYear: 2024,
+      types: { resourceTypeGeneral: 'Dataset' },
+    });
+    expect(draft.apa).toBe(
+      'University of Example, Research Centre. (2024). *Survey data* [Data set]. Zenodo. https://doi.org/10.1234/y',
+    );
+    expect(draft.label).toBe('University of Example, Research Centre (2024)');
+    expect(draft.notes).toEqual([
+      {
+        level: 'check',
+        message:
+          'DataCite does not say whether the creator “University of Example, Research Centre” is a person or an organisation, so the name is written as the record gives it. If it is a person, APA writes the family name and initials (Family, A. B.).',
+      },
+    ]);
+  });
+
+  it('fills in a licence only when it is the one rights statement recorded', () => {
+    const rights = (rightsList: unknown[]) =>
+      referenceFromDataCite({
+        doi: '10.1234/y',
+        creators: [{ name: 'Rakowski, Judith J.', nameType: 'Personal' }],
+        titles: [{ title: 'Survey data' }],
+        publisher: 'Zenodo',
+        publicationYear: 2024,
+        types: { resourceTypeGeneral: 'Dataset' },
+        rightsList,
+      });
+    const cc = {
+      rights: 'Creative Commons Attribution 4.0 International',
+      rightsUri: 'https://creativecommons.org/licenses/by/4.0/legalcode',
+    };
+    // An entry that only says who may read it is not a rights statement.
+    const open = { rightsUri: 'info:eu-repo/semantics/openAccess' };
+    expect(rights([cc, open]).licence).toBe('CC BY 4.0');
+    const mixed = rights([cc, { rights: 'All rights reserved for the underlying data' }]);
+    expect(mixed.licence).toBeUndefined();
+    expect(mixed.notes).toEqual([
+      {
+        level: 'check',
+        message:
+          'DataCite records rights that are not one named licence (CC BY 4.0; All rights reserved for the underlying data), so no licence is filled in.',
+      },
+    ]);
+  });
+
+  it('says when the record is a version of another, newer or earlier, and to cite the version used', () => {
+    const related = (relationType: string) =>
+      referenceFromDataCite({
+        doi: '10.1234/new',
+        creators: [{ name: 'Rakowski, Judith J.', nameType: 'Personal' }],
+        titles: [{ title: 'Survey data' }],
+        publisher: 'Zenodo',
+        publicationYear: 2024,
+        types: { resourceTypeGeneral: 'Dataset' },
+        relatedIdentifiers: [
+          { relationType, relatedIdentifierType: 'DOI', relatedIdentifier: '10.1234/old' },
+        ],
+      }).notes.map((n) => n.message);
+    expect(related('IsNewVersionOf')).toEqual([
+      'DataCite records this as a newer version of 10.1234/old: cite the version you used.',
+    ]);
+    expect(related('IsPreviousVersionOf')).toEqual([
+      'DataCite records this as an earlier version of 10.1234/old: cite the version you used.',
+    ]);
+  });
+
+  it('never takes the publisher of a dissertation for the institution that awarded it', () => {
+    const draft = referenceFromDataCite({
+      doi: '10.5281/zenodo.1',
+      creators: [{ name: 'Rakowski, Judith J.', nameType: 'Personal' }],
+      titles: [{ title: 'A study of traps' }],
+      publisher: 'Zenodo',
+      publicationYear: 2024,
+      types: { resourceTypeGeneral: 'Dissertation' },
+    });
+    expect(draft.apa).toBe(
+      'Rakowski, J. J. (2024). *A study of traps* [Dissertation]. Zenodo. https://doi.org/10.5281/zenodo.1',
+    );
+    expect(draft.notes).toEqual([
+      {
+        level: 'missing',
+        message:
+          'APA writes “Doctoral dissertation” or “Master’s thesis” in the brackets, with the institution that awarded it. DataCite records neither (its publisher is where the work is published), so the brackets say only “Dissertation”: add the degree and the awarding institution by hand.',
+      },
+    ]);
+  });
 });
 
 describe('looking a DOI up', () => {
@@ -383,6 +476,7 @@ describe('looking a DOI up', () => {
     expect(odd).toMatchObject({
       failure: {
         kind: 'badReply',
+        status: 200,
         message: 'DataCite’s answer was not a DOI record: enter the reference by hand.',
       },
     });
@@ -418,8 +512,9 @@ describe('looking a DOI up', () => {
     });
     expect(
       await failure(answer(() => new Response(JSON.stringify({ 'message-type': 'work-list', message: {} })))),
-    ).toMatchObject({
+    ).toEqual({
       kind: 'badReply',
+      status: 200,
       message: 'Crossref’s answer was not a work record: enter the reference by hand.',
     });
   });

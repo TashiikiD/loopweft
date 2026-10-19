@@ -51,7 +51,9 @@ export const dataciteUrl = (doi: string): string => `${DATACITE_DOIS}${encodeURI
 
 const BY_HAND = 'enter the reference by hand';
 
-type Asked = { ok: true; body: unknown } | { ok: false; failure: LookupFailure; notFound?: true };
+type Asked =
+  | { ok: true; body: unknown; status: number }
+  | { ok: false; failure: LookupFailure; notFound?: true };
 
 /** Asks one agency for the record of a DOI. */
 async function ask(agency: string, host: string, url: string, options: LookupOptions): Promise<Asked> {
@@ -101,7 +103,7 @@ async function ask(agency: string, host: string, url: string, options: LookupOpt
     );
   }
   try {
-    return { ok: true, body: await response.json() };
+    return { ok: true, body: await response.json(), status: response.status };
   } catch {
     if (options.signal?.aborted) return fail('cancelled', 'The lookup was stopped.');
     return fail(
@@ -136,7 +138,11 @@ export async function lookupDoi(input: string, options: LookupOptions = {}): Pro
   if (crossref.ok) {
     const body = crossref.body;
     if (!isObject(body) || body['message-type'] !== 'work' || !isObject(body.message)) {
-      return failed({ kind: 'badReply', message: `Crossref’s answer was not a work record: ${BY_HAND}.` });
+      return failed({
+        kind: 'badReply',
+        message: `Crossref’s answer was not a work record: ${BY_HAND}.`,
+        status: crossref.status,
+      });
     }
     return { ok: true, draft: referenceFromCrossref(body.message, doi) };
   }
@@ -147,7 +153,11 @@ export async function lookupDoi(input: string, options: LookupOptions = {}): Pro
   if (datacite.ok) {
     const data = isObject(datacite.body) ? datacite.body.data : undefined;
     if (!isObject(data) || data.type !== 'dois' || !isObject(data.attributes)) {
-      return failed({ kind: 'badReply', message: `DataCite’s answer was not a DOI record: ${BY_HAND}.` });
+      return failed({
+        kind: 'badReply',
+        message: `DataCite’s answer was not a DOI record: ${BY_HAND}.`,
+        status: datacite.status,
+      });
     }
     return { ok: true, draft: referenceFromDataCite(data.attributes, doi) };
   }

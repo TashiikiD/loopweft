@@ -79,11 +79,13 @@ Lawrence, M., Homer-Dixon, T., Janzwood, S., Rockström, J., Renn, O., & Donges,
 $ loopweft source add pop.loopweft --doi 10.1017/sus.2025.14 --dry-run
 Added source brosig2025 (Brosig (2025)). (dry run: nothing was saved)
   Brosig, M. (2025). How do crises spread? The polycrisis and crisis transmission. *Global Sustainability*, *8*, Article e11. https://doi.org/10.1017/sus.2025.14
+  from Crossref, type: journal-article
 [exit 0]
 
 $ loopweft source add pop.loopweft --doi 10.6084/m9.figshare.c.6858564 --dry-run
 Added source søgaardjørgensen2023 (Søgaard Jørgensen et al. (2023)). (dry run: nothing was saved)
   Søgaard Jørgensen, P., Jansen, R. E. V., Avila Ortega, D. I., Wang-Erlandsson, L., Donges, J. F., Österblom, H., Olsson, P., Nyström, M., Lade, S. J., Hahn, T., Folke, C., Peterson, G. D., & Crépin, A.-S. (2023). *Supplementary material from "Evolution of the polycrisis: Anthropocene traps that challenge global sustainability"* [Collection]. The Royal Society. https://doi.org/10.6084/m9.figshare.c.6858564
+  from DataCite, type: Collection
 [exit 0]
 
 $ loopweft source add pop.loopweft --doi 10.9999/not.registered.anywhere

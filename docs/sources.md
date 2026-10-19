@@ -46,26 +46,28 @@ The draft is shown before anything is added, with notes of three kinds:
 - **missing**: a part APA asks for that the record does not give (a date, the book's editors, pages or an
   article number). It is left out, never filled in;
 - **to check**: things Loopweft cannot settle, such as capitals, the year of an article published online
-  before its issue, a kind of work the record names loosely, or a version or work a DataCite record says
-  this one belongs to.
+  before its issue, a kind of work the record names loosely, a version or work a DataCite record says
+  this one belongs to, or a DataCite creator the record does not call a person or an organisation.
 
 How the draft is written, following the APA Publication Manual (7th ed.):
 
 | Part | Rule |
 |---|---|
-| Authors | Family name and initials (`Donges, J. F.`; `Crépin, A.-S.`); `&` before the last; up to 20, then the first 19, `. . .` and the last. An organisation is written as the record names it. With no author, the title comes first; for a book, its editors (`(Ed.)`, `(Eds.)`). |
+| Authors | Family name and initials (`Donges, J. F.`; `Crépin, A.-S.`); `&` before the last; up to 20, then the first 19, `. . .` and the last. An organisation is written as the record names it, and so is a DataCite name the record does not say is a person's (with a note). With no author, the title comes first; for a book, its editors (`(Ed.)`, `(Eds.)`). |
 | Year | For a journal article in an issue, the issue's year; otherwise the earliest date Crossref gives, or DataCite's year of publication. No date: `(n.d.)`. |
 | Title | As the record writes it, except the first word after a colon, which APA capitalizes. Loopweft cannot tell proper nouns from other words, so it does not change a title in title case into APA's sentence case; it says so, for you to correct. Italics marked in the title are kept, and digits set as sub- or superscripts (CO₂). |
 | Journal articles | `*Journal*, *volume*(issue), pages` or `Article <number>`. |
 | Chapters | `In A. Editor (Ed.), *Book* (pp. 21–25). Publisher.` Crossref seldom lists a book's editors: the draft says when they are missing. |
 | Books and reports | `*Title* (2nd ed.). Publisher.` |
-| Preprints, dissertations, data sets, software, collections | `[Preprint]`, `[Dissertation, Institution]` (APA names the kind: say "Doctoral dissertation" or "Master's thesis"), `[Data set]`, `[Computer software]`, `[Collection]`; a version DataCite gives comes first: `*Title* (Version 1.2) [Data set].` |
+| Preprints, dissertations, data sets, software, collections | `[Preprint]`, `[Dissertation, Institution]` (APA names the kind: say "Doctoral dissertation" or "Master's thesis"), `[Data set]`, `[Computer software]`, `[Collection]`; a version DataCite gives comes first: `*Title* (Version 1.2) [Data set].` DataCite does not record who awarded a dissertation (its publisher is where it is published), so its brackets say only `[Dissertation]`, with a note. |
 | Other kinds | Written as a stand-alone work, with a note to check them against APA's rules. |
 | DOI | `https://doi.org/<DOI>` at the end. |
 | In-text label | `Brosig (2025)`, `Liu and Renn (2025)`, `Lawrence et al. (2024)`. |
-| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`); anything else is left out. |
+| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`), when it is the only rights statement DataCite records (otherwise a note lists them); anything else is left out. |
 
-When the lookup fails, it says why and what to do: the text is not a DOI; Crossref (or DataCite) cannot be
+A found draft says which agency's record it came from. When the lookup fails, it says why and what to do
+(it says there is no record only when the agencies said so, never when they could not be asked): the text
+is not a DOI; Crossref (or DataCite) cannot be
 reached (offline) or does not answer within 20 seconds; neither Crossref nor DataCite has a record of the
 DOI (it may be registered with another agency, such as mEDRA or JaLC); an agency is busy; or its answer
 cannot be read. In each case the reference can be entered by hand.

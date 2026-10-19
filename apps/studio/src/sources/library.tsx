@@ -2,6 +2,7 @@
 // with how often each is cited; and the chosen source, to read and change, with everything that cites it.
 import {
   evidenceCoverage,
+  type LookupFailure,
   type Project,
   plural,
   type ReferenceDraft,
@@ -34,7 +35,7 @@ import { IconSearch, IconTrash, IconWorldSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { ChoiceInput, CommitText } from '../map/inputs.tsx';
-import { useLookup } from './lookup.tsx';
+import { failureTitle, useLookup } from './lookup.tsx';
 import { DraftNotes, plainReference, ReferenceText } from './reference-text.tsx';
 
 /** A variable's, link's or loop's name as people read it: "Births", "Births → Population", a loop's name. */
@@ -164,22 +165,22 @@ export function SourceList({ query, onQuery }: { query: string; onQuery(next: st
   );
 }
 
-// ----- checking a source against Crossref -----
+// ----- checking a source against its record at Crossref or DataCite -----
 
 function RecordCheck({ source, onDone }: { source: Source; onDone(): void }) {
   const lookup = useLookup();
   const edit = useEdit();
   const [state, setState] = useState<
-    { state: 'looking' } | { state: 'found'; draft: ReferenceDraft } | { state: 'failed'; message: string }
+    | { state: 'looking' }
+    | { state: 'found'; draft: ReferenceDraft }
+    | { state: 'failed'; failure: LookupFailure }
   >({ state: 'looking' });
   useEffect(() => {
     const stop = new AbortController();
     void lookup(source.doi ?? '', stop.signal).then((found) => {
       if (stop.signal.aborted) return;
       setState(
-        found.ok
-          ? { state: 'found', draft: found.draft }
-          : { state: 'failed', message: found.failure.message },
+        found.ok ? { state: 'found', draft: found.draft } : { state: 'failed', failure: found.failure },
       );
     });
     return () => stop.abort();
@@ -196,8 +197,8 @@ function RecordCheck({ source, onDone }: { source: Source; onDone(): void }) {
   }
   if (state.state === 'failed') {
     return (
-      <Alert color="red" variant="light" title="No reference found">
-        {state.message}
+      <Alert color="red" variant="light" title={failureTitle(state.failure)}>
+        {state.failure.message}
       </Alert>
     );
   }

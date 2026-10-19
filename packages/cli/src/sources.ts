@@ -187,11 +187,13 @@ export async function sourceAddCommand(env: Env, file: string, o: SourceOptions)
   const lines = [
     out.text,
     `  ${draft.apa}`,
-    ...(draft.notes.length
-      ? [`  From ${draft.agency}; check before citing:`, ...noteLines(draft).map((l) => `  ${l}`)]
-      : []),
+    `  from ${draft.agency}, type: ${draft.type}`,
+    ...(draft.notes.length ? ['  check before citing:', ...noteLines(draft).map((l) => `  ${l}`)] : []),
   ];
-  return { text: lines.join('\n'), data: { ...out.data, lookup: { type: draft.type, notes: draft.notes } } };
+  return {
+    text: lines.join('\n'),
+    data: { ...out.data, lookup: { agency: draft.agency, type: draft.type, notes: draft.notes } },
+  };
 }
 
 export function sourceSetCommand(

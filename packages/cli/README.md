@@ -43,7 +43,7 @@ run can be repeated byte for byte).
 | `source list\|show <file> [source]` | The sources, with how often each is cited; `show`: one source in full and everything that cites or lists it |
 | `source lookup <doi>` | Looks a DOI up at Crossref (or, when Crossref has no record of it, DataCite) and prints the APA reference it drafts, with notes on what is missing or needs checking, without adding it |
 | `source add <file> --apa "<reference>" [--doi] [--id] [--label] [--url] [--licence] [--summary] [--part-of]` | Adds a source by hand (no network) |
-| `source add <file> --doi <doi> [--id] [--label] …` | Adds a source from its DOI's record at Crossref or DataCite; options given beside it replace what the lookup drafted |
+| `source add <file> --doi <doi> [--id] [--label] …` | Adds a source from its DOI's record at Crossref or DataCite, and says which; options given beside it replace what the lookup drafted |
 | `source set\|rm` | `set <file> <source> … [--clear <fields…>]` (its id stays); `rm <file> <sources…> [--cascade]` (`--cascade` also removes its citations) |
 | `cite add <file> <elements> <source> [--pages] [--strength strong\|moderate\|weak] [--note]` | Cites a source on variables, links or loops (comma-separated ids or variable labels); an element that already cites it at those pages is left as it was |
 | `cite set\|rm <file> <element(s)> <source>` | `set … [--pages] [--strength] [--note] [--source <other>] [--clear …] [--cited-pages <p>]`; `rm … [--cited-pages <p>] [--all]`. `--cited-pages` says which citation when an element cites the source more than once |

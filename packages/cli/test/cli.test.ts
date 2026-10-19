@@ -410,7 +410,11 @@ describe('the contract for agents', () => {
     expect(added.doc).toMatchObject({
       ok: true,
       result: { id: 'R' },
-      lookup: { type: 'journal-article', notes: [{ level: 'check' }, { level: 'warning' }] },
+      lookup: {
+        agency: 'Crossref',
+        type: 'journal-article',
+        notes: [{ level: 'check' }, { level: 'warning' }],
+      },
     });
   });
 });

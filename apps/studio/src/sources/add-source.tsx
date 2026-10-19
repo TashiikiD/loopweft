@@ -1,5 +1,6 @@
-// Adding a source: look its DOI up at Crossref (the draft and its notes are shown, to correct before adding),
-// or enter it by hand, which needs no network. Nothing is added until the person says so.
+// Adding a source: look its DOI up at Crossref or DataCite (the draft, where it came from and its notes are
+// shown, to correct before adding), or enter it by hand, which needs no network. Nothing is added until the
+// person says so.
 import {
   addSource,
   type LookupFailure,
@@ -25,7 +26,7 @@ import {
 import { IconWorldSearch } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
-import { useLookup } from './lookup.tsx';
+import { failureTitle, useLookup } from './lookup.tsx';
 import { DraftNotes, plainReference, ReferenceText } from './reference-text.tsx';
 
 interface Form {
@@ -252,7 +253,7 @@ function AddSource({ onDone }: { onDone(): void }) {
             <Alert
               color={result.failure.kind === 'cancelled' ? 'gray' : 'red'}
               variant="light"
-              title="No reference found"
+              title={failureTitle(result.failure)}
             >
               <Stack gap="xs" align="flex-start">
                 <Text size="sm">{result.failure.message}</Text>
@@ -271,6 +272,9 @@ function AddSource({ onDone }: { onDone(): void }) {
           )}
           {result.state === 'found' && (
             <Stack gap="sm">
+              <Text size="sm" c="dimmed">
+                Record from {result.draft.agency}
+              </Text>
               <DraftNotes notes={result.draft.notes} />
               <SourceFields form={form} onChange={setForm} project={project} />
             </Stack>

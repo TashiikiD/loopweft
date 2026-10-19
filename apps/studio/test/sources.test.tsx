@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CROSSREF_WORKS, createProject, DATACITE_DOIS, lookupDoi, type Project } from '@loopweft/model';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -109,6 +109,7 @@ describe('the Sources workspace', () => {
       '10.1108/ijccsm-02-2022-0016{Enter}',
     );
     await waitFor(() => expect(within(dialog).getByText('Read before citing')).toBeTruthy());
+    expect(within(dialog).getByText('Record from Crossref')).toBeTruthy();
     expect(within(dialog).getByText(/Crossref records a retraction of this work/)).toBeTruthy();
     const reference = within(dialog).getByRole('textbox', {
       name: /^Reference \(APA 7\)/,
@@ -139,6 +140,48 @@ describe('the Sources workspace', () => {
     );
   });
 
+  it('says the lookup failed, not that there is no reference, when it could not ask', async () => {
+    const offline: Lookup = (doi, signal) =>
+      lookupDoi(doi, {
+        signal,
+        fetch: (async () => {
+          throw new TypeError('fetch failed');
+        }) as typeof fetch,
+      });
+    const busy: Lookup = (doi, signal) =>
+      lookupDoi(doi, { signal, fetch: (async () => new Response('', { status: 503 })) as typeof fetch });
+    for (const [lookup, message] of [
+      [offline, /^Could not reach Crossref \(api\.crossref\.org\)/],
+      [busy, /^Crossref is busy or unavailable \(HTTP 503\)/],
+    ] as const) {
+      const { user } = await openSources(cited(), lookup);
+      await user.click(screen.getByRole('button', { name: 'Add a source' }));
+      const dialog = screen.getByRole('dialog', { name: 'Add a source' });
+      await user.type(within(dialog).getByRole('textbox', { name: 'DOI' }), '10.1017/sus.2024.1{Enter}');
+      await waitFor(() => expect(within(dialog).getByText('DOI lookup failed')).toBeTruthy());
+      expect(within(dialog).queryByText('No reference found')).toBeNull();
+      expect(within(dialog).getByText(message)).toBeTruthy();
+      expect(within(dialog).getByRole('button', { name: 'Enter it by hand' })).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it('says the same when checking a source against its record', async () => {
+    const project = cited();
+    project.sources[0] = { ...(project.sources[0] as Project['sources'][number]), doi: '10.1017/sus.2024.1' };
+    const offline: Lookup = async (doi) => ({
+      ok: false,
+      doi,
+      failure: { kind: 'offline', message: 'Could not reach Crossref (api.crossref.org).' },
+    });
+    const { user } = await openSources(project, offline);
+    await user.click(screen.getByRole('listitem', { name: 'Test (2020): 2 citations' }));
+    await user.click(screen.getByRole('button', { name: 'Check against its record' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Check T against its DOI record' });
+    await waitFor(() => expect(within(dialog).getByText('DOI lookup failed')).toBeTruthy());
+    expect(within(dialog).getByText('Could not reach Crossref (api.crossref.org).')).toBeTruthy();
+  });
+
   it('finds a DOI that only DataCite holds, such as the example’s supplement', async () => {
     const { store, user } = await openSources();
     await user.click(screen.getByRole('button', { name: 'Add a source' }));
@@ -151,6 +194,8 @@ describe('the Sources workspace', () => {
       name: /^Reference \(APA 7\)/,
     })) as HTMLTextAreaElement;
     expect(reference.value).toMatch(/\[Collection\]\. The Royal Society\. https:\/\/doi\.org\/10\.6084/);
+    // The record has no notes, so this alone says where the draft came from.
+    expect(within(dialog).getByText('Record from DataCite')).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: 'Add source' }));
     expect(store.getState().project.sources.at(-1)).toMatchObject({
       id: 'søgaardjørgensen2023',

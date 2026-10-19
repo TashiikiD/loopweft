@@ -30,11 +30,13 @@ const BRACKETS: Record<string, string> = {
 };
 
 /**
- * DataCite's creators: a personal name as family and given names (or "Family, Given" when only that is
- * given); an organisation, or a name the record does not split, as written.
+ * DataCite's creators: a personal name as family and given names (or, for a creator the record calls a
+ * person, "Family, Given" when only that is given); an organisation, or a name the record does not split, as
+ * written. `untyped` are the names kept as written because the record does not say whether they are a person.
  */
-function readCreators(value: unknown): { people: Person[]; unnamed: number } {
+function readCreators(value: unknown): { people: Person[]; unnamed: number; untyped: string[] } {
   const people: Person[] = [];
+  const untyped: string[] = [];
   let unnamed = 0;
   for (const c of Array.isArray(value) ? value.filter(isObject) : []) {
     const name = text(c.name);
@@ -42,14 +44,16 @@ function readCreators(value: unknown): { people: Person[]; unnamed: number } {
     const given = text(c.givenName);
     const organisation = c.nameType === 'Organizational';
     if (!organisation && family) people.push({ family, ...(given ? { given } : {}) });
-    else if (!organisation && name && name.includes(',')) {
+    else if (c.nameType === 'Personal' && name && name.includes(',')) {
       const [f, ...rest] = name.split(',');
       const g = rest.join(',').trim();
       people.push({ family: (f as string).trim(), ...(g ? { given: g } : {}) });
-    } else if (name) people.push({ name });
-    else unnamed++;
+    } else if (name) {
+      people.push({ name });
+      if (!organisation && c.nameType !== 'Personal') untyped.push(name);
+    } else unnamed++;
   }
-  return { people, unnamed };
+  return { people, unnamed, untyped };
 }
 
 /** The licence the record gives: a Creative Commons licence by its address, or one named by an SPDX id. */
@@ -65,7 +69,8 @@ function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
     else if (rights) other.push(rights);
     // An entry without words, such as info:eu-repo/semantics/openAccess, says who may read it, not a licence.
   }
-  if (named.size === 1) return [...named][0];
+  // A licence only when it is all the record says about rights: another statement may limit it.
+  if (named.size === 1 && other.length === 0) return [...named][0];
   if (named.size > 1 || other.length) {
     notes.push({
       level: 'check',
@@ -80,9 +85,11 @@ function readRelations(work: Json, notes: DraftNote[]): void {
   const said: Record<string, string> = {
     IsSupplementTo: 'a supplement to',
     IsVersionOf: 'a version of',
+    IsNewVersionOf: 'a newer version of',
     IsPartOf: 'part of',
     IsPreviousVersionOf: 'an earlier version of',
   };
+  const versions = ['IsVersionOf', 'IsNewVersionOf', 'IsPreviousVersionOf'];
   for (const r of Array.isArray(work.relatedIdentifiers) ? work.relatedIdentifiers.filter(isObject) : []) {
     const relation = typeof r.relationType === 'string' ? said[r.relationType] : undefined;
     const target = text(r.relatedIdentifier);
@@ -93,7 +100,7 @@ function readRelations(work: Json, notes: DraftNote[]): void {
       message: `DataCite records this as ${relation} ${target}${
         r.relationType === 'IsSupplementTo' && doi
           ? ': if that work is in the library, make this a supplement of it'
-          : r.relationType === 'IsVersionOf'
+          : versions.includes(r.relationType as string)
             ? ': cite the version you used'
             : ''
       }.`,
@@ -116,6 +123,12 @@ export function referenceFromDataCite(work: Json, askedDoi = ''): ReferenceDraft
     notes.push({
       level: 'missing',
       message: `DataCite lists ${creators.unnamed === 1 ? 'a creator' : `${creators.unnamed} creators`} without a name; ${creators.unnamed === 1 ? 'it is' : 'they are'} left out.`,
+    });
+  }
+  for (const name of creators.untyped) {
+    notes.push({
+      level: 'check',
+      message: `DataCite does not say whether the creator “${name}” is a person or an organisation, so the name is written as the record gives it. If it is a person, APA writes the family name and initials (Family, A. B.).`,
     });
   }
 
@@ -175,12 +188,14 @@ export function referenceFromDataCite(work: Json, askedDoi = ''): ReferenceDraft
   const version = rawVersion?.replace(/^v(?:ersion)?\.?\s*(?=\d)/i, '');
   const thesis =
     type === 'Dissertation' || (type === 'Text' && named !== undefined && /dissertation|thesis/i.test(named));
-  const bracket = thesis ? `Dissertation${publisher ? `, ${publisher}` : ''}` : BRACKETS[type];
+  // DataCite's publisher is where the work is published (a repository such as Zenodo), not the institution
+  // that awarded the degree, so it stays in the publisher's place and never goes in the brackets.
+  const bracket = thesis ? 'Dissertation' : BRACKETS[type];
   if (thesis) {
     notes.push({
       level: 'missing',
       message:
-        'APA writes “Doctoral dissertation” or “Master’s thesis” in the brackets, with the institution; DataCite does not say which, so the brackets say “Dissertation” and its publisher: correct them.',
+        'APA writes “Doctoral dissertation” or “Master’s thesis” in the brackets, with the institution that awarded it. DataCite records neither (its publisher is where the work is published), so the brackets say only “Dissertation”: add the degree and the awarding institution by hand.',
     });
   }
 
