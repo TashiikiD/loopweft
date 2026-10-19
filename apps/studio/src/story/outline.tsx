@@ -4,19 +4,25 @@
 import {
   addScene,
   addStep,
+  assetUses,
   copyStep,
+  listing,
   moveScene,
   moveStep,
+  type OpOutput,
+  type Project,
   plural,
+  removeAsset,
   removeScene,
   removeStep,
   type Scene,
   type Step,
+  stepKey,
 } from '@loopweft/model';
 import { ActionIcon, Button, Group, Menu, Radio, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
 import { createContext, useContext, useMemo, useState } from 'react';
-import { useEdit, useStudio, useStudioStore } from '../context.tsx';
+import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { useStoryWarnings } from './checks.tsx';
 import { type Current, useCurrent } from './current.ts';
 
@@ -91,6 +97,39 @@ function NameForm({
   );
 }
 
+/**
+ * Removes steps (by `remove`) and, with them, the images no other step shows, as one undoable edit: removing
+ * an image's last overlay does the same. Returns whether the steps were removed.
+ */
+function useRemoveWithImages() {
+  const store = useStudioStore();
+  const edit = useEdit();
+  return (keys: readonly string[], remove: (p: Project) => OpOutput<unknown>): boolean => {
+    const project = store.getState().project;
+    const gone = new Set(keys);
+    const shown = project.story.scenes.flatMap((scene) =>
+      scene.steps
+        .filter((step) => gone.has(stepKey(scene.id, step.id)))
+        .flatMap((step) => step.overlays.flatMap((o) => (o.type === 'image' ? [o.asset] : []))),
+    );
+    const lone = [...new Set(shown)].filter((id) => assetUses(project, id).every((key) => gone.has(key)));
+    if (lone.length === 0) return edit(remove) !== null;
+    try {
+      const { summary } = remove(project);
+      store
+        .getState()
+        .editAll(
+          [remove, ...lone.map((id) => (p: Project) => removeAsset(p, id))],
+          `${summary.replace(/\.$/, '')}, with ${lone.length === 1 ? 'image' : 'images'} ${listing(lone)}, which no other step shows.`,
+        );
+      return true;
+    } catch (error) {
+      refused(error);
+      return false;
+    }
+  };
+}
+
 function StepRow({
   scene,
   step,
@@ -104,6 +143,7 @@ function StepRow({
 }) {
   const store = useStudioStore();
   const edit = useEdit();
+  const removeWithImages = useRemoveWithImages();
   const key = `${scene.id}.${step.id}`;
   const chosen = current?.key === key;
   const [copying, setCopying] = useState(false);
@@ -157,7 +197,7 @@ function StepRow({
               onClick={() => {
                 if (!window.confirm(`Remove step ${key} ("${step.label}")?`)) return;
                 const neighbour = scene.steps[index + 1] ?? scene.steps[index - 1];
-                if (edit((p) => removeStep(p, key)))
+                if (removeWithImages([key], (p) => removeStep(p, key)))
                   store.getState().selectStory(neighbour ? `${scene.id}.${neighbour.id}` : scene.id);
               }}
             >
@@ -187,6 +227,7 @@ function StepRow({
 function SceneBlock({ scene, index, current }: { scene: Scene; index: number; current: Current | null }) {
   const store = useStudioStore();
   const edit = useEdit();
+  const removeWithImages = useRemoveWithImages();
   const count = useStudio((s) => s.project.story.scenes.length);
   const [adding, setAdding] = useState(false);
   const chosenStep = current?.sceneIndex === index ? current.step : null;
@@ -248,7 +289,8 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
                   ? `Remove scene ${scene.id} ("${scene.title}") and its ${plural(steps, 'step')}?`
                   : `Remove scene ${scene.id} ("${scene.title}")?`;
                 if (!window.confirm(question)) return;
-                if (edit((p) => removeScene(p, scene.id, { cascade: true })))
+                const keys = scene.steps.map((s) => stepKey(scene.id, s.id));
+                if (removeWithImages(keys, (p) => removeScene(p, scene.id, { cascade: true })))
                   store.getState().selectStory(null);
               }}
             >

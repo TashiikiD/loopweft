@@ -92,7 +92,8 @@ the audience will see it, drawn by the same renderer as the viewer) and a panel 
 
 - **Outline:** choose a step to show and edit it. Add a scene; add a step to a scene (a copy of the chosen
   step, so a story builds up step by step, or the whole map); copy, move and remove steps and scenes. A dot
-  marks a step or scene the checks flag.
+  marks a step or scene the checks flag. As with an image's last overlay, removing steps also removes the
+  images no other step shows (undo brings them back).
 - **Record view:** choose a tool above the stage and click variables and links: *Show* puts them at a level
   or back to the base, *Trend* marks ▲ ▼ ±, *Spread* marks a what-if by sign along the lit links, *Pulse*
   adds hops in the order clicked (Shift adds to the last hop), *Frame* chooses what the camera frames. While

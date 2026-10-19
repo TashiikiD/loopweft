@@ -152,6 +152,35 @@ describe('the Story workspace', () => {
     expect(within(outline()).getByText(/No story yet/)).toBeTruthy();
   });
 
+  it('removes the images only the removed steps showed, with them, as one undoable step', async () => {
+    const project = small();
+    // A 1×1 PNG, shown on both steps.
+    project.assets = {
+      chart:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    };
+    for (const step of project.story.scenes[0]?.steps ?? [])
+      step.overlays.push({ type: 'image', asset: 'chart', alt: 'A test image' });
+    const { store, user } = await openStory(project);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    // Step S1.1 still shows the image, so it stays.
+    await user.click(screen.getByRole('button', { name: 'Step S1.2: more' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Remove step' }));
+    expect(store.getState().project.story.scenes[0]?.steps).toHaveLength(1);
+    expect(Object.keys(store.getState().project.assets)).toEqual(['chart']);
+    // With the scene goes the last step that showed it, and so the image.
+    await user.click(screen.getByRole('button', { name: 'Scene S1: more' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Remove scene' }));
+    expect(store.getState().project.story.scenes).toEqual([]);
+    expect(store.getState().project.assets).toEqual({});
+    expect(store.getState().past.at(-1)?.label).toBe(
+      'Removed scene S1 ("Growth") and its 1 step, with image chart, which no other step shows.',
+    );
+    store.getState().undo();
+    expect(store.getState().project.story.scenes[0]?.steps).toHaveLength(1);
+    expect(Object.keys(store.getState().project.assets)).toEqual(['chart']);
+  });
+
   it('opens the polycrisis example’s story', async () => {
     await openStory(example());
     expect(within(outline()).getByText('11 scenes, 70 steps')).toBeTruthy();
