@@ -19,6 +19,8 @@ export interface StageHandle {
   motion: Motion;
   /** Shows a step with a transition (the preview). */
   show(shown: Shown, transition: Transition): void;
+  /** The transition the next change of step shows with (once; then changes show at once again). */
+  nextTransition(transition: Transition): void;
 }
 
 function present(view: StoryView, shown: Shown, transition: Transition) {
@@ -42,6 +44,7 @@ export const StoryStage = forwardRef<
   const host = useRef<HTMLDivElement>(null);
   const [motion] = useState(() => new Motion(new FrameClock()));
   const [view, setView] = useState<StoryView | null>(null);
+  const upcoming = useRef<Transition>('instant');
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: rebuilt from the parts of the map it draws, not the story
   useEffect(() => {
@@ -72,7 +75,8 @@ export const StoryStage = forwardRef<
   useEffect(() => {
     if (!view) return;
     motion.landAll();
-    present(view, shown ?? { scene: { title: '' }, sceneIndex: 0, step: null }, 'instant');
+    present(view, shown ?? { scene: { title: '' }, sceneIndex: 0, step: null }, upcoming.current);
+    upcoming.current = 'instant';
   }, [view, shown, motion]);
 
   useEffect(() => () => motion.landAll(), [motion]);
@@ -82,8 +86,13 @@ export const StoryStage = forwardRef<
     () => ({
       view: () => view,
       motion,
-      show: (next, transition) => {
-        if (view) present(view, next, transition);
+      show: (shownNext, transition) => {
+        if (!view) return;
+        motion.landAll();
+        present(view, shownNext, transition);
+      },
+      nextTransition: (transition) => {
+        upcoming.current = transition;
       },
     }),
     [view, motion],

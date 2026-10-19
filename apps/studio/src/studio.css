@@ -839,3 +839,25 @@ body {
   margin: 0;
   padding-left: 20px;
 }
+
+.lw-story-frame:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.lw-outline-flag {
+  flex: none;
+  color: var(--mantine-color-yellow-filled);
+  font-size: 10px;
+  padding: 0 4px;
+}
+
+.lw-script-now {
+  border-color: var(--mantine-primary-color-filled);
+  background: var(--mantine-primary-color-light);
+}
+
+.lw-check-list {
+  margin: 0;
+  padding-left: 22px;
+}

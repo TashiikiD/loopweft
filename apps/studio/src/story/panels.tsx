@@ -2,12 +2,21 @@
 // headline, target time and the sources it draws on beyond those its steps light).
 import { setScene, setStep, stepSources } from '@loopweft/model';
 import { MultiSelect, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconLayersSubtract, IconListDetails, IconMap2, IconMovie } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconLayersSubtract,
+  IconListDetails,
+  IconMap2,
+  IconMovie,
+  IconNotes,
+} from '@tabler/icons-react';
 import { type ComponentType, useState } from 'react';
 import { useEdit, useStudio } from '../context.tsx';
 import { CommitText, NumberValue } from '../map/inputs.tsx';
+import { ChecksPanel } from './checks.tsx';
 import { type Current, useCurrent } from './current.ts';
 import { MapPanel } from './map-panel.tsx';
+import { NotesPanel } from './notes.tsx';
 import { OverlaysPanel } from './overlays-panel.tsx';
 
 function StepPanel({ current }: { current: Current }) {
@@ -151,6 +160,8 @@ const PANELS: PanelSpec[] = [
   { id: 'map', label: 'Map', Icon: IconMap2, Panel: StepMapPanel },
   { id: 'overlays', label: 'Overlays', Icon: IconLayersSubtract, Panel: StepOverlaysPanel },
   { id: 'scene', label: 'Scene', Icon: IconMovie, Panel: ScenePanel },
+  { id: 'notes', label: 'Notes', Icon: IconNotes, Panel: NotesPanel },
+  { id: 'checks', label: 'Checks', Icon: IconAlertTriangle, Panel: () => <ChecksPanel /> },
 ];
 
 export function StorySide() {

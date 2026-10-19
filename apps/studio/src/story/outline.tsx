@@ -15,9 +15,25 @@ import {
 } from '@loopweft/model';
 import { ActionIcon, Button, Group, Menu, Radio, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
-import { useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
+import { useStoryWarnings } from './checks.tsx';
 import { type Current, useCurrent } from './current.ts';
+
+/** How many story warnings each step ("S05.3") or scene ("S05") has, worked out once for the outline. */
+const Flags = createContext<ReadonlyMap<string, number>>(new Map());
+
+function Flag({ at: key }: { at: string }) {
+  const n = useContext(Flags).get(key) ?? 0;
+  if (!n) return null;
+  return (
+    <Tooltip label={`${n} to look at (see Checks)`}>
+      <span className="lw-outline-flag" role="img" aria-label={`${n} ${n === 1 ? 'warning' : 'warnings'}`}>
+        ●
+      </span>
+    </Tooltip>
+  );
+}
 
 const seconds = (s: number) =>
   s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}`;
@@ -120,6 +136,7 @@ function StepRow({
           <span className="lw-outline-key">{key}</span>
           <span className="lw-outline-label">{step.label}</span>
         </button>
+        <Flag at={key} />
         <Menu position="bottom-end" withinPortal>
           <Menu.Target>
             <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Step ${key}: more`}>
@@ -184,7 +201,9 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
           aria-current={chosen ? 'true' : undefined}
           onClick={() => store.getState().selectStory(scene.id)}
         >
-          <span className="lw-outline-title">{scene.title}</span>
+          <span className="lw-outline-title">
+            {scene.title} <Flag at={scene.id} />
+          </span>
           <span className="lw-outline-meta">
             {scene.id} · {plural(scene.steps.length, 'step')}
             {scene.targetSeconds !== undefined ? ` · ${seconds(scene.targetSeconds)}` : ''}
@@ -294,52 +313,59 @@ export function StoryOutline() {
   const current = useCurrent();
   const [adding, setAdding] = useState(false);
   const steps = scenes.reduce((n, s) => n + s.steps.length, 0);
+  const warnings = useStoryWarnings();
+  const flags = useMemo(
+    () => new Map(warnings.flatMap((g) => (g.key ? [[g.key, g.issues.length] as const] : []))),
+    [warnings],
+  );
   return (
-    <nav className="lw-outline" aria-label="Story outline">
-      <div className="lw-outline-top">
-        <Text size="sm" fw={600}>
-          Story
-        </Text>
-        <Text size="xs" c="dimmed" style={{ flex: 1 }}>
-          {plural(scenes.length, 'scene')}, {plural(steps, 'step')}
-        </Text>
-        <Button
-          size="compact-xs"
-          variant="light"
-          leftSection={<IconPlus size={12} aria-hidden />}
-          onClick={() => setAdding(true)}
-        >
-          Scene
-        </Button>
-      </div>
-      <div className="lw-outline-body">
-        {scenes.length === 0 && !adding && (
-          <Text size="sm" c="dimmed" p="sm">
-            No story yet. A story is a list of scenes, each a list of steps: one keypress each. Add a scene,
-            then its steps, and set up what each step shows.
+    <Flags.Provider value={flags}>
+      <nav className="lw-outline" aria-label="Story outline">
+        <div className="lw-outline-top">
+          <Text size="sm" fw={600}>
+            Story
           </Text>
-        )}
-        <ol className="lw-outline-scenes">
-          {scenes.map((scene, i) => (
-            <SceneBlock key={scene.id} scene={scene} index={i} current={current} />
-          ))}
-        </ol>
-        {adding && (
-          <NameForm
-            label="Title of the new scene"
-            placeholder="The new scene's title"
-            onCancel={() => setAdding(false)}
-            onAdd={(title) => {
-              const after = current ? { after: current.scene.id } : undefined;
-              const out = edit((p) => addScene(p, { title }, after));
-              if (!out) return false;
-              store.getState().selectStory(out.result.id);
-              setAdding(false);
-              return true;
-            }}
-          />
-        )}
-      </div>
-    </nav>
+          <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+            {plural(scenes.length, 'scene')}, {plural(steps, 'step')}
+          </Text>
+          <Button
+            size="compact-xs"
+            variant="light"
+            leftSection={<IconPlus size={12} aria-hidden />}
+            onClick={() => setAdding(true)}
+          >
+            Scene
+          </Button>
+        </div>
+        <div className="lw-outline-body">
+          {scenes.length === 0 && !adding && (
+            <Text size="sm" c="dimmed" p="sm">
+              No story yet. A story is a list of scenes, each a list of steps: one keypress each. Add a scene,
+              then its steps, and set up what each step shows.
+            </Text>
+          )}
+          <ol className="lw-outline-scenes">
+            {scenes.map((scene, i) => (
+              <SceneBlock key={scene.id} scene={scene} index={i} current={current} />
+            ))}
+          </ol>
+          {adding && (
+            <NameForm
+              label="Title of the new scene"
+              placeholder="The new scene's title"
+              onCancel={() => setAdding(false)}
+              onAdd={(title) => {
+                const after = current ? { after: current.scene.id } : undefined;
+                const out = edit((p) => addScene(p, { title }, after));
+                if (!out) return false;
+                store.getState().selectStory(out.result.id);
+                setAdding(false);
+                return true;
+              }}
+            />
+          )}
+        </div>
+      </nav>
+    </Flags.Provider>
   );
 }

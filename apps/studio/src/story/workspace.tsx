@@ -1,14 +1,26 @@
 // The Story workspace: the outline of scenes and steps, the stage showing the chosen step as the audience
-// will see it, and the side panel to change it.
+// will see it, and the side panel to change it. The preview plays the transitions: into the chosen step, or
+// the scene from the chosen step on, at the times its steps are due. With the stage focused, the arrow keys
+// move through the story as a presenter would (forward with the full motion, back with a quick fade).
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { useMemo, useRef, useState } from 'react';
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconPlayerPlay,
+  IconPlayerSkipForward,
+  IconPlayerStop,
+  IconPlayerTrackNext,
+} from '@tabler/icons-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
-import { stepKeys, useCurrent } from './current.ts';
+import { currentOf, stepKeys, useCurrent } from './current.ts';
 import { StoryOutline } from './outline.tsx';
 import { StorySide } from './panels.tsx';
 import { type Brush, LOOK, RecordBar, RecordLayer } from './record.tsx';
 import { type Shown, type StageHandle, StoryStage } from './stage.tsx';
+
+/** How long a step holds while the scene plays when neither it nor the next has a time it is due. */
+export const HOLD_SECONDS = 4;
 
 export function StoryWorkspace() {
   const store = useStudioStore();
@@ -16,6 +28,8 @@ export function StoryWorkspace() {
   const current = useCurrent();
   const stage = useRef<StageHandle>(null);
   const [brush, setBrush] = useState<Brush>(LOOK);
+  const [playing, setPlaying] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const title = current?.scene.title;
   const headline = current?.scene.headline;
   const sceneIndex = current?.sceneIndex ?? 0;
@@ -27,17 +41,82 @@ export function StoryWorkspace() {
   );
   const keys = stepKeys(project);
   const at = current?.step ? keys.indexOf(current.key) : -1;
+
+  const stop = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setPlaying(false);
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: stops the scene's timer when the workspace closes
+  useEffect(() => () => stop(), []);
+
+  /** Moves to another step: forward with the full motion, back with a quick fade. */
   const go = (offset: number) => {
     const next = keys[at + offset];
-    if (next) store.getState().selectStory(next);
+    if (!next) return;
+    stage.current?.nextTransition(offset === 1 ? 'smooth' : offset === -1 ? 'quick' : 'instant');
+    store.getState().selectStory(next);
   };
+
+  /** Plays the change into the chosen step: the step before it at once, then this one with its motion. */
+  const playInto = () => {
+    const handle = stage.current;
+    if (!current?.step || !handle || !shown) return;
+    const before = keys[at - 1];
+    const previous = before ? currentOf(project, before) : null;
+    if (previous?.step) {
+      const { title: t, headline: h } = previous.scene;
+      handle.show(
+        {
+          scene: { title: t, ...(h ? { headline: h } : {}) },
+          sceneIndex: previous.sceneIndex,
+          step: previous.step,
+        },
+        'instant',
+      );
+    } else {
+      // The first step of the story comes out of an empty stage.
+      handle.show({ ...shown, step: { id: '', label: '', map: { show: false }, overlays: [] } }, 'instant');
+    }
+    handle.show(shown, 'smooth');
+  };
+
+  /** Plays the scene from the chosen step on: each step when the next is due (or after a short hold). */
+  const playScene = () => {
+    if (!current?.step) return;
+    stop();
+    setBrush(LOOK);
+    setPlaying(true);
+    playInto();
+    const scene = current.scene;
+    const advance = (index: number) => {
+      const here = scene.steps[index];
+      const next = scene.steps[index + 1];
+      if (!here || !next) {
+        timer.current = setTimeout(() => setPlaying(false), HOLD_SECONDS * 1000);
+        return;
+      }
+      const wait =
+        here.at !== undefined && next.at !== undefined && next.at > here.at
+          ? next.at - here.at
+          : HOLD_SECONDS;
+      timer.current = setTimeout(() => {
+        stage.current?.nextTransition('smooth');
+        store.getState().selectStory(`${scene.id}.${next.id}`);
+        advance(index + 1);
+      }, wait * 1000);
+    };
+    advance(current.stepIndex);
+  };
+
+  const recording = brush.tool !== 'look' && !!current?.step && !playing;
   return (
     <div className="lw-workspace">
       <StoryOutline />
       <div className="lw-view">
         <div className="lw-viewbar">
           <Group gap={2} wrap="nowrap">
-            <Tooltip label="Previous step">
+            <Tooltip label="Previous step (←)">
               <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -48,7 +127,7 @@ export function StoryWorkspace() {
                 <IconChevronLeft size={18} aria-hidden />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Next step">
+            <Tooltip label="Next step, with its motion (→)">
               <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -62,17 +141,83 @@ export function StoryWorkspace() {
           </Group>
           <Text size="sm" fw={500} truncate style={{ flex: 1 }} aria-live="polite">
             {current?.step
-              ? `${current.key} · ${current.step.label} · step ${current.position + 1} of ${current.total}`
+              ? `${playing ? 'Playing · ' : ''}${current.key} · ${current.step.label} · step ${current.position + 1} of ${current.total}`
               : current
                 ? `Scene ${current.scene.id} · ${current.scene.title}`
                 : 'No story yet'}
           </Text>
+          <Group gap={2} wrap="nowrap">
+            <Tooltip label="Play into this step (R)">
+              <ActionIcon
+                variant="subtle"
+                disabled={!current?.step}
+                onClick={playInto}
+                aria-label="Play into this step"
+              >
+                <IconPlayerPlay size={18} aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+            {playing ? (
+              <Tooltip label="Stop">
+                <ActionIcon variant="subtle" color="red" onClick={stop} aria-label="Stop playing">
+                  <IconPlayerStop size={18} aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            ) : (
+              <Tooltip
+                label={`Play the scene from here (each step when the next is due; ${HOLD_SECONDS} s when untimed)`}
+              >
+                <ActionIcon
+                  variant="subtle"
+                  disabled={!current?.step}
+                  onClick={playScene}
+                  aria-label="Play the scene from here"
+                >
+                  <IconPlayerTrackNext size={18} aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <Tooltip label="Skip to the end of the motion (S)">
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                onClick={() => stage.current?.motion.landAll()}
+                aria-label="Skip to the end of the motion"
+              >
+                <IconPlayerSkipForward size={18} aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
         </div>
-        {current?.step && <RecordBar brush={brush} onChange={setBrush} />}
-        <div className={`lw-story-frame${brush.tool !== 'look' && current?.step ? ' recording' : ''}`}>
+        {current?.step && !playing && <RecordBar brush={brush} onChange={setBrush} />}
+        <section
+          className={`lw-story-frame${recording ? ' recording' : ''}`}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: the stage takes the arrow keys, as a presenter's would
+          tabIndex={0}
+          aria-label="Stage (arrow keys move through the story)"
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget || event.ctrlKey || event.metaKey || event.altKey)
+              return;
+            const keyMap: Record<string, () => void> = {
+              ArrowRight: () => go(1),
+              PageDown: () => go(1),
+              ArrowLeft: () => go(-1),
+              PageUp: () => go(-1),
+              r: playInto,
+              R: playInto,
+              s: () => stage.current?.motion.landAll(),
+              S: () => stage.current?.motion.landAll(),
+            };
+            const run = keyMap[event.key];
+            if (run) {
+              event.preventDefault();
+              run();
+            }
+          }}
+        >
           <StoryStage ref={stage} project={project} shown={shown}>
             {(view) =>
-              brush.tool !== 'look' &&
+              recording &&
               current?.step && (
                 <RecordLayer
                   view={view}
@@ -84,7 +229,7 @@ export function StoryWorkspace() {
               )
             }
           </StoryStage>
-        </div>
+        </section>
       </div>
       <StorySide />
     </div>

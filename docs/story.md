@@ -84,6 +84,27 @@ Every edit is one of `@loopweft/model`'s operations, the same in the Studio and 
 | `addOverlay`, `setOverlay`, `removeOverlay`, `moveOverlay` | A step's overlays (counted from 0) |
 | `addAsset`, `setAsset`, `removeAsset` | Embedded images |
 
+## In the Studio
+
+The Story workspace has the outline of scenes and steps on the left, the stage in the middle (the story as
+the audience will see it, drawn by the same renderer as the viewer) and a panel on the right.
+
+- **Outline:** choose a step to show and edit it. Add a scene; add a step to a scene (a copy of the chosen
+  step, so a story builds up step by step, or the whole map); copy, move and remove steps and scenes. A dot
+  marks a step or scene the checks flag.
+- **Record view:** choose a tool above the stage and click variables and links: *Show* puts them at a level
+  or back to the base, *Trend* marks ▲ ▼ ±, *Spread* marks a what-if by sign along the lit links, *Pulse*
+  adds hops in the order clicked (Shift adds to the last hop), *Frame* chooses what the camera frames. While
+  a tool is on, hidden things show as dashed outlines so they can be clicked back.
+- **Panels:** *Step* (label, cue, the time it is due, the sources it draws on), *Map* (everything the map
+  shows, field by field, including loop badges, pulse timing, the camera, reveal and ambient pulses),
+  *Overlays* (add, change, order, copy forward and remove; images with their description), *Scene* (title,
+  headline, target time, sources), *Notes* (speaker notes and the script, cut at its key marks beside the
+  steps they bring up) and *Checks* (the story's warnings, each a link to its step).
+- **Preview:** play into the chosen step, or play the scene from it (each step when the next is due, or
+  after four seconds when untimed); skip to the end of the motion. With the stage focused, → and ← move
+  through the story as a presenter would, R replays and S skips.
+
 ## On the command line
 
 `loopweft story` runs the same operations ([the command line's reference](../packages/cli/README.md)):
