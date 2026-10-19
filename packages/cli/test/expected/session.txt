@@ -267,6 +267,23 @@ S1  Growth (1 min) · 3 steps
 1 story warning: run loopweft validate to see them.
 [exit 0]
 
+$ loopweft story show pop.loopweft S1.2
+S1.2 "The loop": step 2 of 3 in scene S1 ("Growth")
+due at 20 s
+Map:
+  variables: base dim · focus births, population
+  links: base ghost · active L1, L2
+  camera: frames births, population (right)
+  labels: focus
+  trends: births ▲ rising, population ▲ rising
+  loop badges: R1 (named)
+  pulses: L2 → L1
+Overlays (counted from 0, later ones on top):
+  0 caption
+  1 statement (question) · lines "More people, more births." · place bottom · cites test2020 pp. 4–5
+Sources it draws on: test2020
+[exit 0]
+
 $ loopweft story show pop.loopweft S1.3
 S1.3 "Deaths push back": step 3 of 3 in scene S1 ("Growth")
 due at 40 s
@@ -275,7 +292,7 @@ Map:
   links: base ghost · active L3, L4
   camera: frames births, population (right)
   labels: focus
-  trends: births ▲, deaths ▲, population ▲
+  trends: births ▲ rising, deaths ▲ rising, population ▲ rising
   pulses: L3 → L4
 Overlays: none
 Sources it draws on: test2020

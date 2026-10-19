@@ -51,7 +51,7 @@ run can be repeated byte for byte).
 | `references <file> [--markdown]` | The APA reference list, made from the sources (see [sources and citations](../../docs/sources.md)) |
 | `layout <file> [--auto constellation\|force\|flow [--seed n]] [--move id=x,y] [--pin …] [--unpin …] [--label-side id=side] [--bend link=v] [--clear-bends [links…]] [--home x,y,zoom] [--clear-home]` | Shows the layout, or changes it (in that order) |
 | `story list <file>` | The scenes and their steps, in order |
-| `story show <file> <step\|scene>` | A step in full (`S05.3`: what its map shows, its overlays, the sources it draws on, its warnings), or a scene (`S05`: its steps, notes, and script cut at its key marks beside the steps they bring up) |
+| `story show <file> <step\|scene>` | A step in full (`S05.3`: what its map shows, with its trends in words, its overlays with everything they show and the pages they cite, the sources it draws on, its warnings), or a scene (`S05` or its title, even one with a dot in it: its steps, notes, and script cut at its key marks beside the steps they bring up) |
 | `story scene add\|set\|rm\|move` | Scenes: `add <file> --title <t> [--id] [--headline] [--target <s>] [--notes <md>\|--notes-file] [--script <t>\|--script-file] [--sources a,b] [--before\|--after <scene>\|--first\|--last]`; `rm … [--cascade]` (a scene with steps) |
 | `story step add <file> <scene> --label <l> [--at <s>] [--cue] [map options]` | Adds a step; without map options it shows the whole map, plainly |
 | `story step set <file> <step> [--label] [--at] [--cue] [--clear at cue] [map options]` | Changes a step; the map options (below) change what it shows |
@@ -69,6 +69,8 @@ registered with another, such as mEDRA or JaLC), `busy` or `badReply`. Nothing i
 reference by hand, offline.
 
 Variables are named by id or by label (ignoring case and spacing); a name that matches two is refused.
+Scenes are named by id or by title, steps by their scene and their own id or label (`S05.3`); `--before` and
+`--after` also take a step's id or label alone, in the scene it goes to.
 Values are read strictly: `--weight heavy`, or a field value that is not one of its choices, is refused,
 never stored as a guess. A link's sign is required: write `?` when it is not known, and it is flagged.
 

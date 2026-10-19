@@ -11,6 +11,8 @@ import {
   checkProject,
   copyStep,
   countKeyMarks,
+  type FoundScene,
+  type FoundStep,
   FRAMES,
   imageDataUri,
   KEY_MARK,
@@ -35,6 +37,7 @@ import {
   resolveScene,
   resolveStep,
   resolveVariable,
+  type Scene,
   type SceneChanges,
   type StepChanges,
   scriptSegments,
@@ -49,15 +52,13 @@ import {
   setStepTrend,
   spreadTrend,
   stepSources,
-  type Trend,
   type Where,
 } from '@loopweft/model';
-import { type CommandResult, cleared, edit } from './commands.ts';
+import { type CommandResult, cleared, edit, MARK, WAY } from './commands.ts';
+import { citationText } from './sources.ts';
 import { type Env, list, loadProject, number, numbers, oneOf, pair, readText } from './support.ts';
 
 type Run = (project: Project) => OpOutput<unknown>;
-
-const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
 
 /** A count of seconds as people read it: "45 s", "1 min 35 s". */
 const seconds = (s: number) =>
@@ -71,15 +72,41 @@ interface PlaceOptions {
   last?: boolean;
 }
 
-function where(o: PlaceOptions, count: () => number): Where | undefined {
+/** The place the options give; `beside` turns the reference --before or --after names into its id. */
+function where(o: PlaceOptions, count: () => number, beside: (ref: string) => string): Where | undefined {
   const given = [o.before, o.after, o.first, o.last].filter((v) => v !== undefined && v !== false);
   if (given.length > 1) throw new OpError('Give one place: --before, --after, --first or --last.', 'usage');
-  if (o.before !== undefined) return { before: o.before };
-  if (o.after !== undefined) return { after: o.after };
+  if (o.before !== undefined) return { before: beside(o.before) };
+  if (o.after !== undefined) return { after: beside(o.after) };
   if (o.first) return { index: 0 };
   if (o.last) return { index: count() };
   return undefined;
 }
+
+/** A scene named by its id or title, as its id. */
+const sceneId = (project: Project) => (ref: string) => resolveScene(project, ref).scene.id;
+
+/**
+ * A step to place another beside, as its id in `scene`, where the other goes: named by its key (S1.2), or by
+ * its id or label in that scene.
+ */
+const stepId = (project: Project, scene: Scene) => (ref: string) => {
+  if (scene.steps.some((t) => t.id === ref)) return ref;
+  let found: FoundStep;
+  try {
+    found = resolveStep(project, ref);
+  } catch (error) {
+    if (!(error instanceof OpError)) throw error;
+    found = resolveStep(project, `${scene.id}.${ref}`);
+  }
+  if (found.scene.id !== scene.id) {
+    throw new OpError(
+      `Step ${found.key} is in scene ${found.scene.id}; name a step of scene ${scene.id}, where it goes.`,
+      'usage',
+    );
+  }
+  return found.step.id;
+};
 
 /** Text from an option, or from the file a sibling option names. */
 function textOption(text: string | undefined, file: string | undefined, name: string): string | undefined {
@@ -155,7 +182,7 @@ function mapLines(map: MapState): string[] {
   if (map.trends)
     lines.push(
       `trends: ${Object.entries(map.trends)
-        .map(([id, t]) => `${id} ${MARK[t]}`)
+        .map(([id, t]) => `${id} ${MARK[t]} ${WAY[t]}`)
         .join(', ')}`,
     );
   if (map.loops?.length) {
@@ -190,32 +217,114 @@ function mapLines(map: MapState): string[] {
   return lines;
 }
 
-/** One overlay in a line. */
-function overlayLine(o: Overlay, i: number): string {
+/** Lines of text as written: "a" / "b". */
+const quoted = (lines: readonly string[]) => lines.map((l) => `"${l}"`).join(' / ');
+
+/**
+ * One overlay as lines, with everything it shows: its first line has the overlay's own fields, where it goes
+ * and the sources it cites, with their pages; a set of cards has a line for each card.
+ */
+function overlayLines(o: Overlay, i: number): string[] {
+  const fields = (parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ');
+  const place = 'place' in o && o.place ? `place ${o.place}` : undefined;
   const cites =
-    'citations' in o && o.citations?.length ? ` · cites ${o.citations.map((c) => c.source).join(', ')}` : '';
-  const place = 'place' in o && o.place ? ` · ${o.place}` : '';
+    'citations' in o && o.citations?.length ? `cites ${o.citations.map(citationText).join('; ')}` : undefined;
   switch (o.type) {
     case 'caption':
-      return `${i} caption`;
+      return [`${i} caption`];
     case 'title':
-      return `${i} title page "${o.title}"${o.subtitle ? ` / "${o.subtitle}"` : ''}`;
+      return [
+        fields([
+          `${i} title page "${o.title}"`,
+          o.subtitle !== undefined && `subtitle "${o.subtitle}"`,
+          !!o.lines?.length && `lines ${quoted(o.lines)}`,
+        ]),
+      ];
     case 'statement':
-      return `${i} statement${o.style ? ` (${o.style})` : ''}${o.kicker ? ` ${o.kicker}:` : ''} "${o.lines.join(' / ')}"${place}${cites}`;
+      return [
+        fields([
+          `${i} statement${o.style ? ` (${o.style})` : ''}`,
+          o.kicker !== undefined && `kicker "${o.kicker}"`,
+          `lines ${quoted(o.lines)}`,
+          place,
+          cites,
+        ]),
+      ];
     case 'cards':
-      return `${i} cards${o.title ? ` "${o.title}"` : ''}: ${o.items.map((c, k) => `${o.active?.includes(k) ? '*' : ''}${c.title}`).join(' | ')}${place}${cites}`;
+      return [
+        fields([`${i} cards${o.title !== undefined ? ` "${o.title}"` : ''}`, place, cites]),
+        ...o.items.map(
+          (c, k) =>
+            `  ${fields([
+              `card ${k} "${c.title}"${o.active?.includes(k) ? ' (highlighted)' : ''}`,
+              c.sub !== undefined && `sub "${c.sub}"`,
+              c.icon && `icon ${c.icon}`,
+            ])}`,
+        ),
+      ];
     case 'legend':
-      return `${i} legend${place}${cites}`;
+      return [fields([`${i} legend`, place, cites])];
     case 'image':
-      return `${i} image ${o.asset}: "${o.alt}"${place}${cites}`;
+      return [
+        fields([
+          `${i} image ${o.asset}`,
+          `alt "${o.alt}"`,
+          o.caption !== undefined && `caption "${o.caption}"`,
+          o.credit !== undefined && `credit "${o.credit}"`,
+          place,
+          cites,
+        ]),
+      ];
   }
+}
+
+/** Whether an issue's path lies within the one given. */
+const within = (path: readonly (string | number)[], prefix: readonly (string | number)[]) =>
+  prefix.every((part, k) => path[k] === part);
+
+/**
+ * What `story show` names: a scene, by its id or title, or a step, "<scene>.<step>". A scene's title may have
+ * a dot in it ("Version 1.0"), so a reference with a dot that is a whole title is that scene, unless it is
+ * also a step's own key (S1.2), which is the step; one that names a step another way too is refused.
+ */
+function sceneOrStep(project: Project, ref: string): FoundScene | FoundStep {
+  const attempt = <T>(find: () => T): T | OpError => {
+    try {
+      return find();
+    } catch (error) {
+      if (error instanceof OpError) return error;
+      throw error;
+    }
+  };
+  const scene = attempt(() => resolveScene(project, ref));
+  if (!ref.includes('.')) {
+    if (scene instanceof OpError) throw scene;
+    return scene;
+  }
+  const step = attempt(() => resolveStep(project, ref));
+  if (!(step instanceof OpError)) {
+    if (scene instanceof OpError || step.key === ref) return step;
+    throw new OpError(
+      `"${ref}" is the title of scene ${scene.scene.id} and also names step ${step.key}; use ${scene.scene.id} or ${step.key}.`,
+      'usage',
+    );
+  }
+  if (!(scene instanceof OpError)) return scene;
+  // Neither: about the step when a scene is named before one of the dots, else about the scene.
+  const sceneBeforeDot = [...ref.matchAll(/\./g)].some(
+    (dot) => !(attempt(() => resolveScene(project, ref.slice(0, dot.index))) instanceof OpError),
+  );
+  throw scene.kind === 'notFound' && sceneBeforeDot ? step : scene;
 }
 
 export function storyShowCommand(file: string, ref: string): CommandResult {
   const project = loadProject(file);
-  if (!ref.includes('.')) return sceneShow(project, ref);
-  const { scene, step, stepIndex, key } = resolveStep(project, ref);
-  const issues = checkProject(project).filter((i) => i.message.startsWith(`Step ${key}:`));
+  const found = sceneOrStep(project, ref);
+  if (!('step' in found)) return sceneShow(project, found);
+  const { scene, step, sceneIndex, stepIndex, key } = found;
+  const issues = checkProject(project).filter((i) =>
+    within(i.path, ['story', 'scenes', sceneIndex, 'steps', stepIndex]),
+  );
   const sources = stepSources(project, step);
   const lines = [
     `${key} "${step.label}": step ${stepIndex + 1} of ${scene.steps.length} in scene ${scene.id} ("${scene.title}")`,
@@ -224,15 +333,14 @@ export function storyShowCommand(file: string, ref: string): CommandResult {
     'Map:',
     ...mapLines(step.map).map((l) => `  ${l}`),
     step.overlays.length ? 'Overlays (counted from 0, later ones on top):' : 'Overlays: none',
-    ...step.overlays.map((o, i) => `  ${overlayLine(o, i)}`),
+    ...step.overlays.flatMap((o, i) => overlayLines(o, i).map((l) => `  ${l}`)),
     `Sources it draws on: ${sources.length ? sources.join(', ') : 'none'}`,
     ...(issues.length ? ['Warnings:', ...issues.map((i) => `  ${i.message}`)] : []),
   ];
   return { text: lines.join('\n'), data: { key, scene: scene.id, step, sources, warnings: issues } };
 }
 
-function sceneShow(project: Project, ref: string): CommandResult {
-  const { index, scene } = resolveScene(project, ref);
+function sceneShow(project: Project, { index, scene }: FoundScene): CommandResult {
   const last = index === project.story.scenes.length - 1;
   const lines = [
     `${scene.id} "${scene.title}": scene ${index + 1} of ${project.story.scenes.length}`,
@@ -297,7 +405,7 @@ export function sceneAddCommand(env: Env, file: string, o: SceneOptions & { titl
       addScene(
         p,
         { ...sceneFields(o), ...(o.id ? { id: o.id } : {}) } as never,
-        where(o, () => p.story.scenes.length),
+        where(o, () => p.story.scenes.length, sceneId(p)),
       ),
   ]);
 }
@@ -335,7 +443,7 @@ export function sceneMoveCommand(
 ): CommandResult {
   return edit(env, file, o, [
     (p) => {
-      const to = where(o, () => p.story.scenes.length - 1);
+      const to = where(o, () => p.story.scenes.length - 1, sceneId(p));
       if (!to) throw new OpError('Say where: --before, --after, --first or --last.', 'usage');
       return moveScene(p, ref, to);
     },
@@ -446,9 +554,9 @@ export function mapRuns(key: () => string, o: MapOptions): Run[] {
   for (const level of LEVELS) {
     const given = o[level];
     if (given === undefined) continue;
-    runs.push(...levelRuns(key, list(given), level));
+    runs.push(...levelRuns(key, list(given), level, level));
   }
-  if (o.unlist !== undefined) runs.push(...levelRuns(key, list(o.unlist), null));
+  if (o.unlist !== undefined) runs.push(...levelRuns(key, list(o.unlist), null, 'unlist'));
   for (const trend of ['up', 'down', 'mixed'] as const) {
     if (o[trend] !== undefined) runs.push((p) => setStepTrend(p, key(), list(o[trend]), trend));
   }
@@ -576,7 +684,9 @@ export function mapRuns(key: () => string, o: MapOptions): Run[] {
   return runs;
 }
 
-function levelRuns(key: () => string, refs: string[], level: Level | null): Run[] {
+function levelRuns(key: () => string, refs: string[], level: Level | null, option: string): Run[] {
+  // An empty list ("" or ",") asks for an edit it does not name: refused, never reported as done.
+  if (refs.length === 0) throw new OpError(`Name at least one variable or link for --${option}.`, 'usage');
   return [
     (p) => {
       const { variables, links } = splitElements(p, refs);
@@ -621,11 +731,12 @@ export function stepAddCommand(
   let key = '';
   return edit(env, file, o, [
     (p) => {
+      const { scene } = resolveScene(p, sceneRef);
       const out = addStep(
         p,
         sceneRef,
         { ...stepFields(o), ...(o.id ? { id: o.id } : {}), map: {} } as never,
-        where(o, () => resolveScene(p, sceneRef).scene.steps.length),
+        where(o, () => scene.steps.length, stepId(p, scene)),
       );
       key = out.result.key;
       return out;
@@ -673,7 +784,7 @@ export function stepMoveCommand(
       const from = resolveStep(p, ref);
       const target = o.scene !== undefined ? resolveScene(p, o.scene).scene : from.scene;
       const count = target.steps.length - (target.id === from.scene.id ? 1 : 0);
-      const to = where(o, () => count);
+      const to = where(o, () => count, stepId(p, target));
       if (!to && o.scene === undefined)
         throw new OpError('Say where: --scene, --before, --after, --first or --last.', 'usage');
       return moveStep(p, ref, { ...(to ?? {}), ...(o.scene !== undefined ? { scene: o.scene } : {}) });
@@ -690,7 +801,7 @@ export function stepCopyCommand(
   return edit(env, file, o, [
     (p) => {
       const target = resolveScene(p, o.scene ?? resolveStep(p, ref).scene.id).scene;
-      const to = where(o, () => target.steps.length);
+      const to = where(o, () => target.steps.length, stepId(p, target));
       return copyStep(p, ref, {
         label: o.label,
         ...(o.scene !== undefined ? { scene: o.scene } : {}),
@@ -784,12 +895,20 @@ export function overlayAddCommand(
   o: OverlayOptions,
 ): CommandResult {
   const kind = oneOf(type, OVERLAY_TYPES, 'type');
+  const fields = overlayFields(o);
+  // The type argument says what is added; --overlay may repeat it (as `story show --json` gives it), not change it.
+  if ('type' in fields && fields.type !== kind) {
+    throw new OpError(
+      `--overlay gives type ${JSON.stringify(fields.type)}, but the type argument is ${kind}; leave type out of --overlay.`,
+      'usage',
+    );
+  }
   return edit(env, file, o, [
     (p) =>
       addOverlay(
         p,
         ref,
-        { type: kind, ...overlayFields(o) },
+        { ...fields, type: kind },
         o.index !== undefined ? { index: number(o.index, 'index') } : {},
       ),
   ]);

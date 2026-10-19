@@ -36,7 +36,7 @@ const STRENGTHS = ['strong', 'moderate', 'weak'] as const;
 const cited = (c: Pick<Citation, 'source' | 'pages'>) =>
   `${c.source}${c.pages === undefined ? '' : ` ${/[–—,-]/.test(c.pages) ? 'pp.' : 'p.'} ${c.pages}`}`;
 
-const citationText = (c: Citation) =>
+export const citationText = (c: Citation) =>
   `${cited(c)}${c.strength ? ` · ${c.strength}` : ''}${c.note ? ` · ${c.note}` : ''}`;
 
 /** A reference without its italics marks, for plain text. */

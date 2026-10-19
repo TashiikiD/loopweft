@@ -497,10 +497,13 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .description('a step in full (S05.3: what its map shows, its overlays, its sources), or a scene (S05)')
     .action((file: string, ref: string) => run(() => storyShowCommand(file, ref))());
 
-  const place = (command: Command, what: string) =>
+  const place = (command: Command, what: 'scene' | 'step') =>
     command
-      .option('--before <id>', `put it before this ${what}`)
-      .option('--after <id>', `put it after this ${what}`)
+      .option(
+        `--before <${what}>`,
+        `put it before this ${what} (${what === 'step' ? 'S1.2, or its id or label in that scene' : 'its id or title'})`,
+      )
+      .option(`--after <${what}>`, `put it after this ${what}`)
       .option('--first', `make it the first ${what}`)
       .option('--last', `make it the last ${what}`);
 

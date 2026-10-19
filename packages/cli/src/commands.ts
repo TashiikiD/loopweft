@@ -718,12 +718,12 @@ export function loopRemoveCommand(
 
 // ----- ripple -----
 
-const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
+export const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
 /**
  * Each way in words, beside its mark, so a screen reader or a font without the marks still tells it; put so
  * that no verb has to agree with a label, which may be singular or plural.
  */
-const WAY: Record<Trend, string> = { up: 'rising', down: 'falling', mixed: 'pushed both ways' };
+export const WAY: Record<Trend, string> = { up: 'rising', down: 'falling', mixed: 'pushed both ways' };
 
 /**
  * What if a variable rises or falls: the model's ripple (the Studio's Ripple panel runs the same), told as
