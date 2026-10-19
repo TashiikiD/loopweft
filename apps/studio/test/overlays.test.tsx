@@ -339,6 +339,15 @@ describe('the Overlays panel', () => {
     // The first removed: the second keeps its own half-typed card.
     await user.click(screen.getByRole('button', { name: 'Remove overlay 1' }));
     expect(drafts().map((d) => d.value)).toEqual(['Kept']);
+    // Undone: the first comes back in its place, and the half-typed card stays with the second; redone, the same.
+    act(() => {
+      store.getState().undo();
+    });
+    expect(drafts().map((d) => d.value)).toEqual(['', 'Kept']);
+    act(() => {
+      store.getState().redo();
+    });
+    expect(drafts().map((d) => d.value)).toEqual(['Kept']);
     await user.click(screen.getByRole('button', { name: 'Add card' }));
     expect(overlays(store)).toEqual([{ type: 'cards', items: [{ title: 'Same' }, { title: 'Kept' }] }]);
   });
