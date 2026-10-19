@@ -2,8 +2,8 @@
 // reads each file as git holds it for the next commit, not only as it is on disk, and, before a push, every
 // commit the push sends.
 import { execFileSync } from 'node:child_process';
-import { lstatSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 /** Images, fonts and PDFs: no text to read. */
 const BINARY = /\.(png|jpe?g|gif|webp|ico|woff2?|pdf)$/i;
@@ -27,6 +27,10 @@ const fold = (text: string): string => text.normalize('NFC').toLowerCase().norma
  * another repository run from that hook, such as the tests in `npm run verify:fast`, would read the hook's
  * own. Settings given with `git -c` (GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT) are kept, as git keeps them when
  * it runs in another repository (a submodule), so `git ls-remote` reaches the same place as the push.
+ *
+ * They are dropped only for another folder than the one this process runs in. The hook's own check reads its
+ * own checkout, with every variable the push gave it: a push can keep its objects outside the repository
+ * (GIT_OBJECT_DIRECTORY, GIT_ALTERNATE_OBJECT_DIRECTORIES), and the check reads them where the push does.
  */
 let bound: Set<string> | undefined;
 
@@ -45,16 +49,23 @@ function unbound(): Record<string, string | undefined> {
   return Object.fromEntries(Object.entries(process.env).filter(([name]) => !names.has(name.toUpperCase())));
 }
 
+/** A folder as the file system names it: in full, links followed, in its own letter case. */
+const canonical = (folder: string): string => realpathSync.native(resolve(folder));
+
 /**
- * Git, in the repository at `root` (found from that folder, whatever repository a hook runs in), reading each
- * object itself, never a local replacement for it (`git replace`), as a push does.
+ * Git, in the repository at `root` (found from that folder, whatever repository a hook runs in, unless it is
+ * the folder this process runs in), reading each object itself, never a local replacement for it
+ * (`git replace`), as a push does.
  */
 const git = (root: string, args: string[], input?: string): Buffer =>
   execFileSync('git', args, {
     cwd: root,
     input,
     maxBuffer: 2 ** 30,
-    env: { ...unbound(), GIT_NO_REPLACE_OBJECTS: '1' },
+    env: {
+      ...(canonical(root) === canonical(process.cwd()) ? process.env : unbound()),
+      GIT_NO_REPLACE_OBJECTS: '1',
+    },
     stdio: 'pipe',
   });
 

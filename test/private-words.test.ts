@@ -74,6 +74,13 @@ function repository(at?: string) {
       stdio: 'pipe',
     }).trim();
   const git = (...args: string[]) => run(args);
+  /** A real `git push`, which runs the hook, with the made-up words set as the private ones, and `env`. */
+  const push = (env: Record<string, string>, args: string[]) =>
+    spawnSync('git', ['push', '--quiet', ...args], {
+      cwd: dir,
+      env: { ...ENV, ...env, LOOPWEFT_PRIVATE_WORDS: `${WORD},${ACCENTED}` },
+      encoding: 'utf8',
+    });
   if (at === undefined) git('init', '--quiet');
   return {
     dir,
@@ -107,12 +114,9 @@ function repository(at?: string) {
       return tree;
     },
     /** A real `git push`, which runs the hook, with the made-up words set as the private ones. */
-    push: (...args: string[]) =>
-      spawnSync('git', ['push', '--quiet', ...args], {
-        cwd: dir,
-        env: { ...ENV, LOOPWEFT_PRIVATE_WORDS: `${WORD},${ACCENTED}` },
-        encoding: 'utf8',
-      }),
+    push: (...args: string[]) => push({}, args),
+    /** The same, with `env` too, which git passes on to the hook. */
+    pushWith: (env: Record<string, string>, ...args: string[]) => push(env, args),
     found: () => findPrivateWords(dir, [WORD]).sort(),
   };
 }
@@ -369,6 +373,35 @@ describe('the push check', () => {
       expect(sent.status, sent.stderr).toBe(0);
       expect(side.git('ls-remote', 'origin')).toBe(`${side.git('rev-parse', 'HEAD')}\trefs/heads/side`);
     });
+
+    // Git can keep a repository's objects in another store: GIT_OBJECT_DIRECTORY in place of its own,
+    // GIT_ALTERNATE_OBJECT_DIRECTORIES as well as it. A push made so gives the hook the same variable.
+    it.each(['GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES'])(
+      'reads a commit kept only in the store %s names, as the push does',
+      (variable) => {
+        const repo = repository();
+        repo.git('remote', 'add', 'origin', remote());
+        repo.guard();
+        // Every object of the commit goes to the other store, none to the repository's own.
+        const store = join(remote(), 'objects');
+        const kept = { GIT_OBJECT_DIRECTORY: store };
+        repo.write('notes.md', SAFE);
+        repo.run(['add', '--all'], kept);
+        repo.run(['commit', '--quiet', `--message=Notes for ${WORD}`], kept);
+        const id = repo.git('rev-parse', 'HEAD');
+        expect(() => repo.git('cat-file', '-e', id)).toThrow();
+
+        const stopped = repo.pushWith({ [variable]: store }, 'origin', 'HEAD:refs/heads/main');
+        expect(stopped.status).not.toBe(0);
+        expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
+        expect(repo.git('ls-remote', 'origin')).toBe('');
+
+        repo.run(['commit', '--quiet', '--amend', '--message=Notes'], kept);
+        const sent = repo.pushWith({ [variable]: store }, 'origin', 'HEAD:refs/heads/main');
+        expect(sent.status, sent.stderr).toBe(0);
+        expect(repo.git('ls-remote', 'origin')).toBe(`${repo.git('rev-parse', 'HEAD')}\trefs/heads/main`);
+      },
+    );
 
     it('stops a commit that only another remote holds', () => {
       const repo = repository();
