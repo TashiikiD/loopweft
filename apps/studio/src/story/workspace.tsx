@@ -1,10 +1,10 @@
 // The Story workspace: the outline of scenes and steps, the stage showing the chosen step as the audience
 // will see it, and the side panel to change it. The preview plays the transitions: into the chosen step, or
-// the scene from the chosen step on, at the times its steps are due; choosing another step stops it. With the
-// stage focused, the arrow keys move through the story as a presenter would (forward with the full motion,
-// back with a quick fade).
+// the scene from the chosen step on, at the times its steps are due; choosing another step, or any edit, stops
+// it. With the stage focused, the arrow keys move through the story as a presenter would (forward with the
+// full motion, back with a quick fade).
 
-import type { Step } from '@loopweft/model';
+import type { Project, Step } from '@loopweft/model';
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import {
   IconChevronLeft,
@@ -50,6 +50,8 @@ export function StoryWorkspace() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The step the playing scene last brought up. */
   const playedTo = useRef<string | null>(null);
+  /** The project the scene started playing in: its steps and times are the ones being played. */
+  const playedIn = useRef<Project | null>(null);
   const title = current?.scene.title;
   const headline = current?.scene.headline;
   const sceneIndex = current?.sceneIndex ?? 0;
@@ -69,11 +71,12 @@ export function StoryWorkspace() {
   };
   // biome-ignore lint/correctness/useExhaustiveDependencies: stops the scene's timer when the workspace closes
   useEffect(() => () => stop(), []);
-  // Another step chosen while the scene plays (in the outline, with the arrows or the script) stops it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the chosen step changes
+  // Another step chosen while the scene plays (in the outline, with the arrows or the script) stops it; so does
+  // any edit (a step moved, a time changed), which leaves the scene played out of date even on the same step.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the chosen step or the project changes
   useEffect(() => {
-    if (playing && current?.key !== playedTo.current) stop();
-  }, [playing, current?.key]);
+    if (playing && (current?.key !== playedTo.current || project !== playedIn.current)) stop();
+  }, [playing, current?.key, project]);
 
   /** Moves to another step: forward with the full motion, back with a quick fade. None from a scene's head. */
   const go = (offset: number) => {
@@ -117,6 +120,7 @@ export function StoryWorkspace() {
     const scene = current.scene;
     const times = playTimes(scene.steps);
     playedTo.current = current.key;
+    playedIn.current = project;
     const advance = (index: number) => {
       const next = scene.steps[index + 1];
       if (!next) {

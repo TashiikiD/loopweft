@@ -109,7 +109,8 @@ the audience will see it, drawn by the same renderer as the viewer) and a panel 
   headline, target time, sources), *Notes* (speaker notes and the script, cut at its key marks beside the
   steps they bring up) and *Checks* (the story's warnings, each a link to its step).
 - **Preview:** play into the chosen step, or play the scene from it (each step when the next is due, or
-  after four seconds when untimed); skip to the end of the motion. With the stage focused, → and ← move
+  after four seconds when untimed; choosing another step, or any edit, stops it); skip to the end of the
+  motion. With the stage focused, → and ← move
   through the story as a presenter would, R replays and S skips.
 
 ## On the command line

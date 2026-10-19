@@ -1,5 +1,5 @@
 // Notes, the script with its key marks, the story's checks and the preview, in jsdom.
-import { createProject, type Project, type Step } from '@loopweft/model';
+import { createProject, moveStep, type Project, type Step, setStep } from '@loopweft/model';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -252,6 +252,36 @@ describe('the preview', () => {
     expect(screen.queryByText(/^Playing/)).toBeNull();
     wait(60000);
     expect(at()).toBe('S1.4');
+  });
+
+  it('stops playing when an edit changes the scene, though the chosen step keeps its key', async () => {
+    const { store, wait, at } = await playFrom(timed(), 'S1.1');
+    expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
+    // S1.1 moved after S1.2: still S1.1, but the step that follows it is now S1.3.
+    act(() => {
+      store.getState().edit((p) => moveStep(p, 'S1.1', { after: '2' }));
+    });
+    expect(store.getState().project.story.scenes[0]?.steps.map((s) => s.id)).toEqual([
+      '2',
+      '1',
+      '3',
+      '4',
+      '5',
+    ]);
+    expect(at()).toBe('S1.1');
+    expect(screen.queryByText(/^Playing/)).toBeNull();
+    // The old schedule (S1.2 at 20 s) brings nothing up.
+    wait(60000);
+    expect(at()).toBe('S1.1');
+    // And a time changed while it plays.
+    fireEvent.click(screen.getByRole('button', { name: 'Play the scene from here' }));
+    expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
+    act(() => {
+      store.getState().edit((p) => setStep(p, 'S1.3', { at: 5 }));
+    });
+    expect(screen.queryByText(/^Playing/)).toBeNull();
+    wait(60000);
+    expect(at()).toBe('S1.1');
   });
 
   it("does not jump to the story's first step from a later scene's heading", async () => {
