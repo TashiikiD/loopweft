@@ -125,8 +125,18 @@ async function choose(page: Page, field: Locator, option: string) {
     await field.press('Enter');
     return;
   }
-  await field.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
+  // A click opens the list (or, if it was still open, closes it): a pick that finds the option hidden closes
+  // the list and tries again (three tries).
+  for (let attempt = 1; ; attempt++) {
+    await field.click();
+    try {
+      await page.getByRole('option', { name: option, exact: true }).click({ timeout: 4000 });
+      return;
+    } catch (error) {
+      if (attempt === 3) throw error;
+      await page.keyboard.press('Escape');
+    }
+  }
 }
 
 /** Types into a field that keeps its value when it is left. */
