@@ -128,14 +128,19 @@ function Citations({
         </Text>
       )}
       {citations.map((c, i) => {
-        const who = `${project.sources.find((s) => s.id === c.source)?.label ?? c.source}${c.pages ? `, p. ${c.pages}` : ''}`;
+        // Named by the source's label and id (two sources may share a label), so each field says which it edits;
+        // the id is shown only where another source has the same label.
+        const label = project.sources.find((s) => s.id === c.source)?.label;
+        const at = c.pages ? `, p. ${c.pages}` : '';
+        const who = `${label && label !== c.source ? `${label} [${c.source}]` : c.source}${at}`;
+        const shared = !!label && project.sources.some((s) => s.id !== c.source && s.label === label);
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: citations are positional
           <Paper key={i} withBorder p={6} radius="sm" role="group" aria-label={`Citation of ${who}`}>
             <Stack gap={4}>
               <Group gap={4} wrap="nowrap">
                 <Text size="xs" fw={500} style={{ flex: 1 }}>
-                  {who}
+                  {shared || !label ? who : `${label}${at}`}
                 </Text>
                 <ActionIcon
                   variant="subtle"
@@ -227,6 +232,9 @@ function Fields({
 }) {
   const store = useStudioStore();
   const project = useStudio((s) => s.project);
+  // One replacement image at a time: while one is read, another cannot be chosen (its button is off).
+  const replacing = useRef(false);
+  const [reading, setReading] = useState(false);
   const set = (changes: Record<string, unknown>) => edit((p) => setOverlay(p, stepKey, index, changes));
   // Every overlay but the caption and the title page has a place and citations, set or not.
   const placed = overlay.type !== 'caption' && overlay.type !== 'title';
@@ -421,42 +429,50 @@ function Fields({
             </Text>
             <FileButton
               accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              disabled={reading}
               onChange={(file) => {
-                if (!file) return;
+                if (!file || replacing.current) return;
                 // What the file was chosen to replace: this image as it is now, on the steps that show it now
                 // (the ones the person agreed to replace it on).
                 const { generation, project: chosen } = store.getState();
                 const id = overlay.asset;
                 const was = chosen.assets[id];
                 const agreed = new Set(assetUses(chosen, id));
-                readImage(file).then(
-                  (uri) => {
-                    const state = store.getState();
-                    // A project opened while the file is read is not the one it was chosen for: nothing changes.
-                    if (state.generation !== generation) return;
-                    // Nor does an image changed meanwhile: this overlay shows another, the image was replaced or
-                    // removed (and perhaps added again), or more steps show it than were agreed to.
-                    const now = state.project;
-                    const target = currentOf(now, stepKey)?.step?.overlays[index];
-                    const same =
-                      target?.type === 'image' &&
-                      target.asset === id &&
-                      now.assets[id] === was &&
-                      assetUses(now, id).every((key) => agreed.has(key));
-                    if (!same) {
-                      refused(
-                        new OpError(
-                          `Image ${id} changed while the file was read, so it was not replaced. Choose the file again.`,
-                          'conflict',
-                        ),
-                        'Not replaced',
-                      );
-                      return;
-                    }
-                    edit((p) => setAsset(p, id, uri));
-                  },
-                  (error) => refused(error, 'Not an image'),
-                );
+                replacing.current = true;
+                setReading(true);
+                readImage(file)
+                  .then(
+                    (uri) => {
+                      const state = store.getState();
+                      // A project opened while the file is read is not the one it was chosen for: nothing changes.
+                      if (state.generation !== generation) return;
+                      // Nor does an image changed meanwhile: this overlay shows another, the image was replaced or
+                      // removed (and perhaps added again), or more steps show it than were agreed to.
+                      const now = state.project;
+                      const target = currentOf(now, stepKey)?.step?.overlays[index];
+                      const same =
+                        target?.type === 'image' &&
+                        target.asset === id &&
+                        now.assets[id] === was &&
+                        assetUses(now, id).every((key) => agreed.has(key));
+                      if (!same) {
+                        refused(
+                          new OpError(
+                            `Image ${id} changed while the file was read, so it was not replaced. Choose the file again.`,
+                            'conflict',
+                          ),
+                          'Not replaced',
+                        );
+                        return;
+                      }
+                      edit((p) => setAsset(p, id, uri));
+                    },
+                    (error) => refused(error, 'Not an image'),
+                  )
+                  .finally(() => {
+                    replacing.current = false;
+                    setReading(false);
+                  });
               }}
             >
               {(props) => (
@@ -464,6 +480,7 @@ function Fields({
                   size="compact-xs"
                   variant="default"
                   {...props}
+                  disabled={reading}
                   onClick={() => {
                     // The image is the same one on every step that shows it: replacing it here replaces it there.
                     if (
@@ -649,9 +666,14 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
         )}
         {kind === 'image' && (
           <>
-            <FileButton accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" onChange={setFile}>
+            {/* While the image is read, what was chosen and its description stay as they are. */}
+            <FileButton
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              disabled={busy}
+              onChange={(next) => !reading.current && setFile(next)}
+            >
               {(props) => (
-                <Button size="compact-xs" variant="default" {...props}>
+                <Button size="compact-xs" variant="default" {...props} disabled={busy}>
                   {file ? `Image: ${file.name}` : 'Choose an image…'}
                 </Button>
               )}
@@ -661,6 +683,7 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
               description="What the image shows, for people who cannot see it"
               size="xs"
               value={alt}
+              disabled={busy}
               onChange={(e) => setAlt(e.currentTarget.value)}
             />
           </>
@@ -798,8 +821,11 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
   const { keys, tell } = useOverlayKeys(stepKey, step.overlays);
   const hasCaption = step.overlays.some((o) => o.type === 'caption');
   const start = (kind: Kind) => {
-    if (kind === 'caption' || kind === 'legend') edit((p) => addOverlay(p, stepKey, { type: kind }));
-    else setAdding(kind);
+    if (kind === 'caption' || kind === 'legend') {
+      // Added at once: a form still open closes, so an image it is reading is not added after this.
+      setAdding(null);
+      edit((p) => addOverlay(p, stepKey, { type: kind }));
+    } else setAdding(kind);
   };
   return (
     <div className="lw-panel-body">

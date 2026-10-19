@@ -62,8 +62,7 @@ async function openOverlays(project: Project = small(), options: { strict?: bool
 }
 
 /** An image file whose bytes arrive only when `release` is called, as a slow disk or a large file would. */
-function slowFile(name = 'slow.png') {
-  const bytes = Uint8Array.from(atob(PNG), (c) => c.charCodeAt(0));
+function slowFile(name = 'slow.png', bytes = Uint8Array.from(atob(PNG), (c) => c.charCodeAt(0))) {
   const file = new File([bytes], name, { type: 'image/png' });
   let release: () => void = () => {};
   const ready = new Promise<ArrayBuffer>((resolve) => {
@@ -257,6 +256,107 @@ describe('the Overlays panel', () => {
     expect((screen.getByRole('textbox', { name: "First card's title" }) as HTMLInputElement).value).toBe(
       'Draft',
     );
+  });
+
+  it('adds no image when a caption or a legend is added while the file is read', async () => {
+    const { store, user } = await openOverlays();
+    for (const kind of ['Caption', 'Legend']) {
+      await add(user, 'Image');
+      const slow = slowFile();
+      await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, slow.file);
+      await user.type(screen.getByRole('textbox', { name: 'Description (alt text)' }), 'A chart');
+      await user.click(screen.getAllByRole('button', { name: 'Add' }).at(-1) as HTMLButtonElement);
+      // The panel's own Add, first: the form's comes after it.
+      await user.click(screen.getAllByRole('button', { name: 'Add' })[0] as HTMLButtonElement);
+      await user.click(screen.getByRole('menuitem', { name: kind }));
+      expect(screen.queryByText('New image')).toBeNull();
+      slow.release();
+      await settle();
+    }
+    expect(overlays(store)).toEqual([{ type: 'caption' }, { type: 'legend' }]);
+    expect(store.getState().project.assets).toEqual({});
+  });
+
+  it('keeps the chosen image and its description as they are while the image is read', async () => {
+    const { store, user } = await openOverlays();
+    await add(user, 'Image');
+    const slow = slowFile('chart.png');
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, slow.file);
+    const alt = screen.getByRole('textbox', { name: 'Description (alt text)' }) as HTMLInputElement;
+    await user.type(alt, 'A chart');
+    await user.click(screen.getAllByRole('button', { name: 'Add' }).at(-1) as HTMLButtonElement);
+    const choose = screen.getByRole('button', { name: 'Image: chart.png' }) as HTMLButtonElement;
+    expect([choose.disabled, alt.disabled]).toEqual([true, true]);
+    // Another file given to the picker meanwhile is not taken.
+    await user.upload(input, new File([SVG], 'other.svg', { type: 'image/svg+xml' }));
+    expect(screen.getByRole('button', { name: 'Image: chart.png' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Cancel' }) as HTMLButtonElement).disabled).toBe(false);
+    slow.release();
+    await settle();
+    expect(overlays(store)).toEqual([{ type: 'image', asset: 'chart', alt: 'A chart' }]);
+    expect(store.getState().project.assets).toEqual({ chart: `data:image/png;base64,${PNG}` });
+  });
+
+  it('replaces an image with one file at a time, its button off while the file is read', async () => {
+    const project = small();
+    project.assets = { chart: SVG };
+    project.story.scenes[0]?.steps[0]?.overlays.push({ type: 'image', asset: 'chart', alt: 'A chart' });
+    const { store, user } = await openOverlays(project);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const replace = () => screen.getByRole('button', { name: 'Replace the image…' }) as HTMLButtonElement;
+    // A, slow; then B, at once, while A is read: B is not taken, and A goes in.
+    const slow = slowFile();
+    await user.upload(input, slow.file);
+    expect(replace().disabled).toBe(true);
+    const other = `<svg xmlns="http://www.w3.org/2000/svg" width="3" height="3"/>`;
+    await user.upload(input, new File([other], 'other.svg', { type: 'image/svg+xml' }));
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: SVG });
+    slow.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: `data:image/png;base64,${PNG}` });
+    expect(replace().disabled).toBe(false);
+    // A file that is not an image: refused, and the button is on again.
+    const broken = slowFile('broken.png', new TextEncoder().encode('not an image'));
+    await user.upload(input, broken.file);
+    expect(replace().disabled).toBe(true);
+    broken.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: `data:image/png;base64,${PNG}` });
+    expect(replace().disabled).toBe(false);
+  });
+
+  it('names each citation by its source id too, so two sources with the same label are told apart', async () => {
+    const project = small();
+    project.sources.push({
+      id: 'T2',
+      label: 'Test (2020)',
+      apa: 'Test, B. (2020). *Another fictitious source*.',
+    });
+    project.story.scenes[0]?.steps[0]?.overlays.push({
+      type: 'legend',
+      citations: [
+        { source: 'T', pages: '4' },
+        { source: 'T2', pages: '4' },
+      ],
+    });
+    const { store, user } = await openOverlays(project);
+    for (const id of ['T', 'T2']) {
+      const who = `Test (2020) [${id}], p. 4`;
+      const row = within(screen.getByRole('group', { name: `Citation of ${who}` }));
+      // The label is shared, so the id shows too.
+      expect(row.getByText(who)).toBeTruthy();
+      expect(row.getByRole('textbox', { name: `Pages: ${who}` })).toBeTruthy();
+      expect(row.getByRole('radiogroup', { name: `Strength of the evidence: ${who}` })).toBeTruthy();
+      await user.type(row.getByRole('textbox', { name: `Note: ${who}` }), `Note on ${id}{Enter}`);
+    }
+    expect(overlays(store)?.[0]).toMatchObject({
+      citations: [
+        { source: 'T', pages: '4', note: 'Note on T' },
+        { source: 'T2', pages: '4', note: 'Note on T2' },
+      ],
+    });
   });
 
   it('adds one image for two clicks on Add while the file is read', async () => {
@@ -513,11 +613,11 @@ describe('the Overlays panel', () => {
       citations: [{ source: 'T', pages: '4', strength: 'strong', note: 'Fig. 2' }],
     });
     const { store, user } = await openOverlays(project);
-    const row = () => within(screen.getByRole('group', { name: 'Citation of Test (2020), p. 4' }));
-    expect((row().getByRole('textbox', { name: 'Pages: Test (2020), p. 4' }) as HTMLInputElement).value).toBe(
-      '4',
-    );
-    const note = row().getByRole('textbox', { name: 'Note: Test (2020), p. 4' }) as HTMLInputElement;
+    const row = () => within(screen.getByRole('group', { name: 'Citation of Test (2020) [T], p. 4' }));
+    expect(
+      (row().getByRole('textbox', { name: 'Pages: Test (2020) [T], p. 4' }) as HTMLInputElement).value,
+    ).toBe('4');
+    const note = row().getByRole('textbox', { name: 'Note: Test (2020) [T], p. 4' }) as HTMLInputElement;
     expect(note.value).toBe('Fig. 2');
     expect((row().getByRole('radio', { name: 'Strong' }) as HTMLInputElement).checked).toBe(true);
     await user.clear(note);
@@ -550,7 +650,7 @@ describe('the Overlays panel', () => {
     await user.click(screen.getByRole('combobox', { name: 'Source to cite' }));
     await user.click(screen.getByRole('option', { name: /Test \(2020\)/ }));
     await user.click(screen.getByRole('button', { name: 'Cite' }));
-    const pages = row().getByRole('textbox', { name: 'Pages: Test (2020), p. 4' });
+    const pages = row().getByRole('textbox', { name: 'Pages: Test (2020) [T], p. 4' });
     await user.clear(pages);
     await user.type(pages, '{Enter}');
     expect(await screen.findByText('It already cites T at those pages.')).toBeTruthy();
