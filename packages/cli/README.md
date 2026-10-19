@@ -50,6 +50,15 @@ run can be repeated byte for byte).
 | `cite list <file> [elements…] [--source <s>] [--uncited]` | The citations, of everything or of some elements; `--uncited`: the links, variables and named loops that cite nothing |
 | `references <file> [--markdown]` | The APA reference list, made from the sources (see [sources and citations](../../docs/sources.md)) |
 | `layout <file> [--auto constellation\|force\|flow [--seed n]] [--move id=x,y] [--pin …] [--unpin …] [--label-side id=side] [--bend link=v] [--clear-bends [links…]] [--home x,y,zoom] [--clear-home]` | Shows the layout, or changes it (in that order) |
+| `story list <file>` | The scenes and their steps, in order |
+| `story show <file> <step\|scene>` | A step in full (`S05.3`: what its map shows, its overlays, the sources it draws on, its warnings), or a scene (`S05`: its steps, notes, and script cut at its key marks beside the steps they bring up) |
+| `story scene add\|set\|rm\|move` | Scenes: `add <file> --title <t> [--id] [--headline] [--target <s>] [--notes <md>\|--notes-file] [--script <t>\|--script-file] [--sources a,b] [--before\|--after <scene>\|--first\|--last]`; `rm … [--cascade]` (a scene with steps) |
+| `story step add <file> <scene> --label <l> [--at <s>] [--cue] [map options]` | Adds a step; without map options it shows the whole map, plainly |
+| `story step set <file> <step> [--label] [--at] [--cue] [--clear at cue] [map options]` | Changes a step; the map options (below) change what it shows |
+| `story step rm\|move\|copy` | `move <file> <step> [--scene <s>] [--before\|--after <step>\|--first\|--last]`; `copy <file> <step> --label <l>` (a copy with everything it shows, just after it) |
+| `story overlay add <file> <step> <type> […]` | Adds a caption, title, statement, cards, legend or image: `--title`, `--subtitle`, `--line` (repeatable), `--kicker`, `--style`, `--place`, `--card "title \| sub \| icon"` (repeatable), `--active 0,2`, `--image <id> --alt <text>`, `--caption`, `--credit`, `--cite source[:pages]` (repeatable), `--overlay <json>`, `--index <n>` |
+| `story overlay set\|rm\|move <file> <step> <n>` | Overlays are counted from 0, later ones drawing on top: `set … [fields] [--clear …]`, `move … --to <n>` |
+| `story image add\|set\|rm` | Images for image overlays: `add <file> <image> [--id]` (PNG, JPEG, GIF, WebP or SVG, read from the bytes), `set <file> <id> <image>`, `rm <file> <id> [--cascade]` |
 | `import <file> -o <project> [--format tables\|kumu\|dataviz] [--title] [--sheet Name=variables\|links\|ignore] [--header-row n] [--map Column=target] [--sign-field <field>] [--layout force\|constellation\|flow\|none]` | Makes a project from tables (CSV, TSV, Excel), a Kumu map or a DataViz project, and prints what it could not carry across (see [importing](../../docs/import.md)) |
 
 `source lookup` and `source add --doi` make Loopweft's only network call: they send the DOI, and nothing
@@ -62,6 +71,26 @@ reference by hand, offline.
 Variables are named by id or by label (ignoring case and spacing); a name that matches two is refused.
 Values are read strictly: `--weight heavy`, or a field value that is not one of its choices, is refused,
 never stored as a guess. A link's sign is required: write `?` when it is not known, and it is flagged.
+
+### A step's map options
+
+They change what a step's map shows, applied in this order (see [telling a story](../../docs/story.md)):
+
+| Options | Do |
+|---|---|
+| `--map <json>`, `--map-file <f>` | Replace the whole map state (first, so the others can refine it) |
+| `--hide-map`, `--show-map`, `--opacity <n>` | Hide or show the map, or fade it |
+| `--base <level>`, `--link-base <level>` | The level of the variables (links) a step does not list: `hidden`, `ghost`, `dim`, `normal`, `focus`, `active` |
+| `--hidden`, `--ghost`, `--dim`, `--normal`, `--focus`, `--active <ids>`, `--unlist <ids>` | Put variables (by id or label) and links (by id) at a level, or back to the base |
+| `--up`, `--down`, `--mixed <variables>`, `--clear-trend <variables>` | ▲ ▼ ± trends |
+| `--spread <variable>=up\|down` | A what-if: mark a rise or fall and spread it by sign along the lit links |
+| `--badge <loops>`, `--name <loops>`, `--hide-name <loops>`, `--hide-badge <loops>` | Loop badges and names (a name shows its badge) |
+| `--clear-pulses`, `--pulse-loop <loop>`, `--pulse <links>` (repeatable), `--pulse-with <links>`, `--pulse-repeat <n>`, `--pulse-tone <tone>`, `--pulse-delay <s>` | Pulses: round a named loop, hop by hop, or added to the last hop, and their timing |
+| `--frame <variables>`, `--whole-map`, `--frame-at <where>`, `--max-zoom <n>` | The camera: what it frames, where on the stage, and a zoom limit |
+| `--labels <which>`, `--category-labels on\|off`, `--label-text <id=text>` | Labels |
+| `--reveal draw\|bloom`, `--reveal-from`, `--reveal-sequence`, `--reveal-stagger`, `--reveal-delay`, `--clear-reveal` | How new things arrive |
+| `--ambient <variables> --ambient-tone harm\|relief`, `--ambient-every <min,max>`, `--ambient-hops <min,max>`, `--ambient-delay`, `--clear-ambient` | Ambient pulses while the step is held |
+| `--clusters show\|dim\|hide`, `--minimap on\|off\|auto` | Group halos and the minimap |
 
 ### Shorthand
 

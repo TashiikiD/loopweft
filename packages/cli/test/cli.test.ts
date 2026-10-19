@@ -33,7 +33,7 @@ const env = { today: '2026-10-18', fetch: recordedFetch };
 async function run(...args: string[]): Promise<{ code: number; out: string; err: string }> {
   let out = '';
   let err = '';
-  const file = (arg: string) => (/\.(loopweft|txt|csv|json|xlsx)$/.test(arg) ? join(dir, arg) : arg);
+  const file = (arg: string) => (/\.(loopweft|txt|csv|json|xlsx|png)$/.test(arg) ? join(dir, arg) : arg);
   const code = await main(args.map(file), { out: (t) => (out += t), err: (t) => (err += t) }, env);
   const local = (text: string) =>
     text
@@ -161,9 +161,129 @@ describe('a session', () => {
       ['layout', 'pop.loopweft', '--auto', 'constellation', '--seed', '2', '--pin', 'fertility'],
       ['layout', 'pop.loopweft', '--home', '960,520,1.1', '--bend', 'L2=0.3', '--label-side', 'deaths=right'],
       ['layout', 'pop.loopweft'],
+      [
+        'story',
+        'scene',
+        'add',
+        'pop.loopweft',
+        '--title',
+        'Growth',
+        '--headline',
+        'Births feed the population.',
+        '--target',
+        '60',
+      ],
+      ['story', 'step', 'add', 'pop.loopweft', 'S1', '--label', 'The map', '--labels', 'all'],
+      [
+        'story',
+        'step',
+        'add',
+        'pop.loopweft',
+        'Growth',
+        '--label',
+        'The loop',
+        '--at',
+        '20',
+        '--base',
+        'dim',
+        '--link-base',
+        'ghost',
+        '--focus',
+        'Births,Population',
+        '--active',
+        'L1,L2',
+        '--frame',
+        'births,population',
+        '--frame-at',
+        'right',
+        '--spread',
+        'births=up',
+        '--name',
+        'R1',
+        '--pulse-loop',
+        'R1',
+        '--labels',
+        'focus',
+      ],
+      ['story', 'step', 'copy', 'pop.loopweft', 'S1.2', '--label', 'Deaths push back'],
+      [
+        'story',
+        'step',
+        'set',
+        'pop.loopweft',
+        'S1.3',
+        '--at',
+        '40',
+        '--active',
+        'L3,L4',
+        '--unlist',
+        'L1,L2',
+        '--hide-badge',
+        'R1',
+        '--clear-pulses',
+        '--pulse',
+        'L3',
+        '--pulse',
+        'L4',
+        '--up',
+        'deaths',
+      ],
+      ['story', 'overlay', 'add', 'pop.loopweft', 'S1.2', 'caption'],
+      [
+        'story',
+        'overlay',
+        'add',
+        'pop.loopweft',
+        'S1.2',
+        'statement',
+        '--line',
+        'More people, more births.',
+        '--style',
+        'question',
+        '--place',
+        'bottom',
+        '--cite',
+        'test2020:4–5',
+      ],
+      ['story', 'image', 'add', 'pop.loopweft', 'chart.png'],
+      [
+        'story',
+        'overlay',
+        'add',
+        'pop.loopweft',
+        'S1.1',
+        'image',
+        '--image',
+        'chart',
+        '--alt',
+        'A test chart',
+        '--credit',
+        'Test data',
+      ],
+      [
+        'story',
+        'scene',
+        'set',
+        'pop.loopweft',
+        'S1',
+        '--script',
+        'The map. [>] The loop. [>] Deaths push back.',
+      ],
+      ['story', 'list', 'pop.loopweft'],
+      ['story', 'show', 'pop.loopweft', 'S1.3'],
+      ['story', 'show', 'pop.loopweft', 'S1'],
+      ['story', 'step', 'move', 'pop.loopweft', 'S1.3', '--first', '--dry-run'],
       ['info', 'pop.loopweft'],
       ['validate', 'pop.loopweft'],
     ];
+    // A 1×1 PNG for the image overlay.
+    writeFileSync(
+      join(dir, 'chart.png'),
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    );
     const transcript: string[] = [];
     for (const args of session) {
       const { code, out, err } = await run(...args);
@@ -347,6 +467,24 @@ describe('the contract for agents', () => {
       'cite rm',
       'references',
       'layout',
+      'story list',
+      'story show',
+      'story scene add',
+      'story scene set',
+      'story scene rm',
+      'story scene move',
+      'story step add',
+      'story step set',
+      'story step rm',
+      'story step move',
+      'story step copy',
+      'story overlay add',
+      'story overlay set',
+      'story overlay rm',
+      'story overlay move',
+      'story image add',
+      'story image set',
+      'story image rm',
     ]);
   });
 
@@ -619,5 +757,51 @@ describe('ripple', () => {
     expect((await run('ripple', 'loop.loopweft', 'Stock', 'up')).out).toContain(
       'Back to Stock at step 2 along L2: ▼ falling, the other way, so the loop counters it.',
     );
+  });
+});
+
+describe('the story commands', () => {
+  it('refuse what they cannot do, saying why, and change nothing', async () => {
+    await run('new', 'story.loopweft', '--title', 'Story');
+    await run('add', 'story.loopweft', '--shorthand', 'A -> B (+)');
+    await run('story', 'scene', 'add', 'story.loopweft', '--title', 'One');
+    await run('story', 'step', 'add', 'story.loopweft', 'S1', '--label', 'First');
+    const before = readFileSync(join(dir, 'story.loopweft'), 'utf8');
+    const nothing = await json('story', 'step', 'set', 'story.loopweft', 'S1.1');
+    expect(nothing.code).toBe(2);
+    expect((nothing.doc.error as { message: string }).message).toMatch(/^Nothing to change/);
+    expect((await json('story', 'overlay', 'add', 'story.loopweft', 'S1.1', 'poster')).code).toBe(2);
+    expect((await json('story', 'step', 'set', 'story.loopweft', 'S1.1', '--map', '{nope')).code).toBe(2);
+    expect((await json('story', 'step', 'set', 'story.loopweft', 'S1.1', '--focus', 'C')).code).toBe(2);
+    expect((await json('story', 'step', 'set', 'story.loopweft', 'S1.1', '--opacity', '3')).code).toBe(1);
+    expect((await json('story', 'scene', 'rm', 'story.loopweft', 'S1')).code).toBe(2);
+    writeFileSync(join(dir, 'notes.txt'), 'not an image');
+    const image = await json('story', 'image', 'add', 'story.loopweft', 'notes.txt');
+    expect(image.code).toBe(2);
+    expect((image.doc.error as { message: string }).message).toMatch(
+      /is not a PNG, JPEG, GIF, WebP or SVG image\.$/,
+    );
+    expect(readFileSync(join(dir, 'story.loopweft'), 'utf8')).toBe(before);
+  });
+
+  it('replace a whole map state from JSON, then refine it, and show it as JSON', async () => {
+    const out = await json(
+      'story',
+      'step',
+      'set',
+      'story.loopweft',
+      'S1.1',
+      '--map',
+      '{"labels":"none","trends":{"a":"up"}}',
+      '--focus',
+      'a',
+    );
+    expect(out.code).toBe(0);
+    const shown = await json('story', 'show', 'story.loopweft', 'S1.1');
+    expect(shown.doc).toMatchObject({
+      ok: true,
+      key: 'S1.1',
+      step: { map: { labels: 'none', trends: { a: 'up' }, variables: { focus: ['a'] } } },
+    });
   });
 });

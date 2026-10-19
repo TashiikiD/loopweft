@@ -200,20 +200,122 @@ curves set by hand: 1; groups: 1
 home view: centre (960, 520), zoom 1.1
 [exit 0]
 
+$ loopweft story scene add pop.loopweft --title Growth --headline "Births feed the population." --target 60
+Added scene S1 ("Growth"), scene 1 of 1.
+[exit 0]
+
+$ loopweft story step add pop.loopweft S1 --label "The map" --labels all
+Added step S1.1 ("The map"), step 1 of 1 in scene S1.
+Changed what step S1.1 shows: labels.
+[exit 0]
+
+$ loopweft story step add pop.loopweft Growth --label "The loop" --at 20 --base dim --link-base ghost --focus Births,Population --active L1,L2 --frame births,population --frame-at right --spread births=up --name R1 --pulse-loop R1 --labels focus
+Added step S1.2 ("The loop"), step 2 of 2 in scene S1.
+Step S1.2: variables not listed are dim.
+Step S1.2: links not listed are ghost.
+Step S1.2: births and population at focus.
+Step S1.2: L1 and L2 at active.
+Step S1.2: births ▲, spread by sign along the lit links to 1 variable.
+Step S1.2: loop R1, name shown.
+Step S1.2: pulse round loop R1 (2 hops).
+Changed what step S1.2 shows: camera.
+Changed what step S1.2 shows: labels.
+[exit 0]
+
+$ loopweft story step copy pop.loopweft S1.2 --label "Deaths push back"
+Copied step S1.2 as S1.3 ("Deaths push back").
+[exit 0]
+
+$ loopweft story step set pop.loopweft S1.3 --at 40 --active L3,L4 --unlist L1,L2 --hide-badge R1 --clear-pulses --pulse L3 --pulse L4 --up deaths
+Changed step S1.3: at.
+Step S1.3: L3 and L4 at active.
+Step S1.3: L1 and L2 at the base level (ghost).
+Step S1.3: deaths marked up.
+Step S1.3: loop R1, badge hidden.
+Changed what step S1.3 shows: pulses.
+Step S1.3: pulse along L3 (hop 1).
+Step S1.3: pulse along L4 (hop 2).
+[exit 0]
+
+$ loopweft story overlay add pop.loopweft S1.2 caption
+Step S1.2: added a caption (overlay 0).
+[exit 0]
+
+$ loopweft story overlay add pop.loopweft S1.2 statement --line "More people, more births." --style question --place bottom --cite test2020:4–5
+Step S1.2: added a statement (overlay 1).
+[exit 0]
+
+$ loopweft story image add pop.loopweft chart.png
+Embedded image chart (70 bytes).
+[exit 0]
+
+$ loopweft story overlay add pop.loopweft S1.1 image --image chart --alt "A test chart" --credit "Test data"
+Step S1.1: added an image (overlay 0).
+[exit 0]
+
+$ loopweft story scene set pop.loopweft S1 --script "The map. [>] The loop. [>] Deaths push back."
+Changed scene S1: script.
+[exit 0]
+
+$ loopweft story list pop.loopweft
+Story: 1 scene, 3 steps
+S1  Growth (1 min) · 3 steps
+  S1.1       The map
+  S1.2       The loop · at 20 s
+  S1.3       Deaths push back · at 40 s
+
+1 story warning: run loopweft validate to see them.
+[exit 0]
+
+$ loopweft story show pop.loopweft S1.3
+S1.3 "Deaths push back": step 3 of 3 in scene S1 ("Growth")
+due at 40 s
+Map:
+  variables: base dim · focus births, population
+  links: base ghost · active L3, L4
+  camera: frames births, population (right)
+  labels: focus
+  trends: births ▲, deaths ▲, population ▲
+  pulses: L3 → L4
+Overlays: none
+Sources it draws on: test2020
+Warnings:
+  Step S1.3: population is marked up, but L4 (-) from deaths (up) implies down.
+[exit 0]
+
+$ loopweft story show pop.loopweft S1
+S1 "Growth": scene 1 of 1
+headline: Births feed the population.
+target: 1 min
+Steps (3):
+  S1.1  The map
+  S1.2  The loop
+  S1.3  Deaths push back
+Script (2 [>] key marks; 2 needed):
+  [S1.1] The map.
+  [S1.2] The loop.
+  [S1.3] Deaths push back.
+[exit 0]
+
+$ loopweft story step move pop.loopweft S1.3 --first --dry-run
+Moved step S1.3 to place 1 of 3. (dry run: nothing was saved)
+[exit 0]
+
 $ loopweft info pop.loopweft
 Population
   4 variables, 5 links, 2 named loops, 1 source
   types: 1 category, 1 role, 0 link types, 1 field
-  story: 0 scenes, 0 steps
+  story: 1 scene, 3 steps
   layout: 4 of 4 placed, 1 pinned; home view centre (960, 520), zoom 1.1
   theme: cinematic-dark, palette loopweft
   evidence: 2 of 5 links and 1 of 4 variables cite a source
-  3 warnings: uncitedLink 3
+  4 warnings: uncitedLink 3, trendContradictsSign 1
 [exit 0]
 
 $ loopweft validate pop.loopweft
 warning links[2].citations: Link L3 (population → deaths) cites no source.
 warning links[3].citations: Link L4 (deaths → population) cites no source.
 warning links[4].citations: Link L5 (fertility → births) cites no source.
-valid: 0 errors, 3 warnings
+warning story.scenes[0].steps[2].map.trends.population: Step S1.3: population is marked up, but L4 (-) from deaths (up) implies down.
+valid: 0 errors, 4 warnings
 [exit 0]

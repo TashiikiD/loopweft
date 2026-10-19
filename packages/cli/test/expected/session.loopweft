@@ -210,7 +210,148 @@
     }
   ],
   "story": {
-    "scenes": []
+    "scenes": [
+      {
+        "id": "S1",
+        "title": "Growth",
+        "headline": "Births feed the population.",
+        "targetSeconds": 60,
+        "script": "The map. [>] The loop. [>] Deaths push back.",
+        "sources": [],
+        "steps": [
+          {
+            "id": "1",
+            "label": "The map",
+            "map": {
+              "labels": "all"
+            },
+            "overlays": [
+              {
+                "type": "image",
+                "asset": "chart",
+                "alt": "A test chart",
+                "credit": "Test data"
+              }
+            ]
+          },
+          {
+            "id": "2",
+            "label": "The loop",
+            "at": 20,
+            "map": {
+              "camera": {
+                "fit": [
+                  "births",
+                  "population"
+                ],
+                "frame": "right"
+              },
+              "variables": {
+                "base": "dim",
+                "focus": [
+                  "births",
+                  "population"
+                ]
+              },
+              "links": {
+                "base": "ghost",
+                "active": [
+                  "L1",
+                  "L2"
+                ]
+              },
+              "labels": "focus",
+              "trends": {
+                "births": "up",
+                "population": "up"
+              },
+              "loops": [
+                "R1"
+              ],
+              "loopNames": [
+                "R1"
+              ],
+              "pulses": {
+                "hops": [
+                  [
+                    "L2"
+                  ],
+                  [
+                    "L1"
+                  ]
+                ]
+              }
+            },
+            "overlays": [
+              {
+                "type": "caption"
+              },
+              {
+                "type": "statement",
+                "lines": [
+                  "More people, more births."
+                ],
+                "style": "question",
+                "place": "bottom",
+                "citations": [
+                  {
+                    "source": "test2020",
+                    "pages": "4–5"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "3",
+            "label": "Deaths push back",
+            "at": 40,
+            "map": {
+              "camera": {
+                "fit": [
+                  "births",
+                  "population"
+                ],
+                "frame": "right"
+              },
+              "variables": {
+                "base": "dim",
+                "focus": [
+                  "births",
+                  "population"
+                ]
+              },
+              "links": {
+                "base": "ghost",
+                "active": [
+                  "L3",
+                  "L4"
+                ]
+              },
+              "labels": "focus",
+              "trends": {
+                "births": "up",
+                "deaths": "up",
+                "population": "up"
+              },
+              "pulses": {
+                "hops": [
+                  [
+                    "L3"
+                  ],
+                  [
+                    "L4"
+                  ]
+                ]
+              }
+            },
+            "overlays": []
+          }
+        ]
+      }
+    ]
   },
-  "assets": {}
+  "assets": {
+    "chart": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+  }
 }

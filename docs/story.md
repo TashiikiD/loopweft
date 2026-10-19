@@ -83,3 +83,14 @@ Every edit is one of `@loopweft/model`'s operations, the same in the Studio and 
 | `setStepLevel`, `setStepBase`, `setStepTrend`, `spreadTrend`, `setStepLoops`, `addPulseHop`, `pulseRoundLoop`, `setStepMap` | What a step's map shows |
 | `addOverlay`, `setOverlay`, `removeOverlay`, `moveOverlay` | A step's overlays (counted from 0) |
 | `addAsset`, `setAsset`, `removeAsset` | Embedded images |
+
+## On the command line
+
+`loopweft story` runs the same operations ([the command line's reference](../packages/cli/README.md)):
+
+```bash
+loopweft story scene add pop.loopweft --title Growth --target 60
+loopweft story step add pop.loopweft S1 --label "The loop" --base dim --link-base ghost --active L1,L2 --frame births,population --spread births=up --name R1 --pulse-loop R1
+loopweft story overlay add pop.loopweft S1.1 statement --line "More people, more births." --style question --cite T:4
+loopweft story show pop.loopweft S1.1
+```

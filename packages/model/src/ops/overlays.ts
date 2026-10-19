@@ -74,7 +74,7 @@ export function addOverlay(
   return {
     project: next,
     result: { key, index, type: parsed.type },
-    summary: `Step ${key}: added a ${OVERLAY_NAMES[parsed.type]} (overlay ${index}).`,
+    summary: `Step ${key}: added ${parsed.type === 'image' ? 'an' : 'a'} ${OVERLAY_NAMES[parsed.type]} (overlay ${index}).`,
   };
 }
 

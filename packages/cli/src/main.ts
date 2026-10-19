@@ -5,7 +5,7 @@
 // `{ "ok": true, ... }`, or `{ "ok": false, "error": { "message", "exitCode", "issues" } }`.
 // Exit codes: 0 ok · 1 the project is invalid (or would become so) · 2 wrong usage · 3 internal error.
 import { readFileSync } from 'node:fs';
-import { OpError } from '@loopweft/model';
+import { FRAMES, LEVELS, OpError, PLACES } from '@loopweft/model';
 import { Command, CommanderError } from 'commander';
 import {
   addCommand,
@@ -51,6 +51,27 @@ import {
   sourceSetCommand,
   sourceShowCommand,
 } from './sources.ts';
+import {
+  imageAddCommand,
+  imageRemoveCommand,
+  imageSetCommand,
+  OVERLAY_TYPES,
+  overlayAddCommand,
+  overlayMoveCommand,
+  overlayRemoveCommand,
+  overlaySetCommand,
+  sceneAddCommand,
+  sceneMoveCommand,
+  sceneRemoveCommand,
+  sceneSetCommand,
+  stepAddCommand,
+  stepCopyCommand,
+  stepMoveCommand,
+  stepRemoveCommand,
+  stepSetCommand,
+  storyListCommand,
+  storyShowCommand,
+} from './story.ts';
 import type { Env } from './support.ts';
 
 export interface Io {
@@ -463,6 +484,252 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--clear-home', 'fit the whole map instead of a home view')
     .option('--dry-run', DRY_RUN)
     .action((file: string, o) => run(() => layoutCommand(env(), file, o))());
+
+  const story = program
+    .command('story')
+    .description('the story: scenes of steps, what each step shows, its overlays and images');
+  story
+    .command('list <file>')
+    .description('the scenes and their steps, in order')
+    .action((file: string) => run(() => storyListCommand(file))());
+  story
+    .command('show <file> <ref>')
+    .description('a step in full (S05.3: what its map shows, its overlays, its sources), or a scene (S05)')
+    .action((file: string, ref: string) => run(() => storyShowCommand(file, ref))());
+
+  const place = (command: Command, what: string) =>
+    command
+      .option('--before <id>', `put it before this ${what}`)
+      .option('--after <id>', `put it after this ${what}`)
+      .option('--first', `make it the first ${what}`)
+      .option('--last', `make it the last ${what}`);
+
+  const scene = story.command('scene').description('scenes: add, set, rm, move');
+  const sceneOptions = (command: Command) =>
+    command
+      .option('--headline <text>', "the scene's one-line message, shown in its caption")
+      .option('--target <seconds>', 'how long the scene should take')
+      .option('--notes <markdown>', 'speaker notes (Markdown), for the presenter only')
+      .option('--notes-file <file>', 'read the notes from a file')
+      .option('--script <text>', 'the full script; [>] marks each keypress')
+      .option('--script-file <file>', 'read the script from a file')
+      .option('--sources <sources>', 'sources it draws on beyond those its steps light (comma-separated)')
+      .option('--dry-run', DRY_RUN);
+  sceneOptions(
+    place(
+      scene
+        .command('add <file>')
+        .description('add a scene (steps are added with story step add)')
+        .requiredOption('--title <title>', 'its title')
+        .option('--id <id>', 'its id (default: the next free S<n>)'),
+      'scene',
+    ),
+  ).action((file: string, o) => run(() => sceneAddCommand(env(), file, o))());
+  sceneOptions(
+    scene
+      .command('set <file> <scene>')
+      .description('change a scene (its id and steps stay)')
+      .option('--title <title>', 'its title')
+      .option('--clear <fields...>', 'clear these: headline, target, notes, script, sources'),
+  ).action((file: string, ref: string, o) => run(() => sceneSetCommand(env(), file, ref, o))());
+  scene
+    .command('rm <file> <scene>')
+    .description('remove a scene; one with steps needs --cascade')
+    .option('--cascade', 'also remove its steps')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, o) => run(() => sceneRemoveCommand(env(), file, ref, o))());
+  place(scene.command('move <file> <scene>').description('move a scene'), 'scene')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, o) => run(() => sceneMoveCommand(env(), file, ref, o))());
+
+  const step = story.command('step').description('steps: add, set, rm, move, copy');
+  const mapOptions = (command: Command) =>
+    command
+      .option('--map <json>', 'replace the whole map state with this JSON object (applied first)')
+      .option('--map-file <file>', 'read that JSON from a file')
+      .option('--hide-map', 'hide the whole map')
+      .option('--show-map', 'show the map again')
+      .option('--opacity <n>', 'the map’s opacity, 0 to 1')
+      .option('--base <level>', `the level of variables not listed: ${LEVELS.join(', ')}`)
+      .option('--link-base <level>', 'the level of links not listed')
+      .option('--hidden <ids>', 'variables or links to hide (comma-separated ids; variables also by label)')
+      .option('--ghost <ids>', 'variables or links to show as ghosts')
+      .option('--dim <ids>', 'variables or links to dim')
+      .option('--normal <ids>', 'variables or links at normal strength')
+      .option('--focus <ids>', 'variables or links to light (focus)')
+      .option('--active <ids>', 'variables or links to light most (active)')
+      .option('--unlist <ids>', 'put variables or links back to the base level')
+      .option('--up <variables>', 'mark ▲ rising')
+      .option('--down <variables>', 'mark ▼ falling')
+      .option('--mixed <variables>', 'mark ± where opposing influences meet')
+      .option('--clear-trend <variables>', 'take their trends away')
+      .option('--spread <variable=up|down>', 'mark a rise or fall and spread it by sign along the lit links')
+      .option('--badge <loops>', 'show these loops’ R/B badges')
+      .option('--name <loops>', 'show these loops’ names (and badges)')
+      .option('--hide-name <loops>', 'hide these loops’ names')
+      .option('--hide-badge <loops>', 'hide these loops’ badges and names')
+      .option('--clear-pulses', 'take every pulse away (applied before new ones)')
+      .option('--pulse-loop <loop>', 'send the pulse round a named loop, one link after another')
+      .option(
+        '--pulse <links>',
+        'add a pulse hop: these links pulse together (repeatable, in order)',
+        collect,
+      )
+      .option('--pulse-with <links>', 'add these links to the last hop')
+      .option('--pulse-repeat <n>', 'extra passes of the pulses')
+      .option('--pulse-tone <tone>', 'harm, relief or mixed for every pulse (default: by the trends)')
+      .option('--pulse-delay <seconds>', 'seconds before the first pulse')
+      .option('--frame <variables>', 'frame these variables (comma-separated)')
+      .option('--whole-map', 'frame the whole map (or the home view)')
+      .option('--frame-at <where>', `where they go on the stage: ${FRAMES.join(', ')}`)
+      .option('--max-zoom <n>', 'a zoom limit, so a small group does not fill the screen')
+      .option('--labels <which>', 'which labels show: none, focus, view or all')
+      .option('--category-labels <on|off>', 'show the group labels')
+      .option(
+        '--label-text <id=text>',
+        'label text for this step only; empty text clears it (repeatable)',
+        collect,
+      )
+      .option('--clear-reveal', 'take the reveal settings away')
+      .option('--reveal <mode>', 'how new things arrive: draw (trace in) or bloom (ring by ring)')
+      .option('--reveal-from <variables>', 'the variables the reveal grows from')
+      .option('--reveal-sequence <ids>', 'an exact order: variables appear, links trace')
+      .option('--reveal-stagger <seconds>', 'seconds between beats')
+      .option('--reveal-delay <seconds>', 'seconds before the first beat')
+      .option('--clear-ambient', 'take the ambient pulses away')
+      .option('--ambient <variables>', 'ambient pulses wander from these variables while the step is held')
+      .option('--ambient-tone <tone>', 'harm or relief')
+      .option('--ambient-every <min,max>', 'seconds between walks')
+      .option('--ambient-hops <min,max>', 'links per walk')
+      .option('--ambient-delay <seconds>', 'seconds before the first walk')
+      .option('--clusters <how>', 'group halos: show, dim or hide')
+      .option('--minimap <on|off|auto>', 'the minimap (auto: shown when zoomed in)')
+      .option('--dry-run', DRY_RUN);
+  mapOptions(
+    place(
+      step
+        .command('add <file> <scene>')
+        .description('add a step: without map options it shows the whole map, plainly')
+        .requiredOption('--label <label>', 'a short name for the presenter')
+        .option('--id <id>', 'its id (default: the next whole number in the scene)')
+        .option('--at <seconds>', 'seconds into the scene when it should arrive')
+        .option('--cue <text>', 'what happens on it, for the presenter'),
+      'step',
+    ),
+  ).action((file: string, ref: string, o) => run(() => stepAddCommand(env(), file, ref, o))());
+  mapOptions(
+    step
+      .command('set <file> <step>')
+      .description('change a step (S05.3): its label, timing and cue, and what its map shows')
+      .option('--label <label>', 'a short name for the presenter')
+      .option('--at <seconds>', 'seconds into the scene when it should arrive')
+      .option('--cue <text>', 'what happens on it, for the presenter')
+      .option('--clear <fields...>', 'clear these: at, cue'),
+  ).action((file: string, ref: string, o) => run(() => stepSetCommand(env(), file, ref, o))());
+  step
+    .command('rm <file> <step>')
+    .description('remove a step')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, o) => run(() => stepRemoveCommand(env(), file, ref, o))());
+  place(
+    step
+      .command('move <file> <step>')
+      .description('move a step within its scene, or to another (--scene)')
+      .option('--scene <scene>', 'move it to this scene'),
+    'step',
+  )
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, o) => run(() => stepMoveCommand(env(), file, ref, o))());
+  place(
+    step
+      .command('copy <file> <step>')
+      .description('copy a step with everything it shows (just after it, unless placed)')
+      .requiredOption('--label <label>', 'the copy’s label')
+      .option('--scene <scene>', 'put the copy in this scene'),
+    'step',
+  )
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, o) => run(() => stepCopyCommand(env(), file, ref, o))());
+
+  const overlay = story
+    .command('overlay')
+    .description('a step’s overlays (counted from 0; later ones draw on top): add, set, rm, move');
+  const overlayOptions = (command: Command) =>
+    command
+      .option('--overlay <json>', 'the overlay’s fields as a JSON object (options below win)')
+      .option('--title <text>', 'title: the title; cards: the heading')
+      .option('--subtitle <text>', 'title: the subtitle')
+      .option('--line <text>', 'title, statement: a line (repeatable)', collect)
+      .option('--kicker <text>', 'statement: a small line above, e.g. "INTERVENTION A"')
+      .option('--style <style>', 'statement: hero, question, closing, title or note')
+      .option('--place <place>', `where on the stage: ${PLACES.join(', ')}`)
+      .option(
+        '--card <"title | sub | icon">',
+        'cards: a card; sub and icon may be left out (repeatable)',
+        collect,
+      )
+      .option('--active <n,...>', 'cards: the highlighted cards, counted from 0')
+      .option('--image <id>', 'image: the embedded image (see story image add)')
+      .option('--alt <text>', 'image: what it shows, for people who cannot see it')
+      .option('--caption <text>', 'image: a caption')
+      .option('--credit <text>', 'image: its credit')
+      .option('--cite <source[:pages]>', 'a citation (repeatable)', collect)
+      .option('--dry-run', DRY_RUN);
+  overlayOptions(
+    overlay
+      .command('add <file> <step> <type>')
+      .description(`add an overlay: ${OVERLAY_TYPES.join(', ')}`)
+      .option('--index <n>', 'its place in the list (default: last, on top)'),
+  ).action((file: string, ref: string, type: string, o) =>
+    run(() => overlayAddCommand(env(), file, ref, type, o))(),
+  );
+  overlayOptions(
+    overlay
+      .command('set <file> <step> <n>')
+      .description('change an overlay (its type stays)')
+      .option(
+        '--clear <fields...>',
+        'clear these: subtitle, lines, kicker, style, place, title, active, caption, credit, citations',
+      ),
+  ).action((file: string, ref: string, index: string, o) =>
+    run(() => overlaySetCommand(env(), file, ref, index, o))(),
+  );
+  overlay
+    .command('rm <file> <step> <n>')
+    .description('remove an overlay')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, index: string, o) =>
+      run(() => overlayRemoveCommand(env(), file, ref, index, o))(),
+    );
+  overlay
+    .command('move <file> <step> <n>')
+    .description('move an overlay to another place in the list')
+    .requiredOption('--to <n>', 'its new place, counted from 0')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, ref: string, index: string, o) =>
+      run(() => overlayMoveCommand(env(), file, ref, index, o))(),
+    );
+
+  const image = story.command('image').description('images embedded for image overlays: add, set, rm');
+  image
+    .command('add <file> <image>')
+    .description('embed a PNG, JPEG, GIF, WebP or SVG image (its id comes from the file name)')
+    .option('--id <id>', 'its id')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, path: string, o) => run(() => imageAddCommand(env(), file, path, o))());
+  image
+    .command('set <file> <id> <image>')
+    .description('replace an embedded image; every overlay that shows it shows the new one')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, id: string, path: string, o) =>
+      run(() => imageSetCommand(env(), file, id, path, o))(),
+    );
+  image
+    .command('rm <file> <id>')
+    .description('remove an embedded image; one still shown needs --cascade')
+    .option('--cascade', 'also remove the overlays that show it')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, id: string, o) => run(() => imageRemoveCommand(env(), file, id, o))());
 
   return program;
 }
