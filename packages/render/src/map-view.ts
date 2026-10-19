@@ -467,7 +467,10 @@ export class MapView {
         this.#ambientWalks.add(tl);
         this.#motion.play(tl);
       }
-      this.#ambientNext = this.#motion.delayedCall(walker.gap(), launch);
+      // A gap of 0 or less (from a project that was not checked) would call this again at once, without
+      // end: the walks stop instead.
+      const gap = walker.gap();
+      this.#ambientNext = gap > 0 ? this.#motion.delayedCall(gap, launch) : null;
     };
     this.#ambientNext = this.#motion.delayedCall(after, launch);
   }

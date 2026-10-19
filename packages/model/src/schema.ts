@@ -480,7 +480,10 @@ export const MapStateSchema = z
       .strictObject({
         from: Ids.min(1),
         tone: z.enum(['harm', 'relief']),
-        every: z.tuple([NonNegative, NonNegative]).optional().describe('Seconds between walks: [min, max].'),
+        every: z
+          .tuple([z.number().positive(), z.number().positive()])
+          .optional()
+          .describe('Seconds between walks: [min, max], each more than 0.'),
         hops: z
           .tuple([z.int().min(1), z.int().min(1)])
           .optional()

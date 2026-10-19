@@ -145,6 +145,24 @@ describe('the map view', () => {
     expect(view.pulseLayer.childElementCount).toBe(0);
   });
 
+  it('stops the walks of an unchecked step with no time between them, rather than calling itself forever', () => {
+    const { clock, view } = mapView();
+    const map = stepAt(project, 'S00.1').map;
+    const ambient = map.ambient;
+    if (!ambient) throw new Error('S00.1 has no ambient walks');
+    view.apply({ ...map, ambient: { ...ambient, every: [0, 0] } }, 'instant');
+    let seen = 0;
+    expect(() => {
+      for (let i = 0; i < 40; i++) {
+        clock.advance(0.25);
+        seen = Math.max(seen, view.pulseLayer.querySelectorAll('.pulse.soft').length);
+      }
+    }).not.toThrow();
+    // The first walk goes; none follows it.
+    expect(seen).toBeGreaterThan(0);
+    expect(view.pulseLayer.childElementCount).toBe(0);
+  });
+
   it('holds everything while paused, and lands it on skip', () => {
     const { clock, motion, host, view } = mapView();
     view.apply(stepAt(project, 'S04.1').map, 'instant');

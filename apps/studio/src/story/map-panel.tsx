@@ -260,13 +260,13 @@ function Camera({
   const lit = project.variables.filter((v) => ends.has(v.id)).map((v) => v.id);
   // The least zoom the camera takes here, by the renderer's own rule (@loopweft/layout), which "zoom at most"
   // cannot go below; null when the camera shows the whole map as it is and the limit does nothing.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: positions come from the variables and the layout only
+  // biome-ignore lint/correctness/useExhaustiveDependencies: positions come from the variables, the layout and, for variables it does not place, the links and categories the automatic layout reads
   const positions = useMemo(
     () =>
       new Map(
         [...mapGeometry(project, { refineBends: false }).nodes].map(([id, n]) => [id, { x: n.x, y: n.y }]),
       ),
-    [project.variables, project.layout],
+    [project.variables, project.layout, project.links, project.types.categories],
   );
   const floor = zoomFloor(positions, camera, homeCamera(project.layout));
   const least = floor === null ? '' : String(Math.ceil(floor * 100) / 100);
@@ -762,7 +762,7 @@ function Reveal({
 /**
  * A [min, max] range in two fields. Left out, the renderer uses `fallback`, shown as the fields' placeholders;
  * setting one end keeps the other as it is (its fallback, when the range was left out), and an end emptied
- * takes its fallback.
+ * takes its fallback. With `above`, an end must be more than it.
  */
 function Range({
   label,
@@ -770,6 +770,7 @@ function Range({
   value,
   fallback,
   min,
+  above,
   step,
   onCommit,
 }: {
@@ -778,10 +779,15 @@ function Range({
   value: [number, number] | undefined;
   fallback: [number, number];
   min: number;
+  above?: number;
   step: number;
   onCommit(next: [number, number]): void;
 }) {
   const commit = (end: 0 | 1, given: number | null) => {
+    if (given !== null && above !== undefined && given <= above) {
+      refused(new OpError(`${label}: each end must be more than ${above}; got ${given}.`, 'usage'));
+      return;
+    }
     const next: [number, number] = [...(value ?? fallback)];
     next[end] = given ?? fallback[end];
     onCommit(next);
@@ -910,6 +916,7 @@ function Ambient({
         value={ambient.every}
         fallback={AMBIENT_DEFAULTS.every}
         min={0}
+        above={0}
         step={0.1}
         onCommit={(every) => set({ every })}
       />

@@ -295,6 +295,11 @@ describe('what a step shows', () => {
 
   it('refuses a map the format would refuse', () => {
     expect(refused(() => setStepMap(richProject(), 'S1.1', { opacity: 2 })).kind).toBe('invalid');
+    // Ambient walks with no time between them.
+    const still = refused(() =>
+      setStepMap(richProject(), 'S1.3', { ambient: { from: ['births'], tone: 'harm', every: [0, 0] } }),
+    );
+    expect([still.kind, still.message]).toEqual(['invalid', 'Must be more than 0; got 0.']);
     expect(setStepMap(richProject(), 'S1.1', { labels: 'all' }).summary).toContain('Nothing to change');
   });
 });

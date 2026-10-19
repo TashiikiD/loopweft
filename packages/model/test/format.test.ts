@@ -211,6 +211,15 @@ describe('schema errors', () => {
     );
   });
 
+  it('refuses ambient walks with no time between them', () => {
+    const issue = firstIssue(parseChanged({ 'story.scenes.0.steps.2.map.ambient.every': [1, 0] }));
+    expect(issue).toMatchObject({
+      code: 'tooSmall',
+      path: ['story', 'scenes', 0, 'steps', 2, 'map', 'ambient', 'every', 1],
+      message: 'Must be more than 0; got 0.',
+    });
+  });
+
   it("reads a project's own palettes: named by the theme, never under a preset's id, two colours or more", () => {
     const rainbow = { id: 'rainbow', name: 'Rainbow', colours: ['#E40303', '#FF8C00', '#008026'] };
     const own = parseChanged({ 'theme.palettes': [rainbow], 'theme.palette': 'rainbow' });

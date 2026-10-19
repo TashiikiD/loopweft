@@ -1,7 +1,8 @@
 // The record view in jsdom: tools that set up a step by clicking on the stage, and the Map panel that does
 // the same field by field. Each click is one undoable edit through the model's story operations.
-import { createProject, type Project } from '@loopweft/model';
-import { render, screen, within } from '@testing-library/react';
+import { fitCamera, mapGeometry } from '@loopweft/layout';
+import { addLink, createProject, type Project } from '@loopweft/model';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -240,6 +241,58 @@ describe('the Map panel', () => {
     expect(zoom().disabled).toBe(true);
   });
 
+  it('keeps the zoom limit to the map as its links change, where the automatic layout places the variables', async () => {
+    // Thirty variables in four categories, none placed: the automatic layout places them by their links too.
+    const p = createProject({ title: 'Unplaced' });
+    p.types.categories = [0, 1, 2, 3].map((i) => ({ id: `c${i}`, name: `C${i}` }));
+    p.variables = Array.from({ length: 30 }, (_, i) => ({
+      id: `v${i}`,
+      label: `V${i}`,
+      category: `c${i % 4}`,
+      citations: [],
+    }));
+    p.links = Array.from({ length: 29 }, (_, i) => ({
+      id: `L${i}`,
+      from: `v${i}`,
+      to: `v${i + 1}`,
+      sign: '+' as const,
+      citations: [],
+    }));
+    p.story.scenes = [
+      {
+        id: 'S1',
+        title: 'All',
+        sources: [],
+        steps: [{ id: '1', label: 'One', map: { camera: { fit: ['v0'] } }, overlays: [] }],
+      },
+    ];
+    const { store, user } = await openStory(p);
+    const panel = within(screen.getByRole('complementary', { name: 'Story panel' }));
+    await user.click(panel.getByRole('tab', { name: 'Map' }));
+    // The least zoom the renderer's camera takes for this step (a limit far below it gives way to it).
+    const least = () => {
+      const nodes = mapGeometry(store.getState().project, { refineBends: false }).nodes;
+      const positions = new Map([...nodes].map(([id, n]) => [id, { x: n.x, y: n.y }]));
+      return fitCamera(positions, { fit: ['v0'], maxZoom: 0.01 }).zoom;
+    };
+    const shown = () =>
+      Number(/^At least ([\d.]+)/.exec(screen.getByText(/^At least /).textContent ?? '')?.[1]);
+    expect(shown()).toBe(Math.ceil(least() * 100) / 100);
+    const before = least();
+    act(() => {
+      store.getState().edit((q) => addLink(q, { from: 'v0', to: 'v19', sign: '-' }));
+    });
+    // The new link moves the variables, and the whole map's zoom with them.
+    expect(least()).toBeLessThan(before - 0.01);
+    expect(shown()).toBe(Math.ceil(least() * 100) / 100);
+    // A limit under the old floor but over the new one is taken.
+    const between = Math.ceil(least() * 100) / 100;
+    expect(between).toBeLessThan(before);
+    const zoom = screen.getByRole('textbox', { name: 'Zoom at most' });
+    await user.type(zoom, `${between}{Enter}`);
+    expect(map(store)?.camera).toEqual({ fit: ['v0'], maxZoom: between });
+  });
+
   it("shows and sets how often ambient pulses walk and how far, from the renderer's defaults", async () => {
     const project = small();
     const step = project.story.scenes[0]?.steps[0];
@@ -260,6 +313,17 @@ describe('the Map panel', () => {
     // Setting one end keeps the other at what was in effect.
     await user.type(from, '2{Enter}');
     expect(map(store)?.ambient).toEqual({ from: ['births'], tone: 'harm', hops: [3, 5], every: [2, 3] });
+    // No time between walks is refused, at either end.
+    for (const name of ['Seconds between walks: from (s)', 'Seconds between walks: to (s)']) {
+      const end = await field(name);
+      await user.clear(end);
+      await user.type(end, '0{Enter}');
+      expect(map(store)?.ambient?.every).toEqual([2, 3]);
+    }
+    expect(
+      await screen.findAllByText('Seconds between walks: each end must be more than 0; got 0.'),
+    ).toHaveLength(2);
+    expect((await field('Seconds between walks: from (s)')).value).toBe('2');
     const to = await field('Links per walk: to');
     await user.clear(to);
     await user.type(to, '6{Enter}');

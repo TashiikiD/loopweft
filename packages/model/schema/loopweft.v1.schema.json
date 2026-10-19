@@ -1174,16 +1174,16 @@
               ]
             },
             "every": {
-              "description": "Seconds between walks: [min, max].",
+              "description": "Seconds between walks: [min, max], each more than 0.",
               "type": "array",
               "prefixItems": [
                 {
                   "type": "number",
-                  "minimum": 0
+                  "exclusiveMinimum": 0
                 },
                 {
                   "type": "number",
-                  "minimum": 0
+                  "exclusiveMinimum": 0
                 }
               ],
               "items": false,
