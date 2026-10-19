@@ -4,6 +4,7 @@
 
 const u16be = (b: Uint8Array, at: number) => ((b[at] ?? 0) << 8) | (b[at + 1] ?? 0);
 const u32be = (b: Uint8Array, at: number) => u16be(b, at) * 0x10000 + u16be(b, at + 2);
+const u16le = (b: Uint8Array, at: number) => (b[at] ?? 0) | ((b[at + 1] ?? 0) << 8);
 const u32le = (b: Uint8Array, at: number) =>
   (b[at] ?? 0) + (b[at + 1] ?? 0) * 0x100 + (b[at + 2] ?? 0) * 0x10000 + (b[at + 3] ?? 0) * 0x1000000;
 const STOPS = 'it stops before its end';
@@ -47,12 +48,12 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         if (marker === 0xd9) return EMPTY; // the end, before any scan
         const length = u16be(bytes, at + 2);
         if (length < 2 || at + 2 + length > bytes.length) return STOPS;
-        // Start of a frame: C0–CF, except C4 (tables), C8 (reserved) and CC (coding). It holds the precision,
-        // the height, a width above 0 and 1 to 4 components of 3 bytes each.
+        // Start of a frame: C0–CF, except C4 (tables), C8 (reserved) and CC (coding). It holds the precision, a
+        // height and width above 0 (a height left to a later DNL marker is not taken) and 1 to 4 components.
         if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
           const components = bytes[at + 9] ?? 0;
-          const width = u16be(bytes, at + 7);
-          if (length < 8 + 3 * components || components < 1 || components > 4 || width === 0) return EMPTY;
+          const sized = u16be(bytes, at + 5) > 0 && u16be(bytes, at + 7) > 0;
+          if (length < 8 + 3 * components || components < 1 || components > 4 || !sized) return EMPTY;
           frame = true;
         }
         if (marker === 0xda) {
@@ -90,9 +91,11 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         else if (block === 0x2c) {
           if (at + 10 > bytes.length) return STOPS;
           const local = bytes[at + 9] as number;
+          // A width and height above 0 (little-endian).
+          const sized = u16le(bytes, at + 5) > 0 && u16le(bytes, at + 7) > 0;
           at += 10 + (local & 0x80 ? 3 * 2 ** ((local & 7) + 1) : 0);
           // Past the LZW code size: an image holds a picture only when its data has some bytes.
-          if ((bytes[at + 1] ?? 0) > 0) image = true;
+          if (sized && (bytes[at + 1] ?? 0) > 0) image = true;
           at = subBlocks(at + 1);
         } else return STOPS;
         if (at < 0) return STOPS;
@@ -142,8 +145,13 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
  * signature, or an animation frame holding either. (The picture itself is not decoded.)
  */
 function webpPicture(bytes: Uint8Array, kind: string, from: number, size: number): boolean {
-  if (kind === 'VP8 ')
-    return size >= 10 && bytes[from + 3] === 0x9d && bytes[from + 4] === 0x01 && bytes[from + 5] === 0x2a;
+  if (kind === 'VP8 ') {
+    // The start code, then a width and height (14 bits each) above 0.
+    const start = bytes[from + 3] === 0x9d && bytes[from + 4] === 0x01 && bytes[from + 5] === 0x2a;
+    return (
+      size >= 10 && start && (u16le(bytes, from + 6) & 0x3fff) > 0 && (u16le(bytes, from + 8) & 0x3fff) > 0
+    );
+  }
   if (kind === 'VP8L') return size >= 5 && bytes[from] === 0x2f;
   if (kind !== 'ANMF') return false;
   // After the frame's 16-byte header, its own chunks.

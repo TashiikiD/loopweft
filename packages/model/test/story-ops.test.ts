@@ -522,6 +522,24 @@ describe('embedded images', () => {
     expect(not(uri('png', flat))).toBe('The image data is not a whole PNG image: it has no picture in it.');
     const quoted = svg('<svg xmlns="http://www.w3.org/2000/svg" aria-label="a > b"/>');
     expect(addAsset(richProject(), { data: quoted, id: 'quoted' }).result.id).toBe('quoted');
+    // Pictures of no size: a JPEG frame 0 high, a GIF image 0 wide, a VP8 frame 0 wide.
+    const sof = jpeg.findIndex((b, i) => b === 0xff && jpeg[i + 1] === 0xc0);
+    const low = [...jpeg];
+    low.splice(sof + 5, 2, 0, 0);
+    expect(not(uri('jpeg', low))).toBe('The image data is not a whole JPEG image: it has no picture in it.');
+    const screen = [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0];
+    const narrow = [0x2c, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 1, 0, 0, 0x3b];
+    expect(not(uri('gif', [...screen, ...narrow]))).toBe(
+      'The image data is not a whole GIF image: it has no picture in it.',
+    );
+    expect(
+      not(
+        uri(
+          'webp',
+          riff([...new TextEncoder().encode('VP8 '), 10, 0, 0, 0, 0, 0, 0, 0x9d, 1, 0x2a, 0, 0, 1, 0]),
+        ),
+      ),
+    ).toBe('The image data is not a whole WEBP image: it has no picture in it.');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(
