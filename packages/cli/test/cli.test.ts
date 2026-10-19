@@ -769,11 +769,16 @@ describe('ripple', () => {
 });
 
 describe('the story commands', () => {
+  /** A new project: a link A → B, and scene S1 ("One") with one step, S1.1 ("First"). */
+  async function oneStep(file: string) {
+    await run('new', file, '--title', 'Story');
+    await run('add', file, '--shorthand', 'A -> B (+)');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'First');
+  }
+
   it('refuse what they cannot do, saying why, and change nothing', async () => {
-    await run('new', 'story.loopweft', '--title', 'Story');
-    await run('add', 'story.loopweft', '--shorthand', 'A -> B (+)');
-    await run('story', 'scene', 'add', 'story.loopweft', '--title', 'One');
-    await run('story', 'step', 'add', 'story.loopweft', 'S1', '--label', 'First');
+    await oneStep('story.loopweft');
     const before = readFileSync(join(dir, 'story.loopweft'), 'utf8');
     const nothing = await json('story', 'step', 'set', 'story.loopweft', 'S1.1');
     expect(nothing.code).toBe(2);
@@ -793,11 +798,12 @@ describe('the story commands', () => {
   });
 
   it('replace a whole map state from JSON, then refine it, and show it as JSON', async () => {
+    await oneStep('story-map.loopweft');
     const out = await json(
       'story',
       'step',
       'set',
-      'story.loopweft',
+      'story-map.loopweft',
       'S1.1',
       '--map',
       '{"labels":"none","trends":{"a":"up"}}',
@@ -805,7 +811,7 @@ describe('the story commands', () => {
       'a',
     );
     expect(out.code).toBe(0);
-    const shown = await json('story', 'show', 'story.loopweft', 'S1.1');
+    const shown = await json('story', 'show', 'story-map.loopweft', 'S1.1');
     expect(shown.doc).toMatchObject({
       ok: true,
       key: 'S1.1',
@@ -814,29 +820,40 @@ describe('the story commands', () => {
   });
 
   it('refuse an empty list of variables or links for a level, changing nothing', async () => {
-    const before = readFileSync(join(dir, 'story.loopweft'), 'utf8');
+    await oneStep('story-levels.loopweft');
+    const before = readFileSync(join(dir, 'story-levels.loopweft'), 'utf8');
     for (const option of ['--hidden', '--ghost', '--dim', '--normal', '--focus', '--active', '--unlist']) {
       for (const value of ['', ' , ']) {
-        const out = await json('story', 'step', 'set', 'story.loopweft', 'S1.1', option, value);
+        const out = await json('story', 'step', 'set', 'story-levels.loopweft', 'S1.1', option, value);
         expect(out.code, `${option} "${value}"`).toBe(2);
         expect((out.doc.error as { message: string }).message).toBe(
           `Name at least one variable or link for ${option}.`,
         );
       }
     }
-    expect(
-      (await json('story', 'step', 'add', 'story.loopweft', 'S1', '--label', 'Empty', '--focus', '')).code,
-    ).toBe(2);
-    expect(readFileSync(join(dir, 'story.loopweft'), 'utf8')).toBe(before);
+    const added = await json(
+      'story',
+      'step',
+      'add',
+      'story-levels.loopweft',
+      'S1',
+      '--label',
+      'E',
+      '--focus',
+      '',
+    );
+    expect(added.code).toBe(2);
+    expect(readFileSync(join(dir, 'story-levels.loopweft'), 'utf8')).toBe(before);
   });
 
   it('keep the type argument of a new overlay: --overlay may repeat it, not change it', async () => {
-    const before = readFileSync(join(dir, 'story.loopweft'), 'utf8');
+    await oneStep('story-overlay.loopweft');
+    const before = readFileSync(join(dir, 'story-overlay.loopweft'), 'utf8');
     const changed = await json(
       'story',
       'overlay',
       'add',
-      'story.loopweft',
+      'story-overlay.loopweft',
       'S1.1',
       'caption',
       '--overlay',
@@ -846,38 +863,44 @@ describe('the story commands', () => {
     expect((changed.doc.error as { message: string }).message).toBe(
       '--overlay gives type "legend", but the type argument is caption; leave type out of --overlay.',
     );
-    expect(readFileSync(join(dir, 'story.loopweft'), 'utf8')).toBe(before);
+    expect(readFileSync(join(dir, 'story-overlay.loopweft'), 'utf8')).toBe(before);
     const repeated = await json(
       'story',
       'overlay',
       'add',
-      'story.loopweft',
+      'story-overlay.loopweft',
       'S1.1',
       'legend',
       '--overlay',
       '{"type":"legend","place":"bottom-left"}',
     );
     expect(repeated.code).toBe(0);
-    expect(saved('story.loopweft').story.scenes[0]?.steps[0]).toMatchObject({
+    expect(saved('story-overlay.loopweft').story.scenes[0]?.steps[0]).toMatchObject({
       overlays: [{ type: 'legend', place: 'bottom-left' }],
     });
   });
 });
 
 describe('story show', () => {
-  it('shows every overlay in full, in words: lines, cards, captions, credits and the pages cited', async () => {
-    await run('new', 'show.loopweft', '--title', 'Show');
-    await run('add', 'show.loopweft', '--shorthand', 'A -> B (+)\\nB -> C (-)');
+  /** A new project: links A → B → C, a source (test2020), and scene S1 ("One") with step S1.1 ("First"). */
+  async function showProject(file: string) {
+    await run('new', file, '--title', 'Show');
+    await run('add', file, '--shorthand', 'A -> B (+)\\nB -> C (-)');
     await run(
       'source',
       'add',
-      'show.loopweft',
+      file,
       '--apa',
       'Test, A. (2020). *A fictitious source for tests*. Test Press.',
     );
-    await run('story', 'scene', 'add', 'show.loopweft', '--title', 'One');
-    await run('story', 'step', 'add', 'show.loopweft', 'S1', '--label', 'First', '--up', 'a', '--down', 'b');
-    await run('story', 'step', 'set', 'show.loopweft', 'S1.1', '--mixed', 'c');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'First');
+  }
+
+  it('shows every overlay in full, in words: lines, cards, captions, credits and the pages cited', async () => {
+    const file = 'show-overlays.loopweft';
+    await showProject(file);
+    await run('story', 'step', 'set', file, 'S1.1', '--up', 'a', '--down', 'b', '--mixed', 'c');
     writeFileSync(
       join(dir, 'figure.png'),
       Buffer.from(
@@ -885,7 +908,7 @@ describe('story show', () => {
         'base64',
       ),
     );
-    await run('story', 'image', 'add', 'show.loopweft', 'figure.png');
+    await run('story', 'image', 'add', file, 'figure.png');
     const adds: string[][] = [
       [
         'title',
@@ -938,9 +961,8 @@ describe('story show', () => {
         'test2020',
       ],
     ];
-    for (const add of adds)
-      expect((await run('story', 'overlay', 'add', 'show.loopweft', 'S1.1', ...add)).code).toBe(0);
-    const shown = await run('story', 'show', 'show.loopweft', 'S1.1');
+    for (const add of adds) expect((await run('story', 'overlay', 'add', file, 'S1.1', ...add)).code).toBe(0);
+    const shown = await run('story', 'show', file, 'S1.1');
     expect(shown.out).toContain(
       [
         'Overlays (counted from 0, later ones on top):',
@@ -957,96 +979,127 @@ describe('story show', () => {
   });
 
   it("lists a step's timing warnings with its other warnings", async () => {
-    await run('story', 'scene', 'set', 'show.loopweft', 'S1', '--target', '10');
-    await run('story', 'step', 'set', 'show.loopweft', 'S1.1', '--at', '30');
-    await run('story', 'step', 'add', 'show.loopweft', 'S1', '--label', 'Second', '--at', '5');
-    const first = await json('story', 'show', 'show.loopweft', 'S1.1');
+    const file = 'show-timing.loopweft';
+    await showProject(file);
+    await run('story', 'scene', 'set', file, 'S1', '--target', '10');
+    await run('story', 'step', 'set', file, 'S1.1', '--at', '30');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'Second', '--at', '5');
+    const first = await json('story', 'show', file, 'S1.1');
     expect((first.doc.warnings as { code: string }[]).map((w) => w.code)).toContain('stepPastTarget');
-    const second = await run('story', 'show', 'show.loopweft', 'S1.2');
+    const second = await run('story', 'show', file, 'S1.2');
     expect(second.out).toContain('Warnings:\n  Step S1.2 is due at 5 s, before step S1.1 (30 s).\n');
-    expect((await json('story', 'show', 'show.loopweft', 'S1.2')).doc.warnings).toEqual([
+    expect((await json('story', 'show', file, 'S1.2')).doc.warnings).toEqual([
       expect.objectContaining({ code: 'stepTimeOrder', path: ['story', 'scenes', 0, 'steps', 1, 'at'] }),
     ]);
   });
 
   it('shows a scene whose title has a dot in it, and keeps a step key a step', async () => {
-    await run('story', 'scene', 'add', 'show.loopweft', '--title', 'Version 1.0');
-    const scene = await run('story', 'show', 'show.loopweft', 'Version 1.0');
+    const file = 'show-dots.loopweft';
+    await showProject(file);
+    await run('story', 'step', 'add', file, 'S1', '--label', 'Second');
+    await run('story', 'scene', 'add', file, '--title', 'Version 1.0');
+    const scene = await run('story', 'show', file, 'Version 1.0');
     expect(scene.code).toBe(0);
     expect(scene.out).toMatch(/^S2 "Version 1\.0": scene 2 of 2\n/);
     // A scene titled like a step's key: the key names the step.
-    await run('story', 'scene', 'add', 'show.loopweft', '--title', 'S1.2');
-    expect((await run('story', 'show', 'show.loopweft', 'S1.2')).out).toMatch(/^S1\.2 "Second": step 2 of 2/);
+    await run('story', 'scene', 'add', file, '--title', 'S1.2');
+    expect((await run('story', 'show', file, 'S1.2')).out).toMatch(/^S1\.2 "Second": step 2 of 2/);
     // A title that names a step another way too ("One" is S1's title) is refused, not guessed.
-    await run('story', 'scene', 'add', 'show.loopweft', '--title', 'One.1');
-    const both = await json('story', 'show', 'show.loopweft', 'One.1');
+    await run('story', 'scene', 'add', file, '--title', 'One.1');
+    const both = await json('story', 'show', file, 'One.1');
     expect(both.code).toBe(2);
     expect((both.doc.error as { message: string }).message).toBe(
       '"One.1" is the title of scene S4 and also names step S1.1; use S4 or S1.1.',
     );
-    expect((await json('story', 'show', 'show.loopweft', 'Version 2.0')).doc.error).toMatchObject({
+    expect((await json('story', 'show', file, 'Version 2.0')).doc.error).toMatchObject({
       message: expect.stringMatching(/^No scene "Version 2\.0"/),
     });
-    expect((await json('story', 'show', 'show.loopweft', 'S1.9')).doc.error).toMatchObject({
+    expect((await json('story', 'show', file, 'S1.9')).doc.error).toMatchObject({
       message: expect.stringMatching(/^No step "9" in scene S1/),
     });
   });
 });
 
 describe('placing scenes and steps', () => {
-  const steps = (file: string, scene = 0) => saved(file).story.scenes[scene]?.steps.map((s) => s.label);
+  /** A new project: scene S1 ("One") with step S1.1 ("b"), and scene S2 ("Two") with step S2.1 ("x"). */
+  async function twoScenes(file: string) {
+    await run('new', file, '--title', 'Place');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'scene', 'add', file, '--title', 'Two');
+    await run('story', 'step', 'add', file, 'One', '--label', 'b');
+    await run('story', 'step', 'add', file, 'Two', '--label', 'x');
+  }
+  /** The labels of a scene's steps (the scene by its place in the story), in order. */
+  const labels = (file: string, scene: number) => saved(file).story.scenes[scene]?.steps.map((s) => s.label);
 
   it('takes a step by its key, or by its id or label in the scene it goes to, and a scene by its title', async () => {
-    await run('new', 'place.loopweft', '--title', 'Place');
-    await run('story', 'scene', 'add', 'place.loopweft', '--title', 'One');
-    await run('story', 'scene', 'add', 'place.loopweft', '--title', 'Two');
-    // A scene placed before another named by its title.
-    expect(
-      (await run('story', 'scene', 'add', 'place.loopweft', '--title', 'Zero', '--before', 'One')).code,
-    ).toBe(0);
-    expect(saved('place.loopweft').story.scenes.map((s) => s.title)).toEqual(['Zero', 'One', 'Two']);
-    // One is S1 and Two is S2; Zero, added last, is S3.
-    await run('story', 'step', 'add', 'place.loopweft', 'One', '--label', 'b');
-    expect(
-      (await run('story', 'step', 'add', 'place.loopweft', 'One', '--label', 'a', '--before', 'S1.1')).code,
-    ).toBe(0);
-    expect(
-      (await run('story', 'step', 'add', 'place.loopweft', 'One', '--label', 'c', '--after', 'b')).code,
-    ).toBe(0);
-    expect(steps('place.loopweft', 1)).toEqual(['a', 'b', 'c']);
-    expect((await run('story', 'step', 'move', 'place.loopweft', 'S1.3', '--before', 'S1.1')).code).toBe(0);
-    expect(steps('place.loopweft', 1)).toEqual(['a', 'c', 'b']);
-    expect(
-      (await run('story', 'step', 'copy', 'place.loopweft', 'S1.2', '--label', 'a2', '--after', 'S1.2')).code,
-    ).toBe(0);
-    expect(steps('place.loopweft', 1)).toEqual(['a', 'a2', 'c', 'b']);
+    const file = 'place-forms.loopweft';
+    await twoScenes(file);
+    // A scene placed before another named by its title; it is S3, the next free id.
+    expect((await run('story', 'scene', 'add', file, '--title', 'Zero', '--before', 'One')).code).toBe(0);
+    expect(saved(file).story.scenes.map((s) => s.title)).toEqual(['Zero', 'One', 'Two']);
+    expect((await run('story', 'step', 'add', file, 'One', '--label', 'a', '--before', 'S1.1')).code).toBe(0);
+    expect((await run('story', 'step', 'add', file, 'One', '--label', 'c', '--after', 'b')).code).toBe(0);
+    expect(labels(file, 1)).toEqual(['a', 'b', 'c']);
+    expect((await run('story', 'step', 'move', file, 'S1.3', '--before', '1')).code).toBe(0);
+    expect(labels(file, 1)).toEqual(['a', 'c', 'b']);
+    expect((await run('story', 'step', 'copy', file, 'S1.2', '--label', 'a2', '--after', 'S1.2')).code).toBe(
+      0,
+    );
+    expect(labels(file, 1)).toEqual(['a', 'a2', 'c', 'b']);
     // Into another scene, beside a step of that scene.
-    await run('story', 'step', 'add', 'place.loopweft', 'Two', '--label', 'x');
-    expect(
-      (await run('story', 'step', 'move', 'place.loopweft', 'S1.2', '--scene', 'Two', '--before', 'S2.1'))
-        .code,
-    ).toBe(0);
-    expect(steps('place.loopweft', 2)).toEqual(['a', 'x']);
+    const moved = await run('story', 'step', 'move', file, 'S1.2', '--scene', 'Two', '--before', 'S2.1');
+    expect(moved.code).toBe(0);
+    expect(labels(file, 2)).toEqual(['a', 'x']);
   });
 
   it('refuses a step of another scene to place beside, changing nothing', async () => {
-    const before = readFileSync(join(dir, 'place.loopweft'), 'utf8');
-    const out = await json(
-      'story',
-      'step',
-      'add',
-      'place.loopweft',
-      'One',
-      '--label',
-      'd',
-      '--before',
-      'S2.1',
-    );
+    const file = 'place-foreign.loopweft';
+    await twoScenes(file);
+    const before = readFileSync(join(dir, file), 'utf8');
+    const out = await json('story', 'step', 'add', file, 'One', '--label', 'd', '--before', 'S2.1');
     expect(out.code).toBe(2);
     expect((out.doc.error as { message: string }).message).toBe(
       'Step S2.1 is in scene S2; name a step of scene S1, where it goes.',
     );
-    expect((await json('story', 'step', 'move', 'place.loopweft', 'S1.3', '--after', 'S1.9')).code).toBe(2);
-    expect(readFileSync(join(dir, 'place.loopweft'), 'utf8')).toBe(before);
+    expect((await json('story', 'step', 'move', file, 'S1.1', '--after', 'S1.9')).code).toBe(2);
+    expect(readFileSync(join(dir, file), 'utf8')).toBe(before);
+  });
+
+  it('reads a label with dots in the scene it goes to, and refuses one that also names another step', async () => {
+    const file = 'place-dots.loopweft';
+    await twoScenes(file);
+    // "One.1" is the label of S1.2, and also step 1 of scene "One" (S1.1): refused, nothing saved.
+    await run('story', 'step', 'add', file, 'One', '--label', 'One.1');
+    const before = readFileSync(join(dir, file), 'utf8');
+    const both = await json('story', 'step', 'add', file, 'One', '--label', 'New', '--before', 'One.1');
+    expect(both.code).toBe(2);
+    expect((both.doc.error as { message: string }).message).toBe(
+      '"One.1" is the label of step S1.2 and also names step S1.1; use S1.2 or S1.1.',
+    );
+    expect(readFileSync(join(dir, file), 'utf8')).toBe(before);
+    expect((await run('story', 'step', 'add', file, 'One', '--label', 'New', '--before', 'S1.2')).code).toBe(
+      0,
+    );
+    expect(labels(file, 0)).toEqual(['b', 'New', 'One.1']);
+    // A label with dots that names no other step.
+    await run('story', 'step', 'add', file, 'One', '--label', 'Part 2.b');
+    const placed = await run(
+      'story',
+      'step',
+      'add',
+      file,
+      'One',
+      '--label',
+      'Just before',
+      '--before',
+      'Part 2.b',
+    );
+    expect(placed.code).toBe(0);
+    expect(labels(file, 0)).toEqual(['b', 'New', 'One.1', 'Just before', 'Part 2.b']);
+    // "Two.1" is a label here and step 1 of scene "Two" there, which cannot be placed beside: the label is meant.
+    await run('story', 'step', 'add', file, 'One', '--label', 'Two.1', '--first');
+    expect((await run('story', 'step', 'move', file, 'S1.3', '--after', 'Two.1')).code).toBe(0);
+    expect(labels(file, 0)).toEqual(['Two.1', 'New', 'b', 'One.1', 'Just before', 'Part 2.b']);
   });
 });

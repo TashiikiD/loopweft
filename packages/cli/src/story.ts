@@ -19,10 +19,12 @@ import {
   keyMarksNeeded,
   LEVELS,
   type Level,
+  listing,
   type MapState,
   moveOverlay,
   moveScene,
   moveStep,
+  normalizeToken,
   OpError,
   type OpOutput,
   type Overlay,
@@ -87,25 +89,61 @@ function where(o: PlaceOptions, count: () => number, beside: (ref: string) => st
 const sceneId = (project: Project) => (ref: string) => resolveScene(project, ref).scene.id;
 
 /**
- * A step to place another beside, as its id in `scene`, where the other goes: named by its key (S1.2), or by
- * its id or label in that scene.
+ * A step to place another beside, as its id in `scene`, where the other goes: named by its key there (S1.2),
+ * or by its id or label there, which may have dots in it. A step of another scene (S2.1) is refused, and so
+ * is a reference that names two steps ("One.1": a step's label, and step 1 of scene "One"), never guessed.
  */
 const stepId = (project: Project, scene: Scene) => (ref: string) => {
-  if (scene.steps.some((t) => t.id === ref)) return ref;
-  let found: FoundStep;
-  try {
-    found = resolveStep(project, ref);
-  } catch (error) {
-    if (!(error instanceof OpError)) throw error;
-    found = resolveStep(project, `${scene.id}.${ref}`);
-  }
-  if (found.scene.id !== scene.id) {
+  const keyed = scene.steps.find((t) => `${scene.id}.${t.id}` === ref);
+  if (keyed) return keyed.id;
+  const token = normalizeToken(ref);
+  const labelled = scene.steps.filter((t) => normalizeToken(t.label) === token);
+  const local = scene.steps.find((t) => t.id === ref) ?? (labelled.length === 1 ? labelled[0] : undefined);
+  if (!local && labelled.length > 1) {
     throw new OpError(
-      `Step ${found.key} is in scene ${found.scene.id}; name a step of scene ${scene.id}, where it goes.`,
+      `"${ref}" is the label of ${labelled.length} steps of scene ${scene.id}; use the key of the one you mean.`,
       'usage',
     );
   }
-  return found.step.id;
+  // The step the reference names as "<scene>.<step>", by ids, titles or labels, in any scene.
+  let named: FoundStep | undefined;
+  let failure: OpError | undefined;
+  if (ref.includes('.')) {
+    try {
+      named = resolveStep(project, ref);
+    } catch (error) {
+      if (!(error instanceof OpError)) throw error;
+      failure = error;
+    }
+  }
+  if (local) {
+    const key = `${scene.id}.${local.id}`;
+    // Another step counts when it is in this scene or named by its own key; one elsewhere by titles cannot be
+    // placed beside, so the label here is meant.
+    if (named && named.key !== key && (named.scene.id === scene.id || named.key === ref)) {
+      throw new OpError(
+        `"${ref}" is the label of step ${key} and also names step ${named.key}; use ${key} or ${named.key}.`,
+        'usage',
+      );
+    }
+    return local.id;
+  }
+  if (named) {
+    if (named.scene.id !== scene.id) {
+      throw new OpError(
+        `Step ${named.key} is in scene ${named.scene.id}; name a step of scene ${scene.id}, where it goes.`,
+        'usage',
+      );
+    }
+    return named.step.id;
+  }
+  if (failure?.kind === 'usage') throw failure;
+  throw new OpError(
+    scene.steps.length === 0
+      ? `Scene ${scene.id} has no steps yet.`
+      : `No step "${ref}" in scene ${scene.id} (it has ${listing(scene.steps.map((t) => `${scene.id}.${t.id}`))}).`,
+    'notFound',
+  );
 };
 
 /** Text from an option, or from the file a sibling option names. */
