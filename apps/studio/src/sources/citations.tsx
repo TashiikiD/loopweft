@@ -51,11 +51,23 @@ function CitationRow({ element, index, citation }: { element: string; index: num
   const edit = useEdit();
   const open = useOpenSource();
   const source = project.sources.find((s) => s.id === citation.source);
-  const name = source?.label ?? citation.source;
+  // Named by the source's label and id (two sources may share a label), then its pages, so each field says
+  // which citation it edits; the id is shown only where another source has the same label.
+  const label = source?.label;
+  const named = label && label !== citation.source ? `${label} [${citation.source}]` : citation.source;
+  const who = `${named}${citation.pages ? `, p. ${citation.pages}` : ''}`;
+  const shared = !!label && project.sources.some((s) => s.id !== citation.source && s.label === label);
   const set = (changes: Parameters<typeof setCitation>[3]) =>
     edit((p) => setCitation(p, element, index, changes));
   return (
-    <Paper withBorder radius="sm" p={8} className="lw-citation">
+    <Paper
+      withBorder
+      radius="sm"
+      p={8}
+      className="lw-citation"
+      role="group"
+      aria-label={`Citation of ${who}`}
+    >
       <Stack gap={6}>
         <Group gap={6} wrap="nowrap" justify="space-between">
           <Anchor
@@ -64,16 +76,17 @@ function CitationRow({ element, index, citation }: { element: string; index: num
             fw={500}
             onClick={() => open(citation.source)}
             title={source ? plainReference(source.apa) : undefined}
+            aria-label={named}
             style={{ textAlign: 'left', minWidth: 0 }}
           >
-            {name}
+            {shared || !label ? named : label}
           </Anchor>
           <ActionIcon
             size="sm"
             variant="subtle"
             color="gray"
             onClick={() => edit((p) => removeCitation(p, element, index))}
-            aria-label={`Remove the citation of ${name}${citation.pages ? ` (${citation.pages})` : ''}`}
+            aria-label={`Remove the citation of ${who}`}
           >
             <IconX size={14} aria-hidden />
           </ActionIcon>
@@ -81,12 +94,14 @@ function CitationRow({ element, index, citation }: { element: string; index: num
         <Group gap={6} grow align="flex-start">
           <CommitText
             label="Pages"
+            ariaLabel={`Pages: ${who}`}
             placeholder="e.g. 11–12"
             value={citation.pages ?? ''}
             onCommit={(pages) => set({ pages })}
           />
           <CommitText
             label="Note"
+            ariaLabel={`Note: ${who}`}
             placeholder="e.g. Fig. 6c"
             value={citation.note ?? ''}
             onCommit={(note) => set({ note })}
@@ -97,7 +112,7 @@ function CitationRow({ element, index, citation }: { element: string; index: num
           value={citation.strength ?? ''}
           data={STRENGTHS}
           onChange={(value) => set({ strength: value ? (value as Strength) : null })}
-          aria-label={`Strength of the evidence from ${name}`}
+          aria-label={`Strength of the evidence: ${who}`}
         />
       </Stack>
     </Paper>

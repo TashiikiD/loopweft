@@ -60,15 +60,15 @@ describe('citing in the inspector', () => {
     ]);
     expect(store.getState().past.at(-1)?.label).toBe('Cited U pp. 11–12 on L2.');
 
-    const row = document.querySelector('.lw-citation') as HTMLElement;
-    const note = within(row).getByRole('textbox', { name: 'Note' });
+    const row = screen.getByRole('group', { name: 'Citation of Other (2021) [U], p. 11–12' });
+    const note = within(row).getByRole('textbox', { name: 'Note: Other (2021) [U], p. 11–12' });
     await user.type(note, 'Fig. 2{Enter}');
     await user.click(within(row).getByRole('radio', { name: 'Strong' }));
     expect(store.getState().project.links[1]?.citations).toEqual([
       { source: 'U', pages: '11–12', strength: 'strong', note: 'Fig. 2' },
     ]);
     await user.click(
-      within(row).getByRole('button', { name: 'Remove the citation of Other (2021) (11–12)' }),
+      within(row).getByRole('button', { name: 'Remove the citation of Other (2021) [U], p. 11–12' }),
     );
     expect(store.getState().project.links[1]?.citations).toEqual([]);
     store.getState().undo();
@@ -112,9 +112,68 @@ describe('citing in the inspector', () => {
   it('opens the source of a citation in the library', async () => {
     const { store, user } = renderStudio();
     store.getState().select({ links: ['L1'] });
-    await user.click(await screen.findByRole('button', { name: 'Test (2020)' }));
+    const source = await screen.findByRole('button', { name: 'Test (2020) [T]' });
+    // No other source has its label, so its id is left off the screen.
+    expect(source.textContent).toBe('Test (2020)');
+    await user.click(source);
     expect(store.getState().workspace).toBe('sources');
     expect(store.getState().source).toBe('T');
+  });
+
+  it('tells apart the citations of two sources with the same label, and edits each one', async () => {
+    const project = map();
+    project.sources.push(
+      { id: 'T2', label: 'Test (2020)', apa: 'Test, C. (2020). *A second fictitious source*. Test Press.' },
+      { id: 'N', apa: 'Nolabel, D. (2019). *A fictitious source without a label*. Test Press.' },
+    );
+    project.links[0] = {
+      ...(project.links[0] as Project['links'][number]),
+      citations: [{ source: 'T', pages: '4' }, { source: 'T2', pages: '4' }, { source: 'N' }],
+    };
+    const { store, user } = renderStudio(project);
+    store.getState().select({ links: ['L1'] });
+    const first = await screen.findByRole('group', { name: 'Citation of Test (2020) [T], p. 4' });
+    const second = screen.getByRole('group', { name: 'Citation of Test (2020) [T2], p. 4' });
+    const third = screen.getByRole('group', { name: 'Citation of N' });
+    // Each field is named for its own citation, so a screen reader tells them apart without the groups.
+    for (const id of ['T', 'T2']) {
+      const who = `Test (2020) [${id}], p. 4`;
+      expect(screen.getByRole('textbox', { name: `Pages: ${who}` })).toBeTruthy();
+      expect(screen.getByRole('textbox', { name: `Note: ${who}` })).toBeTruthy();
+      expect(screen.getByRole('radiogroup', { name: `Strength of the evidence: ${who}` })).toBeTruthy();
+      expect(screen.getByRole('button', { name: `Remove the citation of ${who}` })).toBeTruthy();
+    }
+    // Two sources share the label, so the id is shown with it; a source without a label shows its id.
+    expect(within(first).getByRole('button', { name: 'Test (2020) [T]' }).textContent).toBe(
+      'Test (2020) [T]',
+    );
+    expect(within(second).getByRole('button', { name: 'Test (2020) [T2]' }).textContent).toBe(
+      'Test (2020) [T2]',
+    );
+    expect(within(third).getByRole('button', { name: 'N' }).textContent).toBe('N');
+
+    await user.type(screen.getByRole('textbox', { name: 'Note: Test (2020) [T2], p. 4' }), 'Fig. 2{Enter}');
+    const pages = screen.getByRole('textbox', { name: 'Pages: Test (2020) [T], p. 4' });
+    await user.clear(pages);
+    await user.type(pages, '5{Enter}');
+    await user.click(
+      within(
+        screen.getByRole('radiogroup', { name: 'Strength of the evidence: Test (2020) [T2], p. 4' }),
+      ).getByRole('radio', { name: 'Weak' }),
+    );
+    await user.type(screen.getByRole('textbox', { name: 'Note: N' }), 'Table 1{Enter}');
+    expect(store.getState().project.links[0]?.citations).toEqual([
+      { source: 'T', pages: '5' },
+      { source: 'T2', pages: '4', note: 'Fig. 2', strength: 'weak' },
+      { source: 'N', note: 'Table 1' },
+    ]);
+    // The changed pages rename that citation's fields; the other keeps its names.
+    expect(screen.getByRole('group', { name: 'Citation of Test (2020) [T], p. 5' })).toBe(first);
+    await user.click(screen.getByRole('button', { name: 'Remove the citation of Test (2020) [T2], p. 4' }));
+    expect(store.getState().project.links[0]?.citations).toEqual([
+      { source: 'T', pages: '5' },
+      { source: 'N', note: 'Table 1' },
+    ]);
   });
 
   it('sends a map without sources to the Sources workspace', async () => {
