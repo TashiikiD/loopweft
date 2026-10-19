@@ -89,7 +89,11 @@ export function withLoops(
     loops = drop(loops);
     names = drop(names);
   }
-  if (show.name === true) names = add(names);
+  if (show.name === true) {
+    // A name needs its badge, whatever else was asked.
+    loops = add(loops);
+    names = add(names);
+  }
   if (show.name === false) names = drop(names);
   return { loops: loops.length ? loops : undefined, loopNames: names.length ? names : undefined } as Pick<
     MapState,
@@ -234,6 +238,9 @@ export function setStepLoops(
 ): OpOutput<{ key: string; changed: string[] }> {
   const { step, key } = resolveStep(project, ref);
   if (refs.length === 0) throw new OpError('Name at least one loop.', 'usage');
+  if (show.badge === false && show.name === true) {
+    throw new OpError('A loop name needs its badge: it cannot show without it.', 'usage');
+  }
   const ids = refs.map((r) => findLoop(project, r).loop.id);
   const { loops, loopNames } = withLoops(step.map, ids, show);
   const said = [
@@ -288,7 +295,7 @@ export function pulseRoundLoop(
  * links the step lights, as the ripple spreads it (docs/analysis.md): a + link carries it the same way, a −
  * link the other way; where opposing pushes meet at once the variable is ± and the spread stops there. Every
  * variable it reaches is marked; other trends stay. Pushes that arrive later the other way (round a
- * balancing loop) are named, since the story check will flag them.
+ * balancing loop, including back into the start) are named, since the story check will flag them.
  */
 export function spreadTrend(
   project: Project,
@@ -303,7 +310,14 @@ export function spreadTrend(
   const spread = ripple(along, start, direction, { includeOptional: true });
   const trends: Record<string, Trend> = { [start]: direction };
   for (const r of spread.reached) trends[r.variable] = r.trend;
-  const against = spread.reached.flatMap((r) => r.against);
+  // Pushes the other way: later ones into variables reached, and feedback that brings the change back to the
+  // start the other way (round a balancing loop). Feedback the same way (reinforcing) is not against it.
+  const against = [
+    ...new Set([
+      ...spread.reached.flatMap((r) => r.against),
+      ...spread.feedback.filter((f) => f.trend !== direction).map((f) => f.link),
+    ]),
+  ];
   const merged = { ...(step.map.trends ?? {}), ...trends };
   const reached = Object.keys(trends).length - 1;
   const note = against.length

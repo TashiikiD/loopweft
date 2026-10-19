@@ -195,7 +195,7 @@ export function addAsset(
   }
   const id = input.id ?? uniqueId(slugify((input.name ?? '').replace(/\.[a-z0-9]+$/i, '')), taken, 'image');
   parseElement(IdSchema, id, ['assets', id]);
-  parseElement(AssetSchema, input.data, ['assets', id]);
+  checkImage(input.data, ['assets', id]);
   const next = structuredClone(project);
   next.assets[id] = input.data;
   return { project: next, result: { id }, summary: `Embedded image ${id} (${kib(input.data)}).` };
@@ -208,7 +208,7 @@ export function setAsset(
   data: string,
 ): OpOutput<{ id: string; uses: string[] }> {
   const old = knownAsset(project, id);
-  parseElement(AssetSchema, data, ['assets', id]);
+  checkImage(data, ['assets', id]);
   const uses = assetUses(project, id);
   if (old === data)
     return {
@@ -252,6 +252,32 @@ export function removeAsset(
   };
 }
 
+/**
+ * Refuses image data an image overlay could not show: not a base64 data URI, base64 that does not decode, or
+ * bytes that are not the image type the URI declares (read from the bytes, as `imageType` reads them).
+ */
+function checkImage(data: string, path: (string | number)[]): void {
+  parseElement(AssetSchema, data, path);
+  const comma = data.indexOf(',');
+  const declared = data.slice('data:image/'.length, data.indexOf(';'));
+  let bytes: Uint8Array;
+  try {
+    const decoded = atob(data.slice(comma + 1));
+    bytes = Uint8Array.from(decoded, (c) => c.charCodeAt(0));
+  } catch {
+    throw new OpError('The image data is not valid base64.', 'invalid', [
+      { severity: 'error', code: 'invalidFormat', message: 'The image data is not valid base64.', path },
+    ]);
+  }
+  const found = bytes.length ? imageType(bytes) : null;
+  if (found !== declared) {
+    const message = found
+      ? `The image data says image/${declared} but holds a ${found.replace('+xml', '').toUpperCase()} image.`
+      : `The image data says image/${declared} but is not a readable image.`;
+    throw new OpError(message, 'invalid', [{ severity: 'error', code: 'invalidFormat', message, path }]);
+  }
+}
+
 const kib = (data: string) => {
   const encoded = data.slice(data.indexOf(',') + 1).replace(/=+$/, '');
   const bytes = Math.floor((encoded.length * 3) / 4);
@@ -280,9 +306,11 @@ const starts = (bytes: Uint8Array, at: number, text: string) =>
 
 /** The image type of a file's bytes, read from the bytes themselves (never from its name), or null. */
 export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 'svg+xml' | null {
-  if (bytes[0] === 0x89 && starts(bytes, 1, 'PNG')) return 'png';
+  // The whole signature of each type, so a cut-off header is not taken for an image.
+  const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (PNG.every((b, i) => bytes[i] === b)) return 'png';
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg';
-  if (starts(bytes, 0, 'GIF8')) return 'gif';
+  if (starts(bytes, 0, 'GIF87a') || starts(bytes, 0, 'GIF89a')) return 'gif';
   if (starts(bytes, 0, 'RIFF') && starts(bytes, 8, 'WEBP')) return 'webp';
   // TextDecoder drops a byte-order mark.
   const head = new TextDecoder().decode(bytes.subarray(0, 2048)).trimStart();

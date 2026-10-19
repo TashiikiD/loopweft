@@ -68,14 +68,9 @@ export function resolveScene(project: Project, ref: string): FoundScene {
   );
 }
 
-/** A step named "<scene>.<step>", e.g. "S05.3": the scene by id or title, the step by id or label. */
-export function resolveStep(project: Project, ref: string): FoundStep {
-  const dot = ref.indexOf('.');
-  if (dot <= 0 || dot === ref.length - 1) {
-    throw new OpError(`Name a step by its scene and its id, e.g. "S05.3" (not "${ref}").`, 'usage');
-  }
-  const { index: sceneIndex, scene } = resolveScene(project, ref.slice(0, dot));
-  const stepRef = ref.slice(dot + 1);
+/** The step `stepRef` (by id, or by label when only one has it) in a scene named by `sceneRef`. */
+function stepIn(project: Project, sceneRef: string, stepRef: string): FoundStep {
+  const { index: sceneIndex, scene } = resolveScene(project, sceneRef);
   let stepIndex = scene.steps.findIndex((s) => s.id === stepRef);
   if (stepIndex < 0) {
     const token = normalizeToken(stepRef);
@@ -99,6 +94,48 @@ export function resolveStep(project: Project, ref: string): FoundStep {
     );
   }
   return { sceneIndex, stepIndex, scene, step, key: stepKey(scene.id, step.id) };
+}
+
+/**
+ * A step named "<scene>.<step>", e.g. "S05.3": the scene by id or title, the step by id or label. Ids have no
+ * dots, but a scene's title may ("Part 1. Growth.2"), so every dot is tried as the separator; a reference
+ * that names two different steps that way is refused as ambiguous.
+ */
+export function resolveStep(project: Project, ref: string): FoundStep {
+  const dots = [...ref].flatMap((ch, i) => (ch === '.' && i > 0 && i < ref.length - 1 ? [i] : []));
+  if (dots.length === 0) {
+    throw new OpError(`Name a step by its scene and its id, e.g. "S05.3" (not "${ref}").`, 'usage');
+  }
+  const found = new Map<string, FoundStep>();
+  // The error to report when nothing matches: one about a step in a scene that was found, else the first.
+  let failure: { error: OpError; sceneFound: boolean } | null = null;
+  for (const dot of dots) {
+    const sceneRef = ref.slice(0, dot);
+    try {
+      const step = stepIn(project, sceneRef, ref.slice(dot + 1));
+      found.set(step.key, step);
+    } catch (error) {
+      if (!(error instanceof OpError)) throw error;
+      const sceneFound = (() => {
+        try {
+          resolveScene(project, sceneRef);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      if (!failure || (sceneFound && !failure.sceneFound)) failure = { error, sceneFound };
+    }
+  }
+  const steps = [...found.values()];
+  if (steps.length === 1) return steps[0] as FoundStep;
+  if (steps.length > 1) {
+    throw new OpError(
+      `"${ref}" names ${steps.length} steps (${listing(steps.map((s) => s.key))}); use the scene's id, e.g. ${steps[0]?.key}.`,
+      'usage',
+    );
+  }
+  throw (failure as { error: OpError }).error;
 }
 
 /**

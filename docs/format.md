@@ -396,7 +396,7 @@ Overlays are drawn over the map in list order, later ones on top. Each has a `ty
 
 | Type | Fields | Shows |
 |---|---|---|
-| `caption` | none | The scene's caption band: its title and headline. |
+| `caption` | none | The scene's caption band: its title and headline. A step lists it at most once. |
 | `title` | `title` (required), `subtitle`, `lines` | A title page over the map. |
 | `statement` | `lines` (required), `kicker`, `style`, `place`, `citations` | Large type: a question, a closing line, a short title or a caveat. `style`: `hero`, `question`, `closing`, `title` or `note`. `kicker`: a small line above, e.g. "INTERVENTION A". |
 | `cards` | `items` (required: each a `title`, an optional `sub` and an optional `icon`), `title`, `active`, `place`, `citations` | Cards: a column beside the map (`left`, the default, or `right`), or a compact grid in the top or bottom band. `active`: the highlighted cards, counted from 0; the rest recede. A card shows its `icon` in place of its number. |
@@ -437,7 +437,7 @@ The last finds **warnings**: the project is valid, but something should be looke
    `unknownLoop`, `unknownSource`, `unknownCategory`, `unknownRole`, `unknownLinkType`, `unknownField`,
    `unknownAsset`, `unknownElement`, `fieldNotApplicable`, `invalidFieldValue`, `brokenLoop` (a loop's links
    do not form a closed chain), `partOfCycle`, `invalidRange` (a `[min, max]` the wrong way round),
-   `cardOutOfRange`, `unknownPalette` (`theme.palette` names neither a preset nor one of `theme.palettes`),
+   `cardOutOfRange`, `duplicateCaption` (a step lists the scene's caption twice), `unknownPalette` (`theme.palette` names neither a preset nor one of `theme.palettes`),
    `presetPaletteId` (a project's palette under a preset's id).
 4. **Evidence and story (warnings):**
 

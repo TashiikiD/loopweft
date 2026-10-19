@@ -308,8 +308,17 @@ export function checkReferences(project: Project): Issue[] {
       const who = `Step ${scene.id}.${step.id}`;
       const stepPath: Path = [...scenePath, 'steps', t];
       mapState(step.map, [...stepPath, 'map'], who);
+      let captions = 0;
       step.overlays.forEach((o, k) => {
         overlay(o, [...stepPath, 'overlays', k], who);
+        // A step shows its scene's caption once; a second would be drawn as the same caption.
+        if (o.type === 'caption' && ++captions > 1) {
+          error(
+            'duplicateCaption',
+            [...stepPath, 'overlays', k],
+            `${who}: the scene's caption is listed twice.`,
+          );
+        }
       });
     });
   });

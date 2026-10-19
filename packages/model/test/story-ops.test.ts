@@ -37,8 +37,9 @@ import {
   setStepTrend,
   spreadTrend,
   withLevel,
+  withLoops,
 } from '../src/index.ts';
-import { richProject, TINY_PNG } from './helpers.ts';
+import { parseChanged, richProject, TINY_PNG } from './helpers.ts';
 
 function refused(run: () => unknown): OpError {
   try {
@@ -68,6 +69,25 @@ describe('naming scenes and steps', () => {
       'No step "9" in scene S1 (it has S1.1, S1.2 and S1.3).',
     );
     expect(refused(() => resolveScene(p, 'S2')).message).toContain('No scene "S2"');
+  });
+
+  it('finds a step through a scene title that has dots in it, and refuses a reference that names two', () => {
+    const p = setScene(richProject(), 'S1', { title: 'Part 1. Growth' }).project;
+    expect(resolveStep(p, 'Part 1. Growth.2').key).toBe('S1.2');
+    expect(resolveStep(p, 'part 1. growth.The loop').key).toBe('S1.2');
+    // When no split names a step, the error is about the scene that was found.
+    expect(refused(() => resolveStep(p, 'Part 1. Growth.9')).message).toBe(
+      'No step "9" in scene S1 (it has S1.1, S1.2 and S1.3).',
+    );
+    // "A.1.2" could be scene "A" step "1.2"... ids have no dots, but titles and labels may.
+    let q = addScene(p, { title: 'A' }).project;
+    q = addStep(q, 'S2', { label: '1.2', map: {} }).project;
+    q = addScene(q, { title: 'A.1' }).project;
+    q = addStep(q, 'S3', { label: 'x', map: {} }).project;
+    q = addStep(q, 'S3', { id: '2', label: 'y', map: {} }).project;
+    expect(refused(() => resolveStep(q, 'A.1.2')).message).toBe(
+      '"A.1.2" names 2 steps (S2.1 and S3.2); use the scene\'s id, e.g. S2.1.',
+    );
   });
 
   it('chooses the next ids: S<n> padded as the others are, and whole-number steps', () => {
@@ -221,6 +241,11 @@ describe('what a step shows', () => {
     const hidden = setStepLoops(richProject(), 'S1.2', ['R1'], { badge: false });
     expect(stepOf(hidden.project, 'S1.2').map.loops).toBeUndefined();
     expect(stepOf(hidden.project, 'S1.2').map.loopNames).toBeUndefined();
+    // Hiding the badge while showing the name is a contradiction, refused; the helper keeps the badge.
+    expect(
+      refused(() => setStepLoops(richProject(), 'S1.1', ['B1'], { badge: false, name: true })).message,
+    ).toBe('A loop name needs its badge: it cannot show without it.');
+    expect(withLoops({}, ['B1'], { badge: false, name: true })).toEqual({ loops: ['B1'], loopNames: ['B1'] });
   });
 
   it('builds pulses hop by hop, or round a loop, keeping their timing', () => {
@@ -243,10 +268,25 @@ describe('what a step shows', () => {
     const out = spreadTrend(p, 'S1.2', 'deaths', 'up');
     // L4 (−) takes population down; L1 and L2 (+) carry that to births.
     expect(out.result.trends).toEqual({ deaths: 'up', population: 'down', births: 'down' });
-    expect(out.summary).toBe('Step S1.2: deaths ▲, spread by sign along the lit links to 2 variables.');
+    // Round the balancing loop B1, L3 brings the change back into deaths the other way: it is named.
+    expect(out.result.against).toEqual(['L3']);
+    expect(out.summary).toBe(
+      'Step S1.2: deaths ▲, spread by sign along the lit links to 2 variables. L3 would push the other way later, so the story check will flag it.',
+    );
     expect(warnings(out.project, 'trendContradictsSign')).toEqual([
       'Step S1.2: deaths is marked up, but L3 (+) from population (down) implies down.',
     ]);
+    // Round the reinforcing loop R1 the change comes back the same way: nothing is against it.
+    const reinforcing = spreadTrend(
+      setStepMap(richProject(), 'S1.2', { trends: null }).project,
+      'S1.2',
+      'births',
+      'up',
+    );
+    expect(reinforcing.result).toMatchObject({ trends: { births: 'up', population: 'up' }, against: [] });
+    expect(reinforcing.summary).toBe(
+      'Step S1.2: births ▲, spread by sign along the lit links to 1 variable.',
+    );
   });
 
   it('refuses a map the format would refuse', () => {
@@ -295,6 +335,31 @@ describe('overlays', () => {
   });
 });
 
+describe('one caption per step', () => {
+  it('refuses a second caption from a whole step, and in a file', () => {
+    const two = [{ type: 'caption' as const }, { type: 'caption' as const }];
+    const set = refused(() => setStep(richProject(), 'S1.2', { overlays: two }));
+    expect(set.kind).toBe('invalid');
+    expect(set.issues[0]).toMatchObject({
+      code: 'duplicateCaption',
+      path: ['story', 'scenes', 0, 'steps', 1, 'overlays', 1],
+    });
+    expect(
+      refused(() => addStep(richProject(), 'S1', { label: 'X', map: {}, overlays: two })).issues[0]?.code,
+    ).toBe('duplicateCaption');
+    const file = parseChanged({ 'story.scenes.0.steps.1.overlays.+': { type: 'caption' } });
+    expect(file.ok).toBe(false);
+    expect(file.issues.filter((i) => i.code === 'duplicateCaption')).toEqual([
+      {
+        severity: 'error',
+        code: 'duplicateCaption',
+        path: ['story', 'scenes', 0, 'steps', 1, 'overlays', 5],
+        message: "Step S1.2: the scene's caption is listed twice.",
+      },
+    ]);
+  });
+});
+
 describe('embedded images', () => {
   const pngBytes = () => Uint8Array.from(atob(TINY_PNG.split(',')[1] as string), (c) => c.charCodeAt(0));
 
@@ -317,6 +382,18 @@ describe('embedded images', () => {
     expect(added.result).toEqual({ id: 'fig_5' });
     expect(added.summary).toBe('Embedded image fig_5 (70 bytes).');
     expect(warnings(added.project, 'unusedAsset')).toEqual(['Image fig_5 is not shown on any step.']);
+    // Malformed base64, a PNG label on GIF bytes, and a cut-off PNG header are all refused.
+    expect(refused(() => addAsset(richProject(), { data: 'data:image/png;base64,Z' })).message).toBe(
+      'The image data is not valid base64.',
+    );
+    const gif = `data:image/png;base64,${btoa('GIF89a\u0001\u0000\u0001\u0000')}`;
+    expect(refused(() => addAsset(richProject(), { data: gif })).message).toBe(
+      'The image data says image/png but holds a GIF image.',
+    );
+    const cut = `data:image/png;base64,${btoa('\u0089PNG')}`;
+    expect(refused(() => setAsset(richProject(), 'chart', cut)).message).toBe(
+      'The image data says image/png but is not a readable image.',
+    );
     expect(refused(() => addAsset(richProject(), { data: 'data:text/plain;base64,aGk=' })).kind).toBe(
       'invalid',
     );
