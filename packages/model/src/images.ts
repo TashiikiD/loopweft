@@ -26,6 +26,8 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         const kind = String.fromCharCode(...bytes.subarray(at + 4, at + 8));
         if (at + 12 + length > bytes.length) return STOPS;
         if (first && (kind !== 'IHDR' || length !== 13)) return 'it does not start with its header';
+        // The header's width and height, each above 0.
+        if (first && (u32be(bytes, at + 8) === 0 || u32be(bytes, at + 12) === 0)) return EMPTY;
         if (kind === 'IDAT' && length > 0) data = true;
         if (kind === 'IEND') return data ? null : EMPTY;
         at += 12 + length;
@@ -125,8 +127,10 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
       let body = text.trimEnd();
       while (body.endsWith('-->') && body.includes('<!--'))
         body = body.slice(0, body.lastIndexOf('<!--')).trimEnd();
-      const root = body.match(/<svg[\s>][^>]*>|<svg\/>/i);
-      const closed = /<\/svg\s*>$/i.test(body) || (root?.[0].endsWith('/>') && body.endsWith(root[0]));
+      // Or a root that closes itself, its tag read to its ">" past quoted values.
+      const start = body.search(/<svg[\s>/]/i);
+      const end = start < 0 ? -1 : tagEnd(body, start);
+      const closed = /<\/svg\s*>$/i.test(body) || (end === body.length - 1 && body[end - 1] === '/');
       if (!closed) return STOPS;
       return nests(text) ? null : 'its tags do not match up';
     }
@@ -151,6 +155,19 @@ function webpPicture(bytes: Uint8Array, kind: string, from: number, size: number
     at += 8 + length + (length % 2);
   }
   return false;
+}
+
+/** Where the tag starting at `from` ends: its ">", past quoted attribute values; -1 when it does not end. */
+function tagEnd(text: string, from: number): number {
+  let quote = '';
+  for (let i = from + 1; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === '>') return i;
+  }
+  return -1;
 }
 
 /**

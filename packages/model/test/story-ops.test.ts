@@ -516,6 +516,12 @@ describe('embedded images', () => {
     // An SVG with a processing instruction before its root is taken.
     const pi = svg('<?xml version="1.0"?><?note ok?><svg xmlns="http://www.w3.org/2000/svg"/>');
     expect(addAsset(richProject(), { data: pi, id: 'pi' }).result.id).toBe('pi');
+    // A PNG whose header declares no width; a self-closing SVG root with ">" in a quoted value is taken.
+    const flat = [...png];
+    flat.splice(16, 4, 0, 0, 0, 0);
+    expect(not(uri('png', flat))).toBe('The image data is not a whole PNG image: it has no picture in it.');
+    const quoted = svg('<svg xmlns="http://www.w3.org/2000/svg" aria-label="a > b"/>');
+    expect(addAsset(richProject(), { data: quoted, id: 'quoted' }).result.id).toBe('quoted');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(
