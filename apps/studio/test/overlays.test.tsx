@@ -1,6 +1,13 @@
 // The Overlays panel in jsdom: adding each kind of overlay (asking first for what it cannot do without),
 // changing, ordering, copying forward and removing them, embedding an image, and citing a source.
-import { createProject, type Project, readProject, serializeProject } from '@loopweft/model';
+import {
+  createProject,
+  type Overlay,
+  type Project,
+  readProject,
+  serializeProject,
+  setStep,
+} from '@loopweft/model';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
@@ -313,6 +320,27 @@ describe('the Overlays panel', () => {
       { type: 'cards', items: [{ title: 'B1' }] },
       { type: 'cards', items: [{ title: 'A1' }, { title: 'A2' }] },
     ]);
+  });
+
+  it('keeps half-typed cards with their own overlays among overlays that are alike', async () => {
+    const project = small();
+    const alike: Overlay = { type: 'cards', items: [{ title: 'Same' }] };
+    project.story.scenes[0]?.steps[0]?.overlays.push(structuredClone(alike), structuredClone(alike));
+    const { store, user } = await openOverlays(project);
+    const drafts = () => screen.getAllByRole('textbox', { name: "New card's title" }) as HTMLInputElement[];
+    await user.type(drafts()[1] as HTMLInputElement, 'Kept');
+    // Swapping two overlays that are alike changes nothing, so the half-typed card stays put, even once the
+    // panel is drawn again.
+    await user.click(screen.getByRole('button', { name: 'Move overlay 1 over' }));
+    act(() => {
+      store.getState().edit((p) => setStep(p, 'S1.1', { label: 'Renamed' }));
+    });
+    expect(drafts().map((d) => d.value)).toEqual(['', 'Kept']);
+    // The first removed: the second keeps its own half-typed card.
+    await user.click(screen.getByRole('button', { name: 'Remove overlay 1' }));
+    expect(drafts().map((d) => d.value)).toEqual(['Kept']);
+    await user.click(screen.getByRole('button', { name: 'Add card' }));
+    expect(overlays(store)).toEqual([{ type: 'cards', items: [{ title: 'Same' }, { title: 'Kept' }] }]);
   });
 
   it("shows and changes a citation's pages, note and strength, and keeps them through every change", async () => {

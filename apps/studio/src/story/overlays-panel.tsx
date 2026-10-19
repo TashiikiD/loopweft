@@ -645,22 +645,48 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
   );
 }
 
+/** A change the panel makes to the order of a step's overlays: one removed, or one moved. */
+type Reorder = { remove: number } | { move: [from: number, to: number] };
+
+function reorder<T>(list: readonly T[], change: Reorder): T[] {
+  const next = [...list];
+  if ('remove' in change) next.splice(change.remove, 1);
+  else next.splice(change.move[1], 0, ...next.splice(change.move[0], 1));
+  return next;
+}
+
 /**
  * A key for each overlay that follows it when overlays move, so what is being typed in one (a new card, a
- * citation being chosen) stays with that overlay: an overlay keeps its key wherever it goes while it is
- * unchanged, and one changed in place keeps the key of its place. Keys start again on another step.
+ * citation being chosen) stays with that overlay. A removal or move the panel makes is told with it (`tell`),
+ * so keys follow it exactly, even among overlays that are alike. Otherwise (an undo, say) they follow the
+ * content: an overlay keeps its key wherever it goes while it is unchanged, and one changed in place keeps the
+ * key of its place. Keys start again on another step.
  */
-function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]): string[] {
+function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
+  const store = useStudioStore();
   const memory = useRef({
     stepKey,
     prints: [] as string[],
     types: [] as string[],
     keys: [] as string[],
     next: 0,
+    expected: null as Reorder | null,
   });
   const m = memory.current;
-  if (m.stepKey !== stepKey) Object.assign(m, { stepKey, prints: [], types: [], keys: [] });
+  if (m.stepKey !== stepKey) Object.assign(m, { stepKey, prints: [], types: [], keys: [], expected: null });
   const prints = overlays.map((o) => JSON.stringify(o));
+  // The change told, if it is what happened: the overlays as they were, reordered, are the overlays now.
+  if (m.expected) {
+    const was = reorder(m.prints, m.expected);
+    if (was.length === prints.length && was.every((p, i) => p === prints[i])) {
+      Object.assign(m, {
+        prints: was,
+        types: reorder(m.types, m.expected),
+        keys: reorder(m.keys, m.expected),
+      });
+    }
+    m.expected = null;
+  }
   const used = new Set<number>();
   const kept = prints.map((print) => {
     const k = m.prints.findIndex((p, j) => p === print && !used.has(j));
@@ -677,7 +703,14 @@ function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]): string[]
     return `${stepKey}:${m.next++}`;
   });
   Object.assign(m, { prints, types: overlays.map((o) => o.type), keys });
-  return keys;
+  /** Runs the edit that makes `change`; a change refused, or that changes nothing, is forgotten at once. */
+  const tell = (change: Reorder, run: () => unknown) => {
+    const before = store.getState().project;
+    m.expected = change;
+    run();
+    if (store.getState().project === before) m.expected = null;
+  };
+  return { keys, tell };
 }
 
 /** Copies an overlay to every later step of its scene (a caption only where there is none yet), as one step. */
@@ -700,7 +733,7 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
   const edit = useEdit();
   const project = useStudio((s) => s.project);
   const [adding, setAdding] = useState<Kind | null>(null);
-  const keys = useOverlayKeys(stepKey, step.overlays);
+  const { keys, tell } = useOverlayKeys(stepKey, step.overlays);
   const hasCaption = step.overlays.some((o) => o.type === 'caption');
   const start = (kind: Kind) => {
     if (kind === 'caption' || kind === 'legend') edit((p) => addOverlay(p, stepKey, { type: kind }));
@@ -750,7 +783,9 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
                     size="sm"
                     disabled={i === 0}
                     aria-label={`Move overlay ${i + 1} under`}
-                    onClick={() => edit((p) => moveOverlay(p, stepKey, i, i - 1))}
+                    onClick={() =>
+                      tell({ move: [i, i - 1] }, () => edit((p) => moveOverlay(p, stepKey, i, i - 1)))
+                    }
                   >
                     <IconArrowUp size={14} aria-hidden />
                   </ActionIcon>
@@ -761,7 +796,9 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
                     size="sm"
                     disabled={i === step.overlays.length - 1}
                     aria-label={`Move overlay ${i + 1} over`}
-                    onClick={() => edit((p) => moveOverlay(p, stepKey, i, i + 1))}
+                    onClick={() =>
+                      tell({ move: [i, i + 1] }, () => edit((p) => moveOverlay(p, stepKey, i, i + 1)))
+                    }
                   >
                     <IconArrowDown size={14} aria-hidden />
                   </ActionIcon>
@@ -804,16 +841,18 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
                     onClick={() =>
                       // An image that nothing shows once the overlay is gone goes with it, in the same undoable
                       // step; counted after the removal, so another overlay of it on this step keeps it.
-                      edit((p) => {
-                        const removed = removeOverlay(p, stepKey, i);
-                        if (overlay.type !== 'image' || assetUses(removed.project, overlay.asset).length)
-                          return removed;
-                        return {
-                          ...removed,
-                          project: removeAsset(removed.project, overlay.asset).project,
-                          summary: `Step ${stepKey}: removed the image ${overlay.asset} and its overlay.`,
-                        };
-                      })
+                      tell({ remove: i }, () =>
+                        edit((p) => {
+                          const removed = removeOverlay(p, stepKey, i);
+                          if (overlay.type !== 'image' || assetUses(removed.project, overlay.asset).length)
+                            return removed;
+                          return {
+                            ...removed,
+                            project: removeAsset(removed.project, overlay.asset).project,
+                            summary: `Step ${stepKey}: removed the image ${overlay.asset} and its overlay.`,
+                          };
+                        }),
+                      )
                     }
                   >
                     <IconTrash size={14} aria-hidden />
