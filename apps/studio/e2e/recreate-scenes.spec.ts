@@ -102,8 +102,25 @@ async function section(page: Page, name: string): Promise<Locator> {
 async function choose(page: Page, field: Locator, option: string) {
   // A searchable select is narrowed by typing the option's whole name, then chosen from the keyboard.
   if ((await field.getAttribute('readonly')) === null) {
-    await field.fill(option);
-    await expect(page.getByRole('option', { name: option, exact: true })).toHaveCount(1);
+    const wanted = page.getByRole('option', { name: option, exact: true });
+    // Narrow the list by typing; a slow machine may miss that, so a retry opens the list first (three tries).
+    for (let attempt = 1; ; attempt++) {
+      if (attempt > 1) await field.click();
+      await field.fill(option);
+      try {
+        await expect(wanted).toHaveCount(1, { timeout: 4000 });
+        break;
+      } catch (error) {
+        if (attempt === 3) {
+          const shown = await page.getByRole('option').allInnerTexts();
+          throw new Error(
+            `"${option}" is not offered (typed: "${await field.inputValue()}"; offered: ${JSON.stringify(shown.slice(0, 8))}).`,
+            { cause: error },
+          );
+        }
+        await page.keyboard.press('Escape');
+      }
+    }
     await field.press('ArrowDown');
     await field.press('Enter');
     return;
