@@ -376,10 +376,15 @@ function sceneOrStep(project: Project, ref: string): FoundScene | FoundStep {
       throw new OpError(`${scene.message} It also names step ${step.key}.`, 'usage');
     return step;
   }
-  // Neither: about the step when a scene is named before one of the dots, else about the scene.
-  const sceneBeforeDot = [...ref.matchAll(/\./g)].some(
-    (dot) => !(attempt(() => resolveScene(project, ref.slice(0, dot.index))) instanceof OpError),
-  );
+  // Neither: steps it names several of, when it does; else about the step when something before one of the
+  // dots names a scene (or several, a title they share), else about the scene.
+  const keys = stepsNamed(project, ref).map((s) => s.key);
+  if (keys.length > 1)
+    throw new OpError(`"${ref}" names steps ${listing(keys)}; use ${orList(keys)}.`, 'usage');
+  const sceneBeforeDot = [...ref.matchAll(/\./g)].some((dot) => {
+    const before = attempt(() => resolveScene(project, ref.slice(0, dot.index)));
+    return !(before instanceof OpError) || before.kind === 'usage';
+  });
   throw scene.kind === 'notFound' && sceneBeforeDot ? step : scene;
 }
 

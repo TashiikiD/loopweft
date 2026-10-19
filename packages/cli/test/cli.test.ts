@@ -1049,6 +1049,20 @@ describe('story show, when a reference names several steps', () => {
     );
     expect((await json('story', 'show', file, 'S1.1')).code).toBe(0);
   });
+
+  it('names the steps a reference could mean when scenes share the title before its dot', async () => {
+    const file = 'show-shared.loopweft';
+    await run('new', file, '--title', 'Shared');
+    for (const scene of ['S1', 'S2']) {
+      await run('story', 'scene', 'add', file, '--title', 'One');
+      await run('story', 'step', 'add', file, scene, '--label', 'x');
+    }
+    const shared = await json('story', 'show', file, 'One.x');
+    expect(shared.code).toBe(2);
+    expect((shared.doc.error as { message: string }).message).toBe(
+      '"One.x" names steps S1.1 and S2.1; use S1.1 or S2.1.',
+    );
+  });
 });
 
 describe('placing scenes and steps', () => {
