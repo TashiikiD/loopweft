@@ -352,6 +352,27 @@ describe('the Overlays panel', () => {
     expect(overlays(store)).toEqual([{ type: 'cards', items: [{ title: 'Same' }, { title: 'Kept' }] }]);
   });
 
+  it('keeps a half-typed card with its overlay when another is changed to match it', async () => {
+    const project = small();
+    project.story.scenes[0]?.steps[0]?.overlays.push(
+      { type: 'cards', items: [{ title: 'Other' }] },
+      { type: 'cards', items: [{ title: 'Same' }] },
+    );
+    const { store, user } = await openOverlays(project);
+    const drafts = () => screen.getAllByRole('textbox', { name: "New card's title" }) as HTMLInputElement[];
+    await user.type(drafts()[1] as HTMLInputElement, 'Kept');
+    // The first overlay's card renamed: the two overlays are now alike.
+    const title = screen.getAllByRole('textbox', { name: 'Card 1 title' })[0] as HTMLInputElement;
+    await user.clear(title);
+    await user.type(title, 'Same');
+    await user.tab();
+    expect(overlays(store)?.[0]).toEqual({ type: 'cards', items: [{ title: 'Same' }] });
+    expect(drafts().map((d) => d.value)).toEqual(['', 'Kept']);
+    const card = (drafts()[1] as HTMLElement).closest('.lw-overlay-card') as HTMLElement;
+    await user.click(within(card).getByRole('button', { name: 'Add card' }));
+    expect(overlays(store)?.[1]).toEqual({ type: 'cards', items: [{ title: 'Same' }, { title: 'Kept' }] });
+  });
+
   it("shows and changes a citation's pages, note and strength, and keeps them through every change", async () => {
     const project = small();
     project.story.scenes[0]?.steps[0]?.overlays.push({

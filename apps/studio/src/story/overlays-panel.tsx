@@ -659,8 +659,9 @@ function reorder<T>(list: readonly T[], change: Reorder): T[] {
  * A key for each overlay that follows it when overlays move, so what is being typed in one (a new card, a
  * citation being chosen) stays with that overlay. A removal or move the panel makes is told with it (`tell`),
  * so keys follow it exactly, even among overlays that are alike. Overlays as they were before (an undo, a redo)
- * get back the keys they had then. Otherwise they follow the content: an overlay keeps its key wherever it goes
- * while it is unchanged, and one changed in place keeps the key of its place. Keys start again on another step.
+ * get back the keys they had then. Otherwise they follow the content: an overlay keeps its key while it is
+ * unchanged, in its place or wherever it goes, and one changed in place keeps the key of its place. Keys start
+ * again on another step.
  */
 function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
   const store = useStudioStore();
@@ -706,12 +707,20 @@ function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
     Object.assign(m, { prints, types: overlays.map((o) => o.type), keys: before });
     return { keys: before, tell };
   }
+  // An overlay unchanged in its own place keeps its key first, so one changed to match it cannot take it; then
+  // one unchanged from elsewhere (moved) takes the key it had there.
   const used = new Set<number>();
-  const kept = prints.map((print) => {
+  const kept = prints.map((print, i): string | null => {
+    if (m.prints[i] !== print) return null;
+    used.add(i);
+    return m.keys[i] as string;
+  });
+  prints.forEach((print, i) => {
+    if (kept[i]) return;
     const k = m.prints.findIndex((p, j) => p === print && !used.has(j));
-    if (k < 0) return null;
+    if (k < 0) return;
     used.add(k);
-    return m.keys[k] as string;
+    kept[i] = m.keys[k] as string;
   });
   const keys = kept.map((key, i) => {
     if (key) return key;
