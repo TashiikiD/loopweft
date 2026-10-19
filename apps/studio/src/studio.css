@@ -861,3 +861,18 @@ body {
   margin: 0;
   padding-left: 22px;
 }
+
+.lw-record-layer .hit:focus {
+  outline: none;
+}
+
+.lw-record-layer .lw-rec-edge .hit:focus-visible {
+  stroke: rgba(255, 214, 102, 0.85);
+}
+
+.lw-record-layer .lw-rec-node .hit:focus-visible {
+  fill: rgba(255, 214, 102, 0.22);
+  stroke: #ffd666;
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}

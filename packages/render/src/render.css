@@ -8,7 +8,9 @@
 .lw-viewport {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  /* Clipped, not hidden: a hidden box can still be scrolled, so focusing something near the edge (the
+     Studio's record targets) would shift the whole stage. */
+  overflow: clip;
   background: var(--lw-bg-deep);
 }
 
@@ -25,7 +27,7 @@
   width: 1920px;
   height: 1080px;
   transform-origin: center center;
-  overflow: hidden;
+  overflow: clip;
   background: var(--lw-bg);
   color: var(--lw-text);
   font-family: var(--lw-font-sans);

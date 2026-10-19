@@ -2,7 +2,7 @@
 // The example opens, its whole story is removed in the Story workspace, and three of its scenes (S01 "Not a
 // perfect storm", S04 "How crises cascade" and S05 "Feedback: the widening lens") are built again by hand:
 // scenes and steps added in the outline, what each step shows set with the record view's tools on the stage
-// and the Map panel, overlays added in the Overlays panel, notes typed in the Notes panel. The saved file's
+// (real pointer clicks) and the Map panel, overlays added in the Overlays panel, notes typed in the Notes panel. The saved file's
 // three scenes then equal the example's, field for field, apart from the ids the Studio chose. With
 // LOOPWEFT_REVIEW set to a folder, a still of the stage after each step is saved there.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -43,11 +43,41 @@ test.beforeEach(async ({ page }) => {
 const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Clicks one of the record view's targets over the stage (by its accessible name). */
+/**
+ * Clicks one of the record view's targets on the stage (by its accessible name) with the real pointer, at a
+ * point where the target is on top (along a link's curve, or on a variable). A target with no such point
+ * fails the test at once. (Playwright's element click measures an SVG path's box with its stroke, so its
+ * relative positions miss thin curves; the mouse is given the point on the page instead.)
+ */
 async function hit(page: Page, name: RegExp, shift = false) {
   const target = page
     .getByRole('group', { name: 'Record: click variables and links' })
-    .getByRole('button', { name });
-  await target.first().dispatchEvent('click', { shiftKey: shift, bubbles: true });
+    .getByRole('button', { name })
+    .first();
+  const position = await target.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const points: { x: number; y: number }[] = [];
+    if (el instanceof SVGPathElement) {
+      const length = el.getTotalLength();
+      const matrix = el.getScreenCTM();
+      for (const f of [0.5, 0.4, 0.6, 0.3, 0.7, 0.45, 0.55, 0.35, 0.65, 0.25, 0.75, 0.2, 0.8]) {
+        const p = el.getPointAtLength(length * f);
+        const q = matrix ? new DOMPoint(p.x, p.y).matrixTransform(matrix) : p;
+        points.push({ x: q.x, y: q.y });
+      }
+    } else points.push({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+    // Then anywhere in its box, row by row.
+    for (let j = 1; j < 12; j++)
+      for (let i = 1; i < 12; i++)
+        points.push({ x: box.x + (box.width * i) / 12, y: box.y + (box.height * j) / 12 });
+    return points.find((p) => document.elementFromPoint(p.x, p.y) === el) ?? null;
+  });
+  if (!position) throw new Error(`No point of ${name} can be clicked on the stage.`);
+  // Real mouse input at that point: the browser hit-tests the click itself, so it reaches the target only if
+  // the target is really there (the saved file is compared at the end).
+  if (shift) await page.keyboard.down('Shift');
+  await page.mouse.click(position.x, position.y);
+  if (shift) await page.keyboard.up('Shift');
 }
 
 const side = (page: Page) => page.getByRole('complementary', { name: 'Story panel' });
@@ -126,10 +156,6 @@ async function recreateMap(page: Page, project: Project, map: MapState) {
     await tool(page, 'Trend', word);
     for (const id of ids) await hit(page, variableName(id));
   }
-  if (map.camera?.fit) {
-    await tool(page, 'Frame');
-    for (const id of map.camera.fit) await hit(page, variableName(id));
-  }
   if (map.pulses) {
     await tool(page, 'Pulse');
     for (const hop of map.pulses.hops) {
@@ -143,6 +169,11 @@ async function recreateMap(page: Page, project: Project, map: MapState) {
   const box = side(page);
   if (map.variables?.base) await choose(page, box.getByLabel('Variables not listed'), map.variables.base);
   if (map.links?.base) await choose(page, box.getByLabel('Links not listed'), map.links.base);
+  // The camera last, from the Map panel, so every click above was made on the whole map, in view.
+  for (const id of map.camera?.fit ?? []) {
+    const v = project.variables.find((x) => x.id === id);
+    await choose(page, box.getByLabel('Add a variable to frame'), `${v?.label} (${id})`);
+  }
   if (map.camera?.frame) await choose(page, box.getByLabel('Where on the stage'), map.camera.frame);
   if (map.camera?.maxZoom !== undefined)
     await commit(box.getByLabel('Zoom at most'), String(map.camera.maxZoom));
@@ -388,4 +419,41 @@ test('recreate polycrisis scenes using only the Studio', async ({ page }) => {
   const { story: _a, meta: _b, ...map } = saved.project;
   const { story: _c, meta: _d, ...originalMap } = project;
   expect(map).toEqual(originalMap);
+});
+
+test('the record view works from the keyboard', async ({ page }) => {
+  const project = example();
+  await page.goto('/?example');
+  await page.getByRole('tab', { name: 'Story' }).click();
+  await page
+    .getByRole('navigation', { name: 'Story outline' })
+    .getByRole('button', { name: /^S04\.1\s/ })
+    .click();
+  await tool(page, 'Show', 'Active');
+  // From the stage, Tab reaches the first link's target; Enter applies the tool.
+  await page.getByRole('region', { name: /^Stage/ }).focus();
+  await page.keyboard.press('Tab');
+  const first = project.links[0]?.id as string;
+  await expect(page.locator(':focus')).toHaveAttribute('aria-label', new RegExp(`^${first}: `));
+  await page.keyboard.press('Enter');
+  // Past every link, the first variable's target; Space applies the tool.
+  for (let i = 0; i < project.links.length; i++) await page.keyboard.press('Tab');
+  const variable = project.variables[0];
+  if (!variable) throw new Error('the example has no variables');
+  await expect(page.locator(':focus')).toHaveAttribute(
+    'aria-label',
+    new RegExp(`^${literal((variable.mapLabel ?? variable.label).replace(/\n/g, ' '))} \\(variable`),
+  );
+  await page.keyboard.press(' ');
+  await expect(page.locator(':focus')).toHaveAttribute('aria-label', / \(variable, active\)$/);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Save', exact: true }).click(),
+  ]);
+  const saved = readProject(readFileSync(await download.path(), 'utf8'));
+  if (!saved.ok) throw new Error(JSON.stringify(saved.issues, null, 2));
+  const step = saved.project.story.scenes.find((s) => s.id === 'S04')?.steps.find((s) => s.id === '1');
+  expect(step?.map.links?.active).toEqual([first]);
+  expect(step?.map.variables?.active).toEqual([variable.id]);
 });

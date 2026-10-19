@@ -5,7 +5,8 @@
 // - Spread: a what-if ▲/▼ from a variable, spread by sign along the lit links;
 // - Pulse: each link clicked is the next hop (Shift adds it to the last hop);
 // - Frame: a variable clicked joins (or leaves) what the camera frames.
-// While a tool is on, hidden variables and links are drawn as dashed outlines so they can be clicked too.
+// While a tool is on, hidden variables and links are drawn as dashed outlines so they can be clicked too. Every
+// target can also be reached with Tab and applied with Enter or Space.
 import { cameraTransform } from '@loopweft/layout';
 import {
   addPulseHop,
@@ -193,6 +194,12 @@ export function RecordLayer({
     const run = pickEdit(brush, stepKey, map, { kind, id, shift });
     if (run) edit(run);
   };
+  // From the keyboard: Tab reaches each target, Enter or Space applies the tool (Shift as with a click).
+  const press = (event: React.KeyboardEvent, kind: 'variable' | 'link', id: string) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    pick(kind, id, event.shiftKey);
+  };
   const k = camera.zoom;
   const layer = (
     // biome-ignore lint/a11y/useSemanticElements: a group of SVG click targets over the stage
@@ -215,8 +222,10 @@ export function RecordLayer({
                 d={e.geom.d}
                 strokeWidth={14 / k}
                 role="button"
+                tabIndex={0}
                 aria-label={name}
                 onClick={(event) => pick('link', e.id, event.shiftKey)}
+                onKeyDown={(event) => press(event, 'link', e.id)}
               >
                 <title>{name}</title>
               </path>
@@ -249,8 +258,10 @@ export function RecordLayer({
                 className="hit"
                 r={n.r + 10 / k}
                 role="button"
+                tabIndex={0}
                 aria-label={name}
                 onClick={(event) => pick('variable', n.id, event.shiftKey)}
+                onKeyDown={(event) => press(event, 'variable', n.id)}
               >
                 <title>{name}</title>
               </circle>

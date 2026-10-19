@@ -150,4 +150,29 @@ describe('the Map panel', () => {
     await user.click(screen.getByRole('button', { name: 'Whole map' }));
     expect(map(store)?.camera).toBeUndefined();
   });
+
+  it('adds one variable after another to what the camera frames and where ambient pulses start, emptying the list each time', async () => {
+    const { store, user } = await openStory();
+    const panel = within(screen.getByRole('complementary', { name: 'Story panel' }));
+    await user.click(panel.getByRole('tab', { name: 'Map' }));
+    const pick = async (label: string, option: string) => {
+      const field = screen.getByRole('combobox', { name: label }) as HTMLInputElement;
+      await user.click(field);
+      await user.click(screen.getByRole('option', { name: option }));
+      // The list empties itself, ready for the next one.
+      expect((screen.getByRole('combobox', { name: label }) as HTMLInputElement).value).toBe('');
+    };
+    await pick('Add a variable to frame', 'Births (births)');
+    await pick('Add a variable to frame', 'Population (population)');
+    expect(map(store)?.camera).toEqual({ fit: ['births', 'population'] });
+
+    await user.click(screen.getByRole('button', { name: 'Ambient pulses' }));
+    await user.click(screen.getByRole('combobox', { name: 'Start from' }));
+    await user.click(screen.getByRole('option', { name: 'Deaths (deaths)' }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(map(store)?.ambient).toEqual({ from: ['deaths'], tone: 'harm' });
+    await pick('Add a start', 'Births (births)');
+    await pick('Add a start', 'Population (population)');
+    expect(map(store)?.ambient).toEqual({ from: ['deaths', 'births', 'population'], tone: 'harm' });
+  });
 });
