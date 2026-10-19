@@ -327,6 +327,49 @@ describe('the Overlays panel', () => {
     expect(replace().disabled).toBe(false);
   });
 
+  it('replaces an image with one file at a time from any overlay or step that shows it', async () => {
+    const project = small();
+    project.assets = { chart: SVG };
+    const [one, two] = project.story.scenes[0]?.steps ?? [];
+    one?.overlays.push(
+      { type: 'image', asset: 'chart', alt: 'A chart' },
+      { type: 'image', asset: 'chart', alt: 'The chart again', place: 'right' },
+    );
+    two?.overlays.push({ type: 'image', asset: 'chart', alt: 'A chart' });
+    const { store, user } = await openOverlays(project);
+    const inputs = () => [...document.querySelectorAll('input[type="file"]')] as HTMLInputElement[];
+    const busy = /^Image chart is already being replaced from another overlay/;
+    // A from the first overlay, slow; then B from the second while A is read: B is refused at once.
+    const a = slowFile('a.png');
+    await user.upload(inputs()[0] as HTMLInputElement, a.file);
+    const b = slowFile(
+      'b.svg',
+      new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="3"/>'),
+    );
+    await user.upload(inputs()[1] as HTMLInputElement, b.file);
+    expect(await screen.findAllByText(busy)).toHaveLength(1);
+    // And from the next step, which shows it too.
+    act(() => store.getState().selectStory('S1.2'));
+    await user.upload(inputs()[0] as HTMLInputElement, b.file);
+    expect(await screen.findAllByText(busy)).toHaveLength(2);
+    // A goes in; B, released after it, was never read.
+    a.release();
+    await settle();
+    b.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: `data:image/png;base64,${PNG}` });
+    expect(screen.queryByText(/changed while the file was read/)).toBeNull();
+    // Once A is in, another file replaces it, from this step.
+    await user.upload(
+      inputs()[0] as HTMLInputElement,
+      new File(['<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>'], 'c.svg', {
+        type: 'image/svg+xml',
+      }),
+    );
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: SVG });
+  });
+
   it('names each citation by its source id too, so two sources with the same label are told apart', async () => {
     const project = small();
     project.sources.push({

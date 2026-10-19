@@ -44,10 +44,26 @@ import { useEffect, useRef, useState } from 'react';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { CommitText } from '../map/inputs.tsx';
 import { STRENGTHS, type Strength, sourceChoices } from '../sources/citations.tsx';
+import type { StudioStore } from '../state/store.ts';
 import { currentOf } from './current.ts';
 
 type Kind = Overlay['type'];
 type Edit = ReturnType<typeof useEdit>;
+
+/**
+ * The images being replaced in each Studio, by id. An image is replaced with one file at a time, from whichever
+ * overlay or step that file was chosen: two overlays (or two steps) showing the same image share this, as the
+ * panel's own state does not outlive a move to another step.
+ */
+const beingReplaced = new WeakMap<StudioStore, Set<string>>();
+function imagesBeingReplaced(store: StudioStore): Set<string> {
+  let ids = beingReplaced.get(store);
+  if (!ids) {
+    ids = new Set();
+    beingReplaced.set(store, ids);
+  }
+  return ids;
+}
 
 const STYLES = [
   { value: '', label: 'Plain' },
@@ -432,12 +448,25 @@ function Fields({
               disabled={reading}
               onChange={(file) => {
                 if (!file || replacing.current) return;
+                const id = overlay.asset;
+                // A file for this image chosen from another overlay, or another step, is still being read.
+                const busy = imagesBeingReplaced(store);
+                if (busy.has(id)) {
+                  refused(
+                    new OpError(
+                      `Image ${id} is already being replaced from another overlay. Wait until that file has been read, then choose again.`,
+                      'conflict',
+                    ),
+                    'Not replaced',
+                  );
+                  return;
+                }
                 // What the file was chosen to replace: this image as it is now, on the steps that show it now
                 // (the ones the person agreed to replace it on).
                 const { generation, project: chosen } = store.getState();
-                const id = overlay.asset;
                 const was = chosen.assets[id];
                 const agreed = new Set(assetUses(chosen, id));
+                busy.add(id);
                 replacing.current = true;
                 setReading(true);
                 readImage(file)
@@ -470,6 +499,7 @@ function Fields({
                     (error) => refused(error, 'Not an image'),
                   )
                   .finally(() => {
+                    busy.delete(id);
                     replacing.current = false;
                     setReading(false);
                   });
