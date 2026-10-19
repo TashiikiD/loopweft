@@ -20,13 +20,41 @@ const NONE = /^0+$/;
  */
 const fold = (text: string): string => text.normalize('NFC').toLowerCase().normalize('NFC');
 
-/** Git, reading each object itself, never a local replacement for it (`git replace`), as a push does. */
+/**
+ * The variables that tie git to one repository, whatever folder it runs in, as git lists them
+ * (`git rev-parse --local-env-vars`): GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE and the like. Git gives a hook in
+ * a linked worktree GIT_DIR, as a full path (from the main checkout it gives none), so with them a check of
+ * another repository run from that hook, such as the tests in `npm run verify:fast`, would read the hook's
+ * own. Settings given with `git -c` (GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT) are kept, as git keeps them when
+ * it runs in another repository (a submodule), so `git ls-remote` reaches the same place as the push.
+ */
+let bound: Set<string> | undefined;
+
+/** This process's variables, without those that tie git to one repository. */
+function unbound(): Record<string, string | undefined> {
+  if (bound === undefined) {
+    bound = new Set(
+      execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8', stdio: 'pipe' })
+        .split('\n')
+        .map((name) => name.trim())
+        .filter((name) => name !== '' && name !== 'GIT_CONFIG_PARAMETERS' && name !== 'GIT_CONFIG_COUNT'),
+    );
+  }
+  const names = bound;
+  // Windows reads a variable's name in any letter case.
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !names.has(name.toUpperCase())));
+}
+
+/**
+ * Git, in the repository at `root` (found from that folder, whatever repository a hook runs in), reading each
+ * object itself, never a local replacement for it (`git replace`), as a push does.
+ */
 const git = (root: string, args: string[], input?: string): Buffer =>
   execFileSync('git', args, {
     cwd: root,
     input,
     maxBuffer: 2 ** 30,
-    env: { ...process.env, GIT_NO_REPLACE_OBJECTS: '1' },
+    env: { ...unbound(), GIT_NO_REPLACE_OBJECTS: '1' },
     stdio: 'pipe',
   });
 

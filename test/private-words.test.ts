@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findPrivateWords, findPrivateWordsInPush } from './private-words.ts';
 
 // A made-up word: the real ones are set only on the machines that keep them (see repo.test.ts).
@@ -39,6 +39,7 @@ const ENV = {
 
 const made: string[] = [];
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const dir of made.splice(0))
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
@@ -57,9 +58,12 @@ function remote(): string {
   return dir;
 }
 
-/** A new, empty git repository to write files into, run git in, commit, push from, and check. */
-function repository() {
-  const dir = folder('loopweft-words-');
+/**
+ * A new, empty git repository to write files into, run git in, commit, push from, and check; or, given `at`,
+ * the checkout already there, such as a linked worktree.
+ */
+function repository(at?: string) {
+  const dir = at ?? folder('loopweft-words-');
   /** Git, with `env` (such as another identity) and `input` where given. */
   const run = (args: string[], env: Record<string, string> = {}, input?: string | Buffer) =>
     execFileSync('git', args, {
@@ -70,7 +74,7 @@ function repository() {
       stdio: 'pipe',
     }).trim();
   const git = (...args: string[]) => run(args);
-  git('init', '--quiet');
+  if (at === undefined) git('init', '--quiet');
   return {
     dir,
     git,
@@ -95,6 +99,12 @@ function repository() {
       mkdirSync(dirname(hook), { recursive: true });
       writeFileSync(hook, `#!/bin/sh\nexec ${quoted(process.execPath)} ${quoted(CHECK)} "$@"\n`);
       chmodSync(hook, 0o755);
+    },
+    /** Adds a linked worktree of this repository, on a new branch, and gives its folder. */
+    worktree: (branch: string) => {
+      const tree = folder('loopweft-worktree-');
+      git('worktree', 'add', '--quiet', '-b', branch, tree);
+      return tree;
     },
     /** A real `git push`, which runs the hook, with the made-up words set as the private ones. */
     push: (...args: string[]) =>
@@ -339,6 +349,25 @@ describe('the push check', () => {
       const sent = repo.push('origin', 'HEAD:refs/heads/main');
       expect(sent.status, sent.stderr).toBe(0);
       expect(repo.git('ls-remote', 'origin')).toBe(`${repo.git('rev-parse', 'HEAD')}\trefs/heads/main`);
+    });
+
+    it('stops a push from a linked worktree, and lets it through once the commit is clean', () => {
+      const repo = repository();
+      repo.git('remote', 'add', 'origin', remote());
+      repo.guard();
+      repo.commit('Start');
+      const side = repository(repo.worktree('side'));
+      side.write('notes.md', SAFE);
+      const id = side.commit(`Notes for ${WORD}`);
+      const stopped = side.push('origin', 'HEAD:refs/heads/side');
+      expect(stopped.status).not.toBe(0);
+      expect(stopped.stderr).toContain(`${short(id)} message: "${WORD}"`);
+      expect(side.git('ls-remote', 'origin')).toBe('');
+
+      side.git('commit', '--quiet', '--amend', '--message=Notes');
+      const sent = side.push('origin', 'HEAD:refs/heads/side');
+      expect(sent.status, sent.stderr).toBe(0);
+      expect(side.git('ls-remote', 'origin')).toBe(`${side.git('rev-parse', 'HEAD')}\trefs/heads/side`);
     });
 
     it('stops a commit that only another remote holds', () => {
@@ -592,5 +621,30 @@ describe('the push check', () => {
       ].join('\n'),
     );
     expect(() => inPush(repo.dir, pushing(commit))).toThrow(`${commit} is written in no-such-encoding`);
+  });
+});
+
+// These tests run inside the pre-push hook too (npm run verify:fast). In a linked worktree, such as one under
+// .claude/worktrees, git gives the hook GIT_DIR: the full path to that worktree's own folder in the repository.
+describe('inside the hook of a linked worktree', () => {
+  it('reads the repository it is given, not the one GIT_DIR names', () => {
+    // The worktree the hook runs in, with the word in a file of its own.
+    const hooked = repository();
+    hooked.commit('Start');
+    const side = repository(hooked.worktree('side'));
+    side.write('elsewhere.md', `${WORD}\n`);
+    side.git('add', 'elsewhere.md');
+
+    const repo = repository();
+    repo.write('notes.md', SAFE);
+    const id = repo.commit(`Notes for ${WORD}`);
+    repo.write('notes.md', `Written by ${WORD}.\n`);
+    repo.git('add', 'notes.md');
+
+    vi.stubEnv('GIT_DIR', side.git('rev-parse', '--absolute-git-dir'));
+    expect(repo.found()).toEqual([`notes.md (staged): "${WORD}"`, `notes.md (working): "${WORD}"`]);
+    expect(findPrivateWordsInPush(repo.dir, [WORD], pushing(id))).toEqual([
+      `${short(id)} message: "${WORD}"`,
+    ]);
   });
 });
