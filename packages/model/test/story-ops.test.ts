@@ -1,6 +1,6 @@
 // The story's operations: scenes, steps, what a step's map shows, overlays and embedded images, and the
 // story checks they are written against.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   addAsset,
   addOverlay,
@@ -10,6 +10,7 @@ import {
   checkProject,
   copyStep,
   imageDataUri,
+  imageProblem,
   imageType,
   moveOverlay,
   moveScene,
@@ -507,6 +508,14 @@ describe('embedded images', () => {
       '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY harmless "ok">]><svg xmlns="http://www.w3.org/2000/svg"><g/></svg>',
     );
     expect(addAsset(richProject(), { data: subset, id: 'subset' }).result.id).toBe('subset');
+    // A JPEG frame or scan header too short to hold its fields.
+    const soi = [0xff, 0xd8];
+    expect(not(uri('jpeg', [...soi, 0xff, 0xc0, 0, 2, 0xff, 0xda, 0, 2, 1, 0xff, 0xd9]))).toBe(
+      'The image data is not a whole JPEG image: it has no picture in it.',
+    );
+    // An SVG with a processing instruction before its root is taken.
+    const pi = svg('<?xml version="1.0"?><?note ok?><svg xmlns="http://www.w3.org/2000/svg"/>');
+    expect(addAsset(richProject(), { data: pi, id: 'pi' }).result.id).toBe('pi');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(
@@ -514,6 +523,17 @@ describe('embedded images', () => {
         uri('gif', [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0, ...descriptor, 2, 0, 0x3b]),
       ),
     ).toBe('The image data is not a whole GIF image: it has no picture in it.');
+  });
+});
+
+describe('reading images', () => {
+  it('reads a whole image once, however often the project is checked', () => {
+    const decode = vi.spyOn(globalThis, 'atob');
+    const data = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" id="read-once"/>')}`;
+    expect(imageProblem(data)).toBeNull();
+    expect(imageProblem(data)).toBeNull();
+    expect(decode).toHaveBeenCalledTimes(1);
+    decode.mockRestore();
   });
 });
 

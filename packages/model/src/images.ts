@@ -45,11 +45,18 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         if (marker === 0xd9) return EMPTY; // the end, before any scan
         const length = u16be(bytes, at + 2);
         if (length < 2 || at + 2 + length > bytes.length) return STOPS;
-        // Start of a frame: C0–CF, except C4 (tables), C8 (reserved) and CC (coding).
-        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc)
+        // Start of a frame: C0–CF, except C4 (tables), C8 (reserved) and CC (coding). It holds the precision,
+        // the height, a width above 0 and 1 to 4 components of 3 bytes each.
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+          const components = bytes[at + 9] ?? 0;
+          const width = u16be(bytes, at + 7);
+          if (length < 8 + 3 * components || components < 1 || components > 4 || width === 0) return EMPTY;
           frame = true;
+        }
         if (marker === 0xda) {
-          if (!frame) return EMPTY;
+          // The scan's header: 1 to 4 components of 2 bytes each, then the spectral selection and approximation.
+          const components = bytes[at + 4] ?? 0;
+          if (!frame || length < 6 + 2 * components || components < 1 || components > 4) return EMPTY;
           // The scan's data, which must have some bytes before the end mark.
           const data = at + 2 + length;
           for (let i = data; i + 1 < bytes.length; i++) {
@@ -228,13 +235,11 @@ export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 
   if (starts(bytes, 0, 'RIFF') && starts(bytes, 8, 'WEBP')) return 'webp';
   // The whole text, however long the preamble before the root; TextDecoder drops a byte-order mark.
   const head = new TextDecoder().decode(bytes).trimStart();
-  // An XML declaration, comments and a doctype (with an internal subset in brackets) may come before the root.
-  if (
-    /^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^[>]*(\[[\s\S]*?\])?\s*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(
-      head,
-    )
-  )
-    return 'svg+xml';
+  // Before the root: processing instructions (the XML declaration among them), comments, and a doctype (with
+  // an internal subset in brackets).
+  const misc = String.raw`(?:<\?[\s\S]*?\?>\s*|<!--[\s\S]*?-->\s*)*`;
+  const doctype = String.raw`(?:<!DOCTYPE svg[^[>]*(?:\[[\s\S]*?\])?\s*>\s*)?`;
+  if (new RegExp(`^${misc}${doctype}${misc}<svg[\\s>/]`, 'i').test(head)) return 'svg+xml';
   return null;
 }
 
