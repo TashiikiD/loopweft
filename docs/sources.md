@@ -65,7 +65,7 @@ How the draft is written, following the APA Publication Manual (7th ed.):
 | Other kinds | Written as a stand-alone work, with a note to check them against APA's rules. |
 | DOI | `https://doi.org/<DOI>` at the end. |
 | In-text label | `Brosig (2025)`, `Liu and Renn (2025)`, `Lawrence et al. (2024)`. |
-| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`), when it is the only rights statement DataCite records, in words, by an address or by an identifier (otherwise a note lists them); an access statement such as `info:eu-repo/semantics/openAccess` is not a rights statement. Anything else is left out. |
+| Licence | A Creative Commons licence recorded for the published version, by its name (`CC BY 4.0`), or a licence DataCite names by its SPDX identifier (`Apache License 2.0`), when it is the only rights statement DataCite records, in words, by an address or by an identifier (otherwise a note lists them); an access statement (`info:eu-repo/semantics/openAccess`, `embargoedAccess`, `restrictedAccess` or `closedAccess`, alone or with its own label, such as "Open Access") is not a rights statement, but any other words beside it are. Anything else is left out. |
 
 A found draft says which agency's record it came from. When the lookup fails, it says why and what to do
 (it says there is no record only when the agencies said so, never when they could not be asked): the text

@@ -327,10 +327,23 @@ describe('references from DataCite', () => {
       rights: 'Creative Commons Attribution 4.0 International',
       rightsUri: 'https://creativecommons.org/licenses/by/4.0/legalcode',
     };
-    // An entry that only says who may read it is not a rights statement, with words or without.
+    // An entry that only says who may read it is not a rights statement, alone or with its own label.
     const open = { rightsUri: 'info:eu-repo/semantics/openAccess' };
     expect(rights([cc, open]).licence).toBe('CC BY 4.0');
     expect(rights([cc, { ...open, rights: 'Open Access' }]).licence).toBe('CC BY 4.0');
+    expect(rights([cc, { rightsUri: 'info:eu-repo/semantics/embargoedAccess' }]).licence).toBe('CC BY 4.0');
+    // But other words beside it are terms that may limit the licence.
+    const restricted = rights([cc, { ...open, rights: 'All rights reserved for underlying data' }]);
+    expect(restricted.licence).toBeUndefined();
+    expect(restricted.notes).toEqual([
+      {
+        level: 'check',
+        message:
+          'DataCite records rights that are not one named licence (CC BY 4.0; All rights reserved for underlying data), so no licence is filled in.',
+      },
+    ]);
+    // An address in the same namespace that is not an access statement counts as terms too.
+    expect(rights([cc, { rightsUri: 'info:eu-repo/semantics/other' }]).licence).toBeUndefined();
     const mixed = rights([cc, { rights: 'All rights reserved for the underlying data' }]);
     expect(mixed.licence).toBeUndefined();
     expect(mixed.notes).toEqual([

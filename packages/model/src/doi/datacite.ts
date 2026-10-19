@@ -63,8 +63,16 @@ function readCreators(value: unknown): { people: Person[]; unnamed: number; unsp
   return { people, unnamed, unsplit };
 }
 
-/** Rights addresses that say who may read a work (open, embargoed, restricted, closed), not its licence. */
-const ACCESS_RIGHTS = /^info:eu-repo\/semantics\//i;
+/**
+ * The access statements of the OpenAIRE vocabulary, by address (in lower case), with their own labels (in
+ * lower case, without spaces): they say who may read a work, not its licence.
+ */
+const ACCESS_RIGHTS: Record<string, string> = {
+  'info:eu-repo/semantics/openaccess': 'openaccess',
+  'info:eu-repo/semantics/embargoedaccess': 'embargoedaccess',
+  'info:eu-repo/semantics/restrictedaccess': 'restrictedaccess',
+  'info:eu-repo/semantics/closedaccess': 'closedaccess',
+};
 
 /** The licence the record gives: a Creative Commons licence by its address, or one named by an SPDX id. */
 function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
@@ -73,14 +81,22 @@ function pickLicence(work: Json, notes: DraftNote[]): string | undefined {
   for (const r of Array.isArray(work.rightsList) ? work.rightsList.filter(isObject) : []) {
     const uri = text(r.rightsUri) ?? '';
     const rights = text(r.rights);
-    // An access statement, such as info:eu-repo/semantics/openAccess ("Open Access"), is not a licence.
-    if (ACCESS_RIGHTS.test(uri)) continue;
+    const identifier = text(r.rightsIdentifier);
+    const access = ACCESS_RIGHTS[uri.toLowerCase()];
+    if (access) {
+      // An access statement (info:eu-repo/semantics/openAccess, "Open Access") is not a licence; any other
+      // words or identifier beside it are terms that may limit one.
+      const label = rights?.toLowerCase().replace(/[\s_-]+/g, '') === access;
+      if (rights && !label) other.push(rights);
+      if (identifier) other.push(identifier);
+      continue;
+    }
     const cc = licenceName(uri);
     if (cc) named.add(cc);
     else if (r.rightsIdentifierScheme === 'SPDX' && rights) named.add(rights);
     else {
       // Any other terms, in words, by an address or by an identifier, may limit a licence.
-      const terms = rights ?? (uri || text(r.rightsIdentifier));
+      const terms = rights ?? (uri || identifier);
       if (terms) other.push(terms);
     }
   }
