@@ -46,16 +46,33 @@ function useOpenSource() {
   };
 }
 
-function CitationRow({ element, index, citation }: { element: string; index: number; citation: Citation }) {
+/** Which of the citations of one source at the same pages a citation is, where an element has more than one. */
+interface Repeat {
+  n: number;
+  of: number;
+}
+
+function CitationRow({
+  element,
+  index,
+  citation,
+  repeat,
+}: {
+  element: string;
+  index: number;
+  citation: Citation;
+  repeat?: Repeat;
+}) {
   const project = useStudio((s) => s.project);
   const edit = useEdit();
   const open = useOpenSource();
   const source = project.sources.find((s) => s.id === citation.source);
-  // Named by the source's label and id (two sources may share a label), then its pages, so each field says
-  // which citation it edits; the id is shown only where another source has the same label.
+  // Named by the source's label and id (two sources may share a label), then its pages and, where the
+  // element cites that source at those pages again, which of them it is, so each field says which citation
+  // it edits; the id is shown only where another source has the same label.
   const label = source?.label;
   const named = label && label !== citation.source ? `${label} [${citation.source}]` : citation.source;
-  const who = `${named}${citation.pages ? `, p. ${citation.pages}` : ''}`;
+  const who = `${named}${citation.pages ? `, p. ${citation.pages}` : ''}${repeat ? `, citation ${repeat.n} of ${repeat.of}` : ''}`;
   const shared = !!label && project.sources.some((s) => s.id !== citation.source && s.label === label);
   const set = (changes: Parameters<typeof setCitation>[3]) =>
     edit((p) => setCitation(p, element, index, changes));
@@ -128,12 +145,20 @@ export function CitationsEditor({ element, citations }: { element: string; citat
       </Text>
     );
   }
+  // A file can cite one source at the same pages twice on an element (a warning, `duplicateCitation`): those
+  // citations are told apart by their order among themselves.
+  const same = (a: Citation, b: Citation) => a.source === b.source && a.pages === b.pages;
   return (
     <Stack gap={6}>
-      {citations.map((c, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: one element's citations, in their order
-        <CitationRow key={i} element={element} index={i} citation={c} />
-      ))}
+      {citations.map((c, i) => {
+        const of = citations.filter((o) => same(o, c)).length;
+        const repeat =
+          of > 1 ? { n: citations.slice(0, i).filter((o) => same(o, c)).length + 1, of } : undefined;
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: one element's citations, in their order
+          <CitationRow key={i} element={element} index={i} citation={c} repeat={repeat} />
+        );
+      })}
     </Stack>
   );
 }

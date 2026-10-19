@@ -176,6 +176,58 @@ describe('citing in the inspector', () => {
     ]);
   });
 
+  it('tells apart two citations of one source at the same pages, which a file may hold', async () => {
+    // A warning (duplicateCitation), not an error: the project opens, and each citation can be put right.
+    const project = map();
+    project.links[0] = {
+      ...(project.links[0] as Project['links'][number]),
+      citations: [
+        { source: 'U' },
+        { source: 'T', pages: '4', note: 'Fig. 1' },
+        { source: 'T', pages: '4', note: 'Fig. 2' },
+      ],
+    };
+    const { store, user } = renderStudio(project);
+    store.getState().select({ links: ['L1'] });
+    const at = (n: number) => `Test (2020) [T], p. 4, citation ${n} of 2`;
+    const first = await screen.findByRole('group', { name: `Citation of ${at(1)}` });
+    const second = screen.getByRole('group', { name: `Citation of ${at(2)}` });
+    // Only the repeated ones are numbered, among themselves.
+    expect(screen.getByRole('group', { name: 'Citation of Other (2021) [U]' })).toBeTruthy();
+    for (const n of [1, 2]) {
+      expect(screen.getByRole('textbox', { name: `Pages: ${at(n)}` })).toBeTruthy();
+      expect(screen.getByRole('radiogroup', { name: `Strength of the evidence: ${at(n)}` })).toBeTruthy();
+      expect(screen.getByRole('button', { name: `Remove the citation of ${at(n)}` })).toBeTruthy();
+    }
+    expect((within(first).getByRole('textbox', { name: `Note: ${at(1)}` }) as HTMLInputElement).value).toBe(
+      'Fig. 1',
+    );
+    expect((within(second).getByRole('textbox', { name: `Note: ${at(2)}` }) as HTMLInputElement).value).toBe(
+      'Fig. 2',
+    );
+
+    // The second one's pages corrected: neither is repeated any more, so both lose their numbers.
+    const pages = screen.getByRole('textbox', { name: `Pages: ${at(2)}` });
+    await user.clear(pages);
+    await user.type(pages, '5{Enter}');
+    expect(store.getState().project.links[0]?.citations).toEqual([
+      { source: 'U' },
+      { source: 'T', pages: '4', note: 'Fig. 1' },
+      { source: 'T', pages: '5', note: 'Fig. 2' },
+    ]);
+    expect(screen.getByRole('group', { name: 'Citation of Test (2020) [T], p. 4' })).toBe(first);
+    expect(screen.getByRole('group', { name: 'Citation of Test (2020) [T], p. 5' })).toBe(second);
+
+    // Or the second one removed, by its own button: the first stays.
+    store.getState().undo();
+    await user.click(await screen.findByRole('button', { name: `Remove the citation of ${at(2)}` }));
+    expect(store.getState().project.links[0]?.citations).toEqual([
+      { source: 'U' },
+      { source: 'T', pages: '4', note: 'Fig. 1' },
+    ]);
+    expect(screen.getByRole('group', { name: 'Citation of Test (2020) [T], p. 4' })).toBe(first);
+  });
+
   it('sends a map without sources to the Sources workspace', async () => {
     const project = map();
     project.sources = [];
