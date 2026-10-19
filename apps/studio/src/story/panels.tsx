@@ -167,6 +167,9 @@ const PANELS: PanelSpec[] = [
 export function StorySide() {
   const [panel, setPanel] = useState('step');
   const current = useCurrent();
+  // Another project opened starts each panel afresh, even on a step with the same key: nothing half-typed in one
+  // project stays to be added to the other.
+  const generation = useStudio((s) => s.generation);
   return (
     <aside className="lw-side" aria-label="Story panel">
       <Tabs
@@ -187,7 +190,7 @@ export function StorySide() {
         {PANELS.map(({ id, Panel }) => (
           <Tabs.Panel key={id} value={id}>
             {current ? (
-              <Panel key={current.key} current={current} />
+              <Panel key={`${generation}:${current.key}`} current={current} />
             ) : (
               <div className="lw-panel-body">
                 <Text size="sm" c="dimmed">

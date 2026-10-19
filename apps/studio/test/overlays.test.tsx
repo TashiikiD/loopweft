@@ -1,6 +1,8 @@
 // The Overlays panel in jsdom: adding each kind of overlay (asking first for what it cannot do without),
 // changing, ordering, copying forward and removing them, embedding an image, and citing a source.
 import {
+  addAsset,
+  addOverlay,
   createProject,
   type Overlay,
   type Project,
@@ -8,7 +10,7 @@ import {
   serializeProject,
   setStep,
 } from '@loopweft/model';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -235,6 +237,112 @@ describe('the Overlays panel', () => {
     slow.release();
     await settle();
     expect(store.getState().project.assets).toEqual({ chart: SVG });
+  });
+
+  it('adds no image when another kind of overlay is chosen while the file is read, and keeps that form', async () => {
+    const { store, user } = await openOverlays();
+    await add(user, 'Image');
+    const slow = slowFile();
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, slow.file);
+    await user.type(screen.getByRole('textbox', { name: 'Description (alt text)' }), 'A chart');
+    await user.click(screen.getAllByRole('button', { name: 'Add' }).at(-1) as HTMLButtonElement);
+    // The panel's own Add, first: the form's comes after it.
+    await user.click(screen.getAllByRole('button', { name: 'Add' })[0] as HTMLButtonElement);
+    await user.click(screen.getByRole('menuitem', { name: 'Cards' }));
+    await user.type(screen.getByRole('textbox', { name: "First card's title" }), 'Draft');
+    slow.release();
+    await settle();
+    expect(overlays(store)).toEqual([]);
+    expect(store.getState().project.assets).toEqual({});
+    expect((screen.getByRole('textbox', { name: "First card's title" }) as HTMLInputElement).value).toBe(
+      'Draft',
+    );
+  });
+
+  it('adds one image for two clicks on Add while the file is read', async () => {
+    const { store, user } = await openOverlays();
+    await add(user, 'Image');
+    const slow = slowFile('chart.png');
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, slow.file);
+    await user.type(screen.getByRole('textbox', { name: 'Description (alt text)' }), 'A chart');
+    const addButton = () => screen.getAllByRole('button', { name: 'Add' }).at(-1) as HTMLButtonElement;
+    fireEvent.click(addButton());
+    expect(addButton().disabled).toBe(true);
+    fireEvent.click(addButton());
+    slow.release();
+    await settle();
+    expect(overlays(store)).toEqual([{ type: 'image', asset: 'chart', alt: 'A chart' }]);
+    expect(Object.keys(store.getState().project.assets)).toEqual(['chart']);
+  });
+
+  it('replaces no image removed and added again while the new file is read', async () => {
+    const project = small();
+    project.assets = { chart: `data:image/png;base64,${PNG}` };
+    project.story.scenes[0]?.steps[0]?.overlays.push({ type: 'image', asset: 'chart', alt: 'A chart' });
+    const { store, user } = await openOverlays(project);
+    const slow = slowFile();
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, slow.file);
+    // Its last overlay removed takes the image with it; then another image comes in under the same id.
+    await user.click(screen.getByRole('button', { name: 'Remove overlay 1' }));
+    expect(store.getState().project.assets).toEqual({});
+    act(() => {
+      store
+        .getState()
+        .editAll(
+          [
+            (p) => addAsset(p, { data: SVG, id: 'chart' }),
+            (p) => addOverlay(p, 'S1.1', { type: 'image', asset: 'chart', alt: 'Another chart' }),
+          ],
+          'Another chart',
+        );
+    });
+    slow.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: SVG });
+    expect(await screen.findByText(/^Image chart changed while the file was read/)).toBeTruthy();
+  });
+
+  it('replaces no image that more steps show than when the file was chosen, until chosen again', async () => {
+    const project = small();
+    project.assets = { chart: SVG };
+    project.story.scenes[0]?.steps[0]?.overlays.push({ type: 'image', asset: 'chart', alt: 'A chart' });
+    const { store, user } = await openOverlays(project);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    // Shown on this step only: no question asked. Copied to the next steps while the file is read.
+    const first = slowFile();
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, first.file);
+    await user.click(screen.getByRole('button', { name: 'Copy overlay 1 to the following steps' }));
+    first.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: SVG });
+    expect(await screen.findByText(/^Image chart changed while the file was read/)).toBeTruthy();
+    // Chosen again, asking about all three steps: replaced.
+    await user.click(screen.getByRole('button', { name: 'Replace the image on all 3 steps…' }));
+    expect(confirm).toHaveBeenCalledWith('Replace image chart on all 3 steps that show it?');
+    const second = slowFile();
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, second.file);
+    second.release();
+    await settle();
+    expect(store.getState().project.assets).toEqual({ chart: `data:image/png;base64,${PNG}` });
+    confirm.mockRestore();
+  });
+
+  it('starts afresh on another project opened at a step of the same key, with nothing half-typed kept', async () => {
+    const project = small();
+    project.story.scenes[0]?.steps[0]?.overlays.push({ type: 'cards', items: [{ title: 'A1' }] });
+    const { store, user } = await openOverlays(project);
+    await user.type(screen.getByRole('textbox', { name: "New card's title" }), 'From the first map');
+    await user.click(screen.getByRole('combobox', { name: 'Source to cite' }));
+    await user.click(screen.getByRole('option', { name: /Test \(2020\)/ }));
+    await user.type(screen.getByRole('textbox', { name: 'Pages to cite' }), '9');
+    const other = small();
+    other.meta.title = 'Another map';
+    other.story.scenes[0]?.steps[0]?.overlays.push({ type: 'cards', items: [{ title: 'B1' }] });
+    act(() => store.getState().open(other, { name: 'other.loopweft' }));
+    expect((screen.getByRole('textbox', { name: 'Card 1 title' }) as HTMLInputElement).value).toBe('B1');
+    expect((screen.getByRole('textbox', { name: "New card's title" }) as HTMLInputElement).value).toBe('');
+    expect((screen.getByRole('combobox', { name: 'Source to cite' }) as HTMLInputElement).value).toBe('');
+    expect((screen.getByRole('textbox', { name: 'Pages to cite' }) as HTMLInputElement).value).toBe('');
   });
 
   it('asks before replacing an image other steps show, and replaces nothing when told no', async () => {

@@ -44,6 +44,7 @@ import { useEffect, useRef, useState } from 'react';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { CommitText } from '../map/inputs.tsx';
 import { STRENGTHS, type Strength, sourceChoices } from '../sources/citations.tsx';
+import { currentOf } from './current.ts';
 
 type Kind = Overlay['type'];
 type Edit = ReturnType<typeof useEdit>;
@@ -422,12 +423,37 @@ function Fields({
               accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
               onChange={(file) => {
                 if (!file) return;
-                // A project opened while the file is read is not the one it was chosen for: nothing changes.
-                const generation = store.getState().generation;
+                // What the file was chosen to replace: this image as it is now, on the steps that show it now
+                // (the ones the person agreed to replace it on).
+                const { generation, project: chosen } = store.getState();
+                const id = overlay.asset;
+                const was = chosen.assets[id];
+                const agreed = new Set(assetUses(chosen, id));
                 readImage(file).then(
                   (uri) => {
-                    if (store.getState().generation === generation)
-                      edit((p) => setAsset(p, overlay.asset, uri));
+                    const state = store.getState();
+                    // A project opened while the file is read is not the one it was chosen for: nothing changes.
+                    if (state.generation !== generation) return;
+                    // Nor does an image changed meanwhile: this overlay shows another, the image was replaced or
+                    // removed (and perhaps added again), or more steps show it than were agreed to.
+                    const now = state.project;
+                    const target = currentOf(now, stepKey)?.step?.overlays[index];
+                    const same =
+                      target?.type === 'image' &&
+                      target.asset === id &&
+                      now.assets[id] === was &&
+                      assetUses(now, id).every((key) => agreed.has(key));
+                    if (!same) {
+                      refused(
+                        new OpError(
+                          `Image ${id} changed while the file was read, so it was not replaced. Choose the file again.`,
+                          'conflict',
+                        ),
+                        'Not replaced',
+                      );
+                      return;
+                    }
+                    edit((p) => setAsset(p, id, uri));
                   },
                   (error) => refused(error, 'Not an image'),
                 );
@@ -527,34 +553,19 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
       cancelled.current = true;
     };
   }, []);
+  // While the image is read, Add waits for it: a second click adds nothing more.
+  const reading = useRef(false);
+  const [busy, setBusy] = useState(false);
   const add = async () => {
     if (kind === 'image') {
-      if (!file || !alt.trim()) return;
-      const generation = store.getState().generation;
-      let data: string;
+      if (!file || !alt.trim() || reading.current) return;
+      reading.current = true;
+      setBusy(true);
       try {
-        data = await readImage(file);
-      } catch (error) {
-        refused(error, 'Not an image');
-        return;
-      }
-      if (cancelled.current || store.getState().generation !== generation) return;
-      // The image and the overlay that shows it: one undoable step.
-      try {
-        const asset = addAsset(store.getState().project, { data, name: file.name });
-        const id = asset.result.id;
-        store
-          .getState()
-          .editAll(
-            [
-              (p) => addAsset(p, { data, id }),
-              (p) => addOverlay(p, stepKey, { type: 'image', asset: id, alt: alt.trim() }),
-            ],
-            `Step ${stepKey}: added an image (${id}).`,
-          );
-        onDone();
-      } catch (error) {
-        refused(error);
+        await addImage(file);
+      } finally {
+        reading.current = false;
+        if (!cancelled.current) setBusy(false);
       }
       return;
     }
@@ -565,6 +576,35 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
           ? { type: 'statement', lines: linesOf(text) }
           : { type: 'cards', items: [{ title: text.trim() }] };
     if (edit((p) => addOverlay(p, stepKey, overlay))) onDone();
+  };
+  /** Reads the image, then adds it and the overlay that shows it, unless the form was closed meanwhile. */
+  const addImage = async (file: File) => {
+    const generation = store.getState().generation;
+    let data: string;
+    try {
+      data = await readImage(file);
+    } catch (error) {
+      refused(error, 'Not an image');
+      return;
+    }
+    if (cancelled.current || store.getState().generation !== generation) return;
+    // The image and the overlay that shows it: one undoable step.
+    try {
+      const asset = addAsset(store.getState().project, { data, name: file.name });
+      const id = asset.result.id;
+      store
+        .getState()
+        .editAll(
+          [
+            (p) => addAsset(p, { data, id }),
+            (p) => addOverlay(p, stepKey, { type: 'image', asset: id, alt: alt.trim() }),
+          ],
+          `Step ${stepKey}: added an image (${id}).`,
+        );
+      onDone();
+    } catch (error) {
+      refused(error);
+    }
   };
   const ready =
     kind === 'image'
@@ -626,7 +666,7 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
           </>
         )}
         <Group gap="xs">
-          <Button size="compact-xs" disabled={!ready} onClick={() => void add()}>
+          <Button size="compact-xs" disabled={!ready || busy} onClick={() => void add()}>
             Add
           </Button>
           <Button
@@ -786,7 +826,8 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
             </Menu.Dropdown>
           </Menu>
         </Group>
-        {adding && <NewOverlay kind={adding} stepKey={stepKey} onDone={() => setAdding(null)} />}
+        {/* Keyed by kind: choosing another kind closes the form open, so an image it is still reading is not added. */}
+        {adding && <NewOverlay key={adding} kind={adding} stepKey={stepKey} onDone={() => setAdding(null)} />}
         {step.overlays.length === 0 && !adding && (
           <Text size="xs" c="dimmed">
             Nothing is drawn over the map on this step. Overlays draw in list order, later ones on top.
