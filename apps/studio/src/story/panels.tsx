@@ -2,11 +2,12 @@
 // headline, target time and the sources it draws on beyond those its steps light).
 import { setScene, setStep, stepSources } from '@loopweft/model';
 import { MultiSelect, Stack, Tabs, Text, Title } from '@mantine/core';
-import { IconListDetails, IconMovie } from '@tabler/icons-react';
+import { IconListDetails, IconMap2, IconMovie } from '@tabler/icons-react';
 import { type ComponentType, useState } from 'react';
 import { useEdit, useStudio } from '../context.tsx';
 import { CommitText, NumberValue } from '../map/inputs.tsx';
 import { type Current, useCurrent } from './current.ts';
+import { MapPanel } from './map-panel.tsx';
 
 function StepPanel({ current }: { current: Current }) {
   const edit = useEdit();
@@ -58,6 +59,18 @@ function StepPanel({ current }: { current: Current }) {
       </Stack>
     </div>
   );
+}
+
+function StepMapPanel({ current }: { current: Current }) {
+  if (!current.step)
+    return (
+      <div className="lw-panel-body">
+        <Text size="sm" c="dimmed">
+          Choose a step in the outline to set up what its map shows.
+        </Text>
+      </div>
+    );
+  return <MapPanel stepKey={current.key} step={current.step} />;
 }
 
 const seconds = (s: number) =>
@@ -122,6 +135,7 @@ interface PanelSpec {
 
 const PANELS: PanelSpec[] = [
   { id: 'step', label: 'Step', Icon: IconListDetails, Panel: StepPanel },
+  { id: 'map', label: 'Map', Icon: IconMap2, Panel: StepMapPanel },
   { id: 'scene', label: 'Scene', Icon: IconMovie, Panel: ScenePanel },
 ];
 

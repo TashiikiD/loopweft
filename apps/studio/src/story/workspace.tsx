@@ -2,11 +2,12 @@
 // will see it, and the side panel to change it.
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
 import { stepKeys, useCurrent } from './current.ts';
 import { StoryOutline } from './outline.tsx';
 import { StorySide } from './panels.tsx';
+import { type Brush, LOOK, RecordBar, RecordLayer } from './record.tsx';
 import { type Shown, type StageHandle, StoryStage } from './stage.tsx';
 
 export function StoryWorkspace() {
@@ -14,6 +15,7 @@ export function StoryWorkspace() {
   const project = useStudio((s) => s.project);
   const current = useCurrent();
   const stage = useRef<StageHandle>(null);
+  const [brush, setBrush] = useState<Brush>(LOOK);
   const title = current?.scene.title;
   const headline = current?.scene.headline;
   const sceneIndex = current?.sceneIndex ?? 0;
@@ -66,8 +68,22 @@ export function StoryWorkspace() {
                 : 'No story yet'}
           </Text>
         </div>
-        <div className="lw-story-frame">
-          <StoryStage ref={stage} project={project} shown={shown} />
+        {current?.step && <RecordBar brush={brush} onChange={setBrush} />}
+        <div className={`lw-story-frame${brush.tool !== 'look' && current?.step ? ' recording' : ''}`}>
+          <StoryStage ref={stage} project={project} shown={shown}>
+            {(view) =>
+              brush.tool !== 'look' &&
+              current?.step && (
+                <RecordLayer
+                  view={view}
+                  project={project}
+                  stepKey={current.key}
+                  map={current.step.map}
+                  brush={brush}
+                />
+              )
+            }
+          </StoryStage>
         </div>
       </div>
       <StorySide />

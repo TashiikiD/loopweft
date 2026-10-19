@@ -757,3 +757,85 @@ body {
   position: absolute;
   inset: 12px;
 }
+
+/* The record view: its tools, and its click targets over the stage. */
+.lw-record-bar {
+  flex: none;
+  padding: 6px 12px 8px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.lw-record-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.lw-record-layer .hit {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+}
+
+.lw-record-layer .lw-rec-edge .hit {
+  fill: none;
+  pointer-events: stroke;
+}
+
+.lw-record-layer .lw-rec-node .hit {
+  pointer-events: all;
+}
+
+.lw-record-layer .hit:hover {
+  stroke: rgba(255, 214, 102, 0.55);
+}
+
+.lw-record-layer .lw-rec-node .hit:hover {
+  fill: rgba(255, 214, 102, 0.18);
+  stroke: none;
+}
+
+.lw-record-layer .hint {
+  fill: none;
+  stroke: rgba(200, 220, 210, 0.55);
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+.lw-record-layer .hint-label {
+  fill: rgba(200, 220, 210, 0.7);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--lw-font-sans, sans-serif);
+}
+
+.lw-record-layer .framed {
+  fill: none;
+  stroke: #ffd666;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.lw-record-layer .hop {
+  fill: #ffd666;
+  stroke: #04110d;
+  paint-order: stroke;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 700;
+  pointer-events: none;
+  font-family: var(--lw-font-sans, sans-serif);
+}
+
+.lw-story-frame.recording {
+  outline: 2px solid rgba(255, 214, 102, 0.45);
+  outline-offset: -2px;
+}
+
+.lw-hops {
+  margin: 0;
+  padding-left: 20px;
+}

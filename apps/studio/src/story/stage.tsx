@@ -4,7 +4,7 @@
 import type { Project, Scene, Step } from '@loopweft/model';
 import { FrameClock, Motion } from '@loopweft/motion';
 import { StoryView, type Transition } from '@loopweft/render';
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 export interface Shown {
   scene: Pick<Scene, 'title' | 'headline'>;
@@ -31,8 +31,14 @@ function present(view: StoryView, shown: Shown, transition: Transition) {
 
 export const StoryStage = forwardRef<
   StageHandle,
-  { project: Project; shown: Shown | null; className?: string }
->(function StoryStage({ project, shown, className }, ref) {
+  {
+    project: Project;
+    shown: Shown | null;
+    className?: string;
+    /** Drawn once the view is built, e.g. the record view's click targets (into the view's layers). */
+    children?: (view: StoryView) => ReactNode;
+  }
+>(function StoryStage({ project, shown, className, children }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const [motion] = useState(() => new Motion(new FrameClock()));
   const [view, setView] = useState<StoryView | null>(null);
@@ -83,5 +89,9 @@ export const StoryStage = forwardRef<
     [view, motion],
   );
 
-  return <div ref={host} className={className ?? 'lw-story-stage'} data-testid="story-stage" />;
+  return (
+    <div ref={host} className={className ?? 'lw-story-stage'} data-testid="story-stage">
+      {view && children?.(view)}
+    </div>
+  );
 });
