@@ -658,8 +658,9 @@ function reorder<T>(list: readonly T[], change: Reorder): T[] {
 /**
  * A key for each overlay that follows it when overlays move, so what is being typed in one (a new card, a
  * citation being chosen) stays with that overlay. A removal or move the panel makes is told with it (`tell`),
- * so keys follow it exactly, even among overlays that are alike. Overlays as they were before (an undo, a redo)
- * get back the keys they had then. Otherwise they follow the content: an overlay keeps its key while it is
+ * so keys follow it exactly, even among overlays that are alike. A list of overlays drawn before, brought back as
+ * it was by an undo or a redo (the very same list), gets back the keys it had then. Otherwise they follow the
+ * content: an overlay keeps its key while it is
  * unchanged, in its place or wherever it goes, and one changed in place keeps the key of its place. Keys start
  * again on another step.
  */
@@ -672,14 +673,13 @@ function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
     keys: [] as string[],
     next: 0,
     expected: null as Reorder | null,
-    /** The keys each list of overlays had when last drawn (by their content, in order), for an undo or redo. */
-    seen: new Map<string, string[]>(),
+    /** The keys each list of overlays had when drawn: an undo or redo brings back the same list. */
+    seen: new WeakMap<readonly Overlay[], string[]>(),
   });
   const m = memory.current;
   if (m.stepKey !== stepKey)
-    Object.assign(m, { stepKey, prints: [], types: [], keys: [], expected: null, seen: new Map() });
+    Object.assign(m, { stepKey, prints: [], types: [], keys: [], expected: null, seen: new WeakMap() });
   const prints = overlays.map((o) => JSON.stringify(o));
-  const signature = prints.join('\n');
   /** Runs the edit that makes `change`; a change refused, or that changes nothing, is forgotten at once. */
   const tell = (change: Reorder, run: () => unknown) => {
     const was = store.getState().project;
@@ -702,7 +702,7 @@ function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
     m.expected = null;
   }
   // Overlays as they were drawn before (an undo or a redo) get back the keys they had then.
-  const before = told ? undefined : m.seen.get(signature);
+  const before = told ? undefined : m.seen.get(overlays);
   if (before) {
     Object.assign(m, { prints, types: overlays.map((o) => o.type), keys: before });
     return { keys: before, tell };
@@ -731,9 +731,7 @@ function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]) {
     return `${stepKey}:${m.next++}`;
   });
   Object.assign(m, { prints, types: overlays.map((o) => o.type), keys });
-  m.seen.delete(signature);
-  m.seen.set(signature, keys);
-  if (m.seen.size > 50) m.seen.delete(m.seen.keys().next().value as string);
+  m.seen.set(overlays, keys);
   return { keys, tell };
 }
 

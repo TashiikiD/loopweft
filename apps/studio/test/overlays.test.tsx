@@ -373,6 +373,30 @@ describe('the Overlays panel', () => {
     expect(overlays(store)?.[1]).toEqual({ type: 'cards', items: [{ title: 'Same' }, { title: 'Kept' }] });
   });
 
+  it('keeps half-typed cards with their overlays when edits bring back an earlier order', async () => {
+    const project = small();
+    project.story.scenes[0]?.steps[0]?.overlays.push(
+      { type: 'cards', items: [{ title: 'A' }] },
+      { type: 'cards', items: [{ title: 'B' }] },
+    );
+    const { store, user } = await openOverlays(project);
+    const drafts = () => screen.getAllByRole('textbox', { name: "New card's title" }) as HTMLInputElement[];
+    const titles = () => screen.getAllByRole('textbox', { name: 'Card 1 title' }) as HTMLInputElement[];
+    const rename = async (k: number, title: string) => {
+      const field = titles()[k] as HTMLInputElement;
+      await user.clear(field);
+      await user.type(field, title);
+      await user.tab();
+    };
+    // A goes after B; then the two are renamed, so the contents read A, B again, though A's overlay is second.
+    await user.click(screen.getByRole('button', { name: 'Move overlay 1 over' }));
+    await user.type(drafts()[1] as HTMLInputElement, 'With the first');
+    await rename(0, 'A');
+    await rename(1, 'B');
+    expect(overlays(store)?.map((o) => (o.type === 'cards' ? o.items[0]?.title : ''))).toEqual(['A', 'B']);
+    expect(drafts().map((d) => d.value)).toEqual(['', 'With the first']);
+  });
+
   it("shows and changes a citation's pages, note and strength, and keeps them through every change", async () => {
     const project = small();
     project.story.scenes[0]?.steps[0]?.overlays.push({
