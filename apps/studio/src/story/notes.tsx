@@ -34,6 +34,9 @@ function DraftText({
   const [draft, setDraft] = useState(value);
   const [editing, setEditing] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  /** Whether the field has had the cursor: its place (kept when the field loses focus) is where text goes in. */
+  const touched = useRef(false);
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [value, editing]);
@@ -53,32 +56,47 @@ function DraftText({
         minRows={minRows}
         maxRows={18}
         value={draft}
-        onFocus={() => setEditing(true)}
+        onFocus={() => {
+          touched.current = true;
+          setEditing(true);
+        }}
         onChange={(event) => {
           setEditing(true);
           setDraft(event.currentTarget.value);
         }}
-        onBlur={(event) => commit(event.currentTarget.value)}
+        onBlur={(event) => {
+          // On to the insert button, the draft waits: what is typed and what goes in are one change.
+          if (insert && event.relatedTarget && event.relatedTarget === button.current) return;
+          commit(event.currentTarget.value);
+        }}
       />
       {insert && (
         <Group>
           <Button
+            ref={button}
             size="compact-xs"
             variant="default"
             // Keep the cursor in the field while the mark goes in.
             onMouseDown={(event) => event.preventDefault()}
+            onBlur={(event) => {
+              // Left for somewhere other than the field: the draft is done.
+              if (event.relatedTarget !== field.current) commit(draft);
+            }}
             onClick={() => {
+              // At the cursor, or over the selection, the field last had, from the mouse or the keyboard.
               const el = field.current;
-              const at = el && document.activeElement === el ? el.selectionStart : draft.length;
-              const end = el && document.activeElement === el ? el.selectionEnd : draft.length;
+              const at = el && touched.current ? el.selectionStart : draft.length;
+              const end = el && touched.current ? el.selectionEnd : draft.length;
               const before = draft.slice(0, at);
-              const spaced = `${/\s$|^$/.test(before) ? '' : ' '}${insert.text} `;
-              const next = `${before}${spaced}${draft.slice(end)}`;
+              const after = draft.slice(end);
+              const spaced = `${/\s$|^$/.test(before) ? '' : ' '}${insert.text}${/^\s/.test(after) ? '' : ' '}`;
+              const next = `${before}${spaced}${after}`;
               setDraft(next);
-              if (el && document.activeElement === el) {
-                setEditing(true);
-                requestAnimationFrame(() => el.setSelectionRange(at + spaced.length, at + spaced.length));
-              } else commit(next);
+              setEditing(true);
+              if (!el) return;
+              // Back to the field, the cursor after the mark; the change is kept when the field is left.
+              el.focus();
+              requestAnimationFrame(() => el.setSelectionRange(at + spaced.length, at + spaced.length));
             }}
           >
             {insert.label}
@@ -117,7 +135,8 @@ function ScriptByStep({ scene, last, current }: { scene: Scene; last: boolean; c
             : 'After the last step';
         return (
           <Paper
-            key={key ?? where}
+            // Parts after the last step (surplus marks) share their heading, so their place keys them.
+            key={key ?? `${where} ${i}`}
             withBorder
             p={8}
             radius="sm"
@@ -129,7 +148,12 @@ function ScriptByStep({ scene, last, current }: { scene: Scene; last: boolean; c
                 {where}
               </Text>
               {key && key !== current.key && (
-                <Button size="compact-xs" variant="subtle" onClick={() => store.getState().selectStory(key)}>
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  aria-label={`Show step ${key}`}
+                  onClick={() => store.getState().selectStory(key)}
+                >
                   Show
                 </Button>
               )}

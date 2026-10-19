@@ -148,12 +148,12 @@ function ScenePanel({ current }: { current: Current }) {
   );
 }
 
-interface PanelSpec {
+/** A panel of the chosen scene or step (`Panel`), or of the whole story, shown with or without one (`Whole`). */
+type PanelSpec = {
   id: string;
   label: string;
   Icon: ComponentType<{ size?: number; stroke?: number; 'aria-hidden'?: boolean }>;
-  Panel: ComponentType<{ current: Current }>;
-}
+} & ({ Panel: ComponentType<{ current: Current }> } | { Whole: ComponentType });
 
 const PANELS: PanelSpec[] = [
   { id: 'step', label: 'Step', Icon: IconListDetails, Panel: StepPanel },
@@ -161,7 +161,8 @@ const PANELS: PanelSpec[] = [
   { id: 'overlays', label: 'Overlays', Icon: IconLayersSubtract, Panel: StepOverlaysPanel },
   { id: 'scene', label: 'Scene', Icon: IconMovie, Panel: ScenePanel },
   { id: 'notes', label: 'Notes', Icon: IconNotes, Panel: NotesPanel },
-  { id: 'checks', label: 'Checks', Icon: IconAlertTriangle, Panel: () => <ChecksPanel /> },
+  // The story's checks, also before its first scene (an image no step shows).
+  { id: 'checks', label: 'Checks', Icon: IconAlertTriangle, Whole: ChecksPanel },
 ];
 
 export function StorySide() {
@@ -187,10 +188,12 @@ export function StorySide() {
             </Tabs.Tab>
           ))}
         </Tabs.List>
-        {PANELS.map(({ id, Panel }) => (
-          <Tabs.Panel key={id} value={id}>
-            {current ? (
-              <Panel key={`${generation}:${current.key}`} current={current} />
+        {PANELS.map((spec) => (
+          <Tabs.Panel key={spec.id} value={spec.id}>
+            {'Whole' in spec ? (
+              <spec.Whole />
+            ) : current ? (
+              <spec.Panel key={`${generation}:${current.key}`} current={current} />
             ) : (
               <div className="lw-panel-body">
                 <Text size="sm" c="dimmed">

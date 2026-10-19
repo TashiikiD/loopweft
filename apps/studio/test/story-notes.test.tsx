@@ -1,11 +1,16 @@
 // Notes, the script with its key marks, the story's checks and the preview, in jsdom.
-import { createProject, type Project } from '@loopweft/model';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { createProject, type Project, type Step } from '@loopweft/model';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
 import { memoryRecovery } from '../src/state/recovery.ts';
 import { createStudioStore, type StudioStore } from '../src/state/store.ts';
+import { playTimes } from '../src/story/workspace.tsx';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function small(): Project {
   const p = createProject({ title: 'Small map' });
@@ -60,6 +65,8 @@ describe('notes and the script', () => {
     await user.type(script, 'Here is the map.');
     await user.click(screen.getByRole('button', { name: 'Insert a key mark [>]' }));
     await user.type(script, 'And the link.');
+    // Past the insert button, which keeps the draft while it has focus.
+    await user.tab();
     await user.tab();
     // Two steps in the last scene need one mark.
     expect(scene(store)?.script).toBe('Here is the map. [>] And the link.');
@@ -71,11 +78,71 @@ describe('notes and the script', () => {
 
     await user.type(script, ' [[>] More.');
     await user.tab();
+    await user.tab();
     expect(screen.getByText(/The script has 2 key marks; its 2 steps need 1/)).toBeTruthy();
+  });
+
+  it('puts a key mark where the cursor was when the button is pressed from the keyboard, as one change', async () => {
+    const { store, user, side } = await openStory();
+    await side('Notes');
+    const script = screen.getByRole('textbox', { name: /^Script/ }) as HTMLTextAreaElement;
+    const insert = screen.getByRole('button', { name: 'Insert a key mark [>]' });
+    await user.click(script);
+    await user.type(script, 'Alpha beta gamma');
+    const changes = store.getState().past.length;
+    // A cursor after "Alpha": Tab to the button, Enter.
+    script.setSelectionRange(5, 5);
+    await user.tab();
+    expect(document.activeElement).toBe(insert);
+    await user.keyboard('{Enter}');
+    expect(script.value).toBe('Alpha [>] beta gamma');
+    expect(document.activeElement).toBe(script);
+    await waitFor(() => expect(script.selectionStart).toBe('Alpha [>]'.length));
+    // "gamma" selected: the mark takes its place.
+    script.setSelectionRange(15, 20);
+    await user.tab();
+    await user.keyboard(' ');
+    expect(script.value).toBe('Alpha [>] beta [>] ');
+    // Leaving the field keeps it all, as one undoable change.
+    await user.click(screen.getByRole('textbox', { name: /^Speaker notes/ }));
+    expect(scene(store)?.script).toBe('Alpha [>] beta [>]');
+    expect(store.getState().past.length).toBe(changes + 1);
+  });
+
+  it('names each Show button by the step it shows', async () => {
+    const project = small();
+    const first = project.story.scenes[0];
+    if (first) {
+      first.steps.push({ id: '3', label: 'More', map: {}, overlays: [] });
+      first.script = 'One. [>] Two. [>] Three. [>] Four. [>] Five.';
+    }
+    const errors = vi.spyOn(console, 'error');
+    const { side } = await openStory(project);
+    await side('Notes');
+    expect(screen.getByRole('button', { name: 'Show step S1.2' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show step S1.3' })).toBeTruthy();
+    // Two marks too many: two parts after the last step, each with a key of its own.
+    expect(screen.getAllByText('▶ After the last step')).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/two children with the same key/);
+    errors.mockRestore();
   });
 });
 
 describe('the checks', () => {
+  it('lists an image no step shows before the story has a scene', async () => {
+    const project = small();
+    project.story.scenes = [];
+    project.assets = {
+      chart:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    };
+    const { side } = await openStory(project);
+    await side('Checks');
+    expect(screen.getByText('Image chart is not shown on any step.')).toBeTruthy();
+    await side('Step');
+    expect(screen.getByText('Add a scene to start the story.')).toBeTruthy();
+  });
+
   it('lists the story’s warnings by step, marks them in the outline, and goes to the step', async () => {
     const { store, user, side } = await openStory();
     const outline = screen.getByRole('navigation', { name: 'Story outline' });
@@ -108,5 +175,99 @@ describe('the preview', () => {
     await waitFor(() => expect(store.getState().story).toBe('S1.2'), { timeout: 3000 });
     await user.click(screen.getByRole('button', { name: 'Stop playing' }));
     expect(screen.queryByText(/^Playing/)).toBeNull();
+  });
+
+  /** A scene of five steps: untimed, due at 20 s, untimed, then two due at 30 s. */
+  function timed(): Project {
+    const p = small();
+    const steps: Step[] = [
+      { id: '1', label: 'Untimed', map: {}, overlays: [] },
+      { id: '2', label: 'At 20', at: 20, map: {}, overlays: [] },
+      { id: '3', label: 'Untimed again', map: {}, overlays: [] },
+      { id: '4', label: 'At 30', at: 30, map: {}, overlays: [] },
+      { id: '5', label: 'Also at 30', at: 30, map: {}, overlays: [] },
+    ];
+    p.story.scenes = [{ id: 'S1', title: 'Timed', targetSeconds: 40, sources: [], steps }];
+    return p;
+  }
+
+  /** Plays the scene from `key`, on a clock the test moves. */
+  async function playFrom(project: Project, key: string) {
+    const opened = await openStory(project);
+    act(() => opened.store.getState().selectStory(key));
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Play the scene from here' }));
+    const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+    return { ...opened, wait, at: () => opened.store.getState().story };
+  }
+
+  it('brings each step up when it is due: after an untimed step, at equal times, and from a later step', () => {
+    expect(playTimes(timed().story.scenes[0]?.steps ?? [])).toEqual([0, 20, 24, 30, 30]);
+    // Due before the step before (the checks flag that): at once.
+    expect(playTimes([{ at: 10 }, { at: 3 }, {}])).toEqual([10, 10, 14]);
+  });
+
+  it('plays a step due at 20 s at 20 s, though the step before is untimed, and equal times at once', async () => {
+    const { wait, at } = await playFrom(timed(), 'S1.1');
+    wait(4000);
+    expect(at()).toBe('S1.1');
+    wait(16000);
+    expect(at()).toBe('S1.2');
+    // Untimed: the hold.
+    wait(4000);
+    expect(at()).toBe('S1.3');
+    // Due at 30 s, six seconds after the untimed step came up at 24 s.
+    wait(5999);
+    expect(at()).toBe('S1.3');
+    wait(1);
+    expect(at()).toBe('S1.4');
+    // Due at the same time: at once (on the timer's next turn, a millisecond on this clock), not after the hold.
+    wait(1);
+    expect(at()).toBe('S1.5');
+  });
+
+  it('times a scene played from a later, untimed step from where that step comes in the scene', async () => {
+    const { wait, at } = await playFrom(timed(), 'S1.3');
+    wait(5999);
+    expect(at()).toBe('S1.3');
+    wait(1);
+    expect(at()).toBe('S1.4');
+  });
+
+  it('stops playing when another step is chosen', async () => {
+    const { wait, at } = await playFrom(timed(), 'S1.1');
+    expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Story outline' })).getByRole('button', {
+        name: /S1\.3\s*Untimed again/,
+      }),
+    );
+    expect(screen.queryByText(/^Playing/)).toBeNull();
+    wait(60000);
+    expect(at()).toBe('S1.3');
+    // And with Next, while playing.
+    fireEvent.click(screen.getByRole('button', { name: 'Play the scene from here' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next step' }));
+    expect(at()).toBe('S1.4');
+    expect(screen.queryByText(/^Playing/)).toBeNull();
+    wait(60000);
+    expect(at()).toBe('S1.4');
+  });
+
+  it("does not jump to the story's first step from a later scene's heading", async () => {
+    const project = small();
+    project.story.scenes.push({
+      id: 'S2',
+      title: 'Later',
+      sources: [],
+      steps: [{ id: '1', label: 'Later step', map: {}, overlays: [] }],
+    });
+    const { store, user } = await openStory(project);
+    act(() => store.getState().selectStory('S2'));
+    screen.getByRole('region', { name: /^Stage/ }).focus();
+    await user.keyboard('{ArrowRight}');
+    expect(store.getState().story).toBe('S2');
+    await user.keyboard('{ArrowLeft}');
+    expect(store.getState().story).toBe('S2');
   });
 });

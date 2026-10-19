@@ -1,7 +1,10 @@
 // The Story workspace: the outline of scenes and steps, the stage showing the chosen step as the audience
 // will see it, and the side panel to change it. The preview plays the transitions: into the chosen step, or
-// the scene from the chosen step on, at the times its steps are due. With the stage focused, the arrow keys
-// move through the story as a presenter would (forward with the full motion, back with a quick fade).
+// the scene from the chosen step on, at the times its steps are due; choosing another step stops it. With the
+// stage focused, the arrow keys move through the story as a presenter would (forward with the full motion,
+// back with a quick fade).
+
+import type { Step } from '@loopweft/model';
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import {
   IconChevronLeft,
@@ -19,8 +22,23 @@ import { StorySide } from './panels.tsx';
 import { type Brush, LOOK, RecordBar, RecordLayer } from './record.tsx';
 import { type Shown, type StageHandle, StoryStage } from './stage.tsx';
 
-/** How long a step holds while the scene plays when neither it nor the next has a time it is due. */
+/** How long a step holds while the scene plays when the next has no time it is due. */
 export const HOLD_SECONDS = 4;
+
+/**
+ * When each step of a scene comes up as the scene plays, in seconds into the scene: a step due at a time
+ * (`at`) comes up then, or at once when the step before came up later; an untimed step comes up HOLD_SECONDS
+ * after the one before. The first step comes up at its own time, or at 0.
+ */
+export function playTimes(steps: readonly Pick<Step, 'at'>[]): number[] {
+  const times: number[] = [];
+  for (const step of steps) {
+    const before = times.at(-1);
+    if (before === undefined) times.push(step.at ?? 0);
+    else times.push(step.at !== undefined ? Math.max(before, step.at) : before + HOLD_SECONDS);
+  }
+  return times;
+}
 
 export function StoryWorkspace() {
   const store = useStudioStore();
@@ -30,6 +48,8 @@ export function StoryWorkspace() {
   const [brush, setBrush] = useState<Brush>(LOOK);
   const [playing, setPlaying] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The step the playing scene last brought up. */
+  const playedTo = useRef<string | null>(null);
   const title = current?.scene.title;
   const headline = current?.scene.headline;
   const sceneIndex = current?.sceneIndex ?? 0;
@@ -49,9 +69,15 @@ export function StoryWorkspace() {
   };
   // biome-ignore lint/correctness/useExhaustiveDependencies: stops the scene's timer when the workspace closes
   useEffect(() => () => stop(), []);
+  // Another step chosen while the scene plays (in the outline, with the arrows or the script) stops it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the chosen step changes
+  useEffect(() => {
+    if (playing && current?.key !== playedTo.current) stop();
+  }, [playing, current?.key]);
 
-  /** Moves to another step: forward with the full motion, back with a quick fade. */
+  /** Moves to another step: forward with the full motion, back with a quick fade. None from a scene's head. */
   const go = (offset: number) => {
+    if (at < 0) return;
     const next = keys[at + offset];
     if (!next) return;
     stage.current?.nextTransition(offset === 1 ? 'smooth' : offset === -1 ? 'quick' : 'instant');
@@ -89,20 +115,20 @@ export function StoryWorkspace() {
     setPlaying(true);
     playInto();
     const scene = current.scene;
+    const times = playTimes(scene.steps);
+    playedTo.current = current.key;
     const advance = (index: number) => {
-      const here = scene.steps[index];
       const next = scene.steps[index + 1];
-      if (!here || !next) {
+      if (!next) {
         timer.current = setTimeout(() => setPlaying(false), HOLD_SECONDS * 1000);
         return;
       }
-      const wait =
-        here.at !== undefined && next.at !== undefined && next.at > here.at
-          ? next.at - here.at
-          : HOLD_SECONDS;
+      const wait = (times[index + 1] ?? 0) - (times[index] ?? 0);
       timer.current = setTimeout(() => {
+        const key = `${scene.id}.${next.id}`;
+        playedTo.current = key;
         stage.current?.nextTransition('smooth');
-        store.getState().selectStory(`${scene.id}.${next.id}`);
+        store.getState().selectStory(key);
         advance(index + 1);
       }, wait * 1000);
     };
