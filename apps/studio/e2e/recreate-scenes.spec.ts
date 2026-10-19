@@ -2,9 +2,10 @@
 // The example opens, its whole story is removed in the Story workspace, and three of its scenes (S01 "Not a
 // perfect storm", S04 "How crises cascade" and S05 "Feedback: the widening lens") are built again by hand:
 // scenes and steps added in the outline, what each step shows set with the record view's tools on the stage
-// (real pointer clicks) and the Map panel, overlays added in the Overlays panel, notes typed in the Notes
-// panel. The saved file's three scenes then equal the example's, field for field, apart from the ids the
-// Studio chose. With LOOPWEFT_REVIEW set to a folder, a still of the stage after each step is saved there.
+// (real pointer clicks) and the Map panel, overlays added in the Overlays panel (with the Richards et al.
+// figure uploaded again as an image), notes typed in the Notes panel. The saved file's three scenes then
+// equal the example's, field for field, apart from the ids the Studio chose. With LOOPWEFT_REVIEW set to a
+// folder, a still of the stage after each step is saved there.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { LEVELS, type MapState, type Overlay, type Project, type Scene, type Step } from '@loopweft/model';
@@ -192,7 +193,7 @@ async function recreateMap(page: Page, project: Project, map: MapState) {
   }
 }
 
-async function recreateOverlays(page: Page, overlays: Overlay[]) {
+async function recreateOverlays(page: Page, project: Project, overlays: Overlay[]) {
   await panel(page, 'Overlays');
   const box = side(page);
   for (const overlay of overlays) {
@@ -211,6 +212,36 @@ async function recreateOverlays(page: Page, overlays: Overlay[]) {
           overlay.style.charAt(0).toUpperCase() + overlay.style.slice(1),
         );
       if (overlay.place) await choose(page, card.getByLabel('Place'), overlay.place);
+    } else if (overlay.type === 'image') {
+      // The example's image, uploaded as a file named after it, so the Studio gives it the same id.
+      await page.getByRole('menuitem', { name: 'Image' }).click();
+      const [, type, base64] =
+        project.assets[overlay.asset]?.match(/^data:(image\/[^;]+);base64,(.+)$/) ?? [];
+      if (!type || !base64) throw new Error(`no image ${overlay.asset}`);
+      await box
+        .locator('input[type="file"]')
+        .first()
+        .setInputFiles({
+          name: `${overlay.asset}.${type === 'image/svg+xml' ? 'svg' : type.slice('image/'.length)}`,
+          mimeType: type,
+          buffer: Buffer.from(base64, 'base64'),
+        });
+      await box
+        .getByLabel(/^Description \(alt text\)/)
+        .first()
+        .fill(overlay.alt);
+      await box.getByRole('button', { name: 'Add', exact: true }).last().click();
+      const card = box.locator('.lw-overlay-card').last();
+      await expect(card.getByText(`Image ${overlay.asset}`, { exact: true })).toBeVisible();
+      if (overlay.caption) await commit(card.getByLabel('Caption'), overlay.caption);
+      if (overlay.credit) await commit(card.getByLabel('Credit'), overlay.credit);
+      if (overlay.place) await choose(page, card.getByLabel('Place'), overlay.place);
+      for (const citation of overlay.citations ?? []) {
+        const source = project.sources.find((x) => x.id === citation.source);
+        await choose(page, card.getByLabel('Source to cite'), `${source?.label} [${citation.source}]`);
+        if (citation.pages) await card.getByLabel('Pages').fill(citation.pages);
+        await card.getByRole('button', { name: 'Cite', exact: true }).click();
+      }
     } else throw new Error(`The test does not recreate ${overlay.type} overlays.`);
   }
 }
@@ -316,7 +347,7 @@ test('recreate polycrisis scenes using only the Studio', async ({ page }) => {
       }
       if (step.at !== undefined) await commit(side(page).getByLabel(/^Due at/), String(step.at));
       await recreateMap(page, project, step.map);
-      await recreateOverlays(page, step.overlays);
+      await recreateOverlays(page, project, step.overlays);
       await still(page, `${sceneId}.${step.id}`);
       const key = `${sceneId}.${step.id}`;
       if (key === 'S01.3') await shot(page, '2-overlays-S01.3');
