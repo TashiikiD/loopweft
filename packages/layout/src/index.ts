@@ -16,6 +16,8 @@ export {
   type Camera,
   type CameraSpec,
   cameraTransform,
+  circleOnStage,
+  curveOnStage,
   FRAMES,
   type Frame,
   fitCamera,

@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   boxFor,
+  circleOnStage,
+  curveOnStage,
   edgeGeometry,
   FRAMES,
   fitCamera,
@@ -88,6 +90,31 @@ describe('the camera', () => {
   it('shrinks the whole map into a frame when a step frames no subject', () => {
     const inset = fitCamera(positions, { frame: 'inset' });
     expect(inset.zoom).toBeLessThan(wholeMapCamera(positions).zoom);
+  });
+
+  it('tells whether any of a variable or a link shows on the stage', () => {
+    // At zoom 2 round the stage's centre, the stage shows the world from (480, 270) to (1440, 810).
+    const cam = { cx: 960, cy: 540, zoom: 2 };
+    expect(circleOnStage(cam, 960, 540, 10)).toBe(true);
+    // A centre just off the stage with its rim on it; then wholly off.
+    expect(circleOnStage(cam, 470, 540, 20)).toBe(true);
+    expect(circleOnStage(cam, 460, 540, 5)).toBe(false);
+    // Off past a corner, 14 world units from it: near both edges, on the stage only with a larger radius.
+    expect(circleOnStage(cam, 470, 260, 12)).toBe(false);
+    expect(circleOnStage(cam, 470, 260, 15)).toBe(true);
+
+    const line = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      [a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b] as const;
+    // Across the stage with both ends off it; beside it; 10 stage pixels above it, on it only with a pad.
+    expect(curveOnStage(cam, ...line({ x: 0, y: 540 }, { x: 1920, y: 540 }))).toBe(true);
+    expect(curveOnStage(cam, ...line({ x: 0, y: 200 }, { x: 1920, y: 200 }))).toBe(false);
+    expect(curveOnStage(cam, ...line({ x: 0, y: 265 }, { x: 1920, y: 265 }))).toBe(false);
+    expect(curveOnStage(cam, ...line({ x: 0, y: 265 }, { x: 1920, y: 265 }), 12)).toBe(true);
+    // A long link that cuts the stage's corner in the middle of one of its 32 pieces (near world (485, 275),
+    // with every piece's ends off the stage) still shows.
+    expect(curveOnStage(cam, ...line({ x: 52047.5, y: -51287.5 }, { x: -47952.5, y: 48712.5 }))).toBe(true);
+    // A curve bowing onto the stage from ends off it.
+    expect(curveOnStage(cam, { x: 0, y: 100 }, { x: 960, y: 1100 }, { x: 1920, y: 100 })).toBe(true);
   });
 
   it('frames the whole map with the home view a project sets, and never zooms further out for a subject', () => {

@@ -6,8 +6,9 @@
 // - Pulse: each link clicked is the next hop (Shift adds it to the last hop);
 // - Frame: a variable clicked joins (or leaves) what the camera frames.
 // While a tool is on, hidden variables and links are drawn as dashed outlines so they can be clicked too. Every
-// target can also be reached with Tab and applied with Enter or Space.
-import { cameraTransform } from '@loopweft/layout';
+// target on the stage can also be reached with Tab and applied with Enter or Space; those the step's camera
+// leaves off the stage are skipped (the Map panel's lists reach them).
+import { cameraTransform, circleOnStage, curveOnStage } from '@loopweft/layout';
 import {
   addPulseHop,
   LEVELS,
@@ -166,7 +167,8 @@ export function pickEdit(
 
 /**
  * Click targets over the stage, in the step's camera: every variable and link, with hidden ones drawn as
- * dashed outlines. Drawn into the stage's top layer, so it scales with the stage.
+ * dashed outlines. Drawn into the stage's top layer, so it scales with the stage. Only targets with some part
+ * on the stage are in the Tab order.
  */
 export function RecordLayer({
   view,
@@ -213,6 +215,8 @@ export function RecordLayer({
         {[...graph.edges.values()].map((e) => {
           const level = levels.links.get(e.id) ?? 'normal';
           const name = `${e.id}: ${e.source.label.replace(/\n/g, ' ')} → ${e.target.label.replace(/\n/g, ' ')} (link, ${level})`;
+          // Half the 14-pixel target either side of the curve counts.
+          const onStage = curveOnStage(camera, e.geom.p0, e.geom.c, e.geom.p1, 7);
           return (
             <g key={e.id} className={`lw-rec-edge level-${level}`}>
               {level === 'hidden' && <path className="hint" d={e.geom.d} strokeWidth={1.5 / k} />}
@@ -222,7 +226,7 @@ export function RecordLayer({
                 d={e.geom.d}
                 strokeWidth={14 / k}
                 role="button"
-                tabIndex={0}
+                tabIndex={onStage ? 0 : -1}
                 aria-label={name}
                 onClick={(event) => pick('link', e.id, event.shiftKey)}
                 onKeyDown={(event) => press(event, 'link', e.id)}
@@ -240,6 +244,7 @@ export function RecordLayer({
         {[...graph.nodes.values()].map((n) => {
           const level = levels.variables.get(n.id) ?? 'normal';
           const name = `${n.label.replace(/\n/g, ' ')} (variable, ${level})`;
+          const onStage = circleOnStage(camera, n.x, n.y, n.r + 10 / k);
           return (
             <g key={n.id} className={`lw-rec-node level-${level}`} transform={`translate(${n.x} ${n.y})`}>
               {level === 'hidden' && (
@@ -258,7 +263,7 @@ export function RecordLayer({
                 className="hit"
                 r={n.r + 10 / k}
                 role="button"
-                tabIndex={0}
+                tabIndex={onStage ? 0 : -1}
                 aria-label={name}
                 onClick={(event) => pick('variable', n.id, event.shiftKey)}
                 onKeyDown={(event) => press(event, 'variable', n.id)}

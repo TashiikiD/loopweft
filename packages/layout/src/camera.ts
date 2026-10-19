@@ -148,6 +148,63 @@ export function inView(cam: Camera, x: number, y: number, margin = 40): boolean 
   return x >= r.x + margin && x <= r.x + r.w - margin && y >= r.y + margin && y <= r.y + r.h - margin;
 }
 
+/** Whether any of a world circle (a variable and its reach) shows on the stage through the camera. */
+export function circleOnStage(cam: Camera, x: number, y: number, r: number): boolean {
+  const p = project(cam, x, y);
+  // How far the centre is from the stage (0 inside it), against the radius on the stage.
+  const dx = p.x - Math.max(0, Math.min(STAGE.w, p.x));
+  const dy = p.y - Math.max(0, Math.min(STAGE.h, p.y));
+  const away = Math.hypot(dx, dy);
+  return away === 0 || away < r * cam.zoom;
+}
+
+/**
+ * Whether any of a link's curve (a quadratic Bézier p0, c, p1 in the world) shows on the stage through the
+ * camera, counting `pad` stage pixels round the curve (half its drawn width). The curve is followed in 32
+ * straight pieces, each clipped to the stage.
+ */
+export function curveOnStage(cam: Camera, p0: Pt, c: Pt, p1: Pt, pad = 0): boolean {
+  const at = (t: number) => {
+    const u = 1 - t;
+    return project(
+      cam,
+      u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
+      u * u * p0.y + 2 * u * t * c.y + t * t * p1.y,
+    );
+  };
+  let a = at(0);
+  for (let i = 1; i <= 32; i++) {
+    const b = at(i / 32);
+    if (crossesBox(a, b, -pad, -pad, STAGE.w + pad, STAGE.h + pad)) return true;
+    a = b;
+  }
+  return false;
+}
+
+/** Whether the straight piece a–b has any part inside the box (Liang–Barsky clipping). */
+function crossesBox(a: Pt, b: Pt, x0: number, y0: number, x1: number, y1: number): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let enter = 0;
+  let leave = 1;
+  for (const [p, q] of [
+    [-dx, a.x - x0],
+    [dx, x1 - a.x],
+    [-dy, a.y - y0],
+    [dy, y1 - a.y],
+  ] as const) {
+    if (p === 0) {
+      if (q < 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else leave = Math.min(leave, t);
+    if (enter > leave) return false;
+  }
+  return true;
+}
+
 /** The SVG transform that applies a camera to world coordinates. */
 export function cameraTransform(cam: Camera): string {
   const tx = STAGE.w / 2 - cam.cx * cam.zoom;

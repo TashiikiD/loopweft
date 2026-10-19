@@ -866,13 +866,16 @@ body {
   outline: none;
 }
 
+/* Keyboard focus in the stage's own text colour: dark on a light stage, light on a dark one. */
 .lw-record-layer .lw-rec-edge .hit:focus-visible {
-  stroke: rgba(255, 214, 102, 0.85);
+  stroke: var(--lw-text);
+  stroke-opacity: 0.6;
 }
 
 .lw-record-layer .lw-rec-node .hit:focus-visible {
-  fill: rgba(255, 214, 102, 0.22);
-  stroke: #ffd666;
+  fill: var(--lw-text);
+  fill-opacity: 0.16;
+  stroke: var(--lw-text);
   stroke-width: 3px;
   vector-effect: non-scaling-stroke;
 }
