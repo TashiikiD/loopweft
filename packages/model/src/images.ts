@@ -94,7 +94,11 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
           // A width and height above 0 (little-endian).
           const sized = u16le(bytes, at + 5) > 0 && u16le(bytes, at + 7) > 0;
           at += 10 + (local & 0x80 ? 3 * 2 ** ((local & 7) + 1) : 0);
-          // Past the LZW code size: an image holds a picture only when its data has some bytes.
+          // The LZW minimum code size, which a decoder takes only from 2 to 8.
+          const code = bytes[at] ?? 0;
+          if (at < bytes.length && (code < 2 || code > 8))
+            return 'an image in it has an LZW code size outside 2–8';
+          // Past the code size: an image holds a picture only when its data has some bytes.
           if (sized && (bytes[at + 1] ?? 0) > 0) image = true;
           at = subBlocks(at + 1);
         } else return STOPS;
@@ -137,10 +141,13 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         else break;
       }
       // Or a root that closes itself, its tag read to its ">" past quoted values.
-      const start = body.search(/<svg[\s>/]/i);
+      const start = svgRoot(body);
       const end = start < 0 ? -1 : tagEnd(body, start);
-      const closed = /<\/svg\s*>$/i.test(body) || (end === body.length - 1 && body[end - 1] === '/');
+      const closed = /<\/svg\s*>$/.test(body) || (end === body.length - 1 && body[end - 1] === '/');
       if (!closed) return STOPS;
+      // The root in the SVG namespace, without which a browser shows no SVG image.
+      if (!/\sxmlns\s*=\s*(["'])http:\/\/www\.w3\.org\/2000\/svg\1/.test(body.slice(start, end + 1)))
+        return 'its root is not in the SVG namespace (xmlns="http://www.w3.org/2000/svg")';
       return nests(text) ? null : 'its tags do not match up';
     }
   }
@@ -256,6 +263,17 @@ export function base64(bytes: Uint8Array): string {
 const starts = (bytes: Uint8Array, at: number, text: string) =>
   [...text].every((ch, i) => bytes[at + i] === ch.charCodeAt(0));
 
+// Before an SVG's root: processing instructions (the XML declaration among them), comments, and a doctype (with
+// an internal subset in brackets). XML names are case-sensitive: the root is `svg`, never `SVG`.
+const MISC = String.raw`(?:<\?[\s\S]*?\?>\s*|<!--[\s\S]*?-->\s*)*`;
+const DOCTYPE = String.raw`(?:<!DOCTYPE svg[^[>]*(?:\[[\s\S]*?\])?\s*>\s*)?`;
+const PREAMBLE = new RegExp(String.raw`^\s*${MISC}${DOCTYPE}${MISC}(?=<svg[\s>/])`);
+
+/** Where an SVG document's root `<svg` starts, past its preamble; -1 when it has none. */
+function svgRoot(text: string): number {
+  return PREAMBLE.exec(text)?.[0].length ?? -1;
+}
+
 /** The image type of a file's bytes, read from the bytes themselves (never from its name), or null. */
 export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 'svg+xml' | null {
   // The whole signature of each type, so a cut-off header is not taken for an image.
@@ -265,13 +283,7 @@ export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 
   if (starts(bytes, 0, 'GIF87a') || starts(bytes, 0, 'GIF89a')) return 'gif';
   if (starts(bytes, 0, 'RIFF') && starts(bytes, 8, 'WEBP')) return 'webp';
   // The whole text, however long the preamble before the root; TextDecoder drops a byte-order mark.
-  const head = new TextDecoder().decode(bytes).trimStart();
-  // Before the root: processing instructions (the XML declaration among them), comments, and a doctype (with
-  // an internal subset in brackets).
-  const misc = String.raw`(?:<\?[\s\S]*?\?>\s*|<!--[\s\S]*?-->\s*)*`;
-  const doctype = String.raw`(?:<!DOCTYPE svg[^[>]*(?:\[[\s\S]*?\])?\s*>\s*)?`;
-  if (new RegExp(`^${misc}${doctype}${misc}<svg[\\s>/]`, 'i').test(head)) return 'svg+xml';
-  return null;
+  return svgRoot(new TextDecoder().decode(bytes)) >= 0 ? 'svg+xml' : null;
 }
 
 /**

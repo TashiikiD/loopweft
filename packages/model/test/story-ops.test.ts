@@ -547,6 +547,25 @@ describe('embedded images', () => {
     );
     const after = svg('<svg xmlns="http://www.w3.org/2000/svg"/><?note ok?>');
     expect(addAsset(richProject(), { data: after, id: 'after' }).result.id).toBe('after');
+    // A GIF image whose LZW code size is outside 2–8.
+    for (const code of [0, 1, 9]) {
+      const image = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, code, 1, 0, 0, 0x3b];
+      expect(not(uri('gif', [...screen, ...image]))).toBe(
+        'The image data is not a whole GIF image: an image in it has an LZW code size outside 2–8.',
+      );
+    }
+    // An SVG root in capitals is not an SVG image; one outside the SVG namespace shows nothing.
+    expect(imageType(new TextEncoder().encode('<SVG xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull();
+    expect(not(svg('<SVG xmlns="http://www.w3.org/2000/svg"/>'))).toBe(
+      'The image data says image/svg+xml but is not a readable image.',
+    );
+    for (const root of ['<svg/>', '<svg xmlns="http://www.w3.org/1999/xhtml"><g/></svg>']) {
+      expect(not(svg(root))).toBe(
+        'The image data is not a whole SVG image: its root is not in the SVG namespace (xmlns="http://www.w3.org/2000/svg").',
+      );
+    }
+    const single = svg("<svg xmlns='http://www.w3.org/2000/svg'/>");
+    expect(addAsset(richProject(), { data: single, id: 'single' }).result.id).toBe('single');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(

@@ -419,8 +419,10 @@ Small built-in icons, drawn in the card's text colour:
 
 Embedded images, by id, as base64 data URIs: PNG, JPEG, GIF, WebP or SVG. Each must be a whole image of the
 type its data URI names, read from its bytes: one that is cut off, has no picture in it (no image data, a size
-of 0, or a picture header too short to start one), holds another type, or, for SVG, has tags that do not match up, is an
-error (`invalidImage`), as it is when an image is added or replaced. Images are walked, not decoded.
+of 0, or a picture header too short to start one), holds another type, or, for GIF, has an LZW code size outside
+2–8, or, for SVG, has a root other than a lowercase `svg` in the SVG namespace
+(`xmlns="http://www.w3.org/2000/svg"`) or tags that do not match up, is an error (`invalidImage`), as it is when an
+image is added or replaced. Images are walked, not decoded.
 
 ```json
 "assets": { "chart": "data:image/png;base64,iVBORw0KGgo..." }
