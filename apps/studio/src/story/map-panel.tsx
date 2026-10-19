@@ -342,13 +342,25 @@ function Camera({
           value={camera.maxZoom}
           min={0.1}
           step={0.1}
-          disabled={floor === null}
+          // Where the limit does nothing, one already set can still be cleared, but none set.
+          disabled={floor === null && camera.maxZoom === undefined}
           description={
-            floor === null
-              ? 'Only when the camera frames variables, or sets the whole map aside'
-              : `At least ${least} (${why})`
+            floor !== null
+              ? `At least ${least} (${why})`
+              : camera.maxZoom === undefined
+                ? 'Only when the camera frames variables, or sets the whole map aside'
+                : 'No effect: the camera shows the whole map as it is. Clear it, or frame variables'
           }
           onCommit={(next) => {
+            if (next !== null && floor === null) {
+              refused(
+                new OpError(
+                  'A zoom limit here would be ignored: the camera shows the whole map as it is. Frame variables, or set the map aside, first.',
+                  'usage',
+                ),
+              );
+              return;
+            }
             if (next !== null && floor !== null && next < floor) {
               refused(
                 new OpError(

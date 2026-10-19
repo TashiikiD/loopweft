@@ -225,6 +225,19 @@ describe('the Map panel', () => {
     await user.clear(zoom());
     await user.type(zoom(), `${floor + 1}{Enter}`);
     expect(map(store)?.camera).toEqual({ fit: ['births'], maxZoom: floor + 1 });
+    // Back to the whole map: the limit now does nothing, so it can be cleared, and only cleared.
+    await user.click(screen.getByRole('button', { name: 'Whole map' }));
+    expect(map(store)?.camera).toEqual({ maxZoom: floor + 1 });
+    expect(zoom().disabled).toBe(false);
+    expect(screen.getByText(/^No effect: the camera shows the whole map as it is/)).toBeTruthy();
+    await user.clear(zoom());
+    await user.type(zoom(), '3{Enter}');
+    expect(map(store)?.camera).toEqual({ maxZoom: floor + 1 });
+    expect(await screen.findByText(/^A zoom limit here would be ignored/)).toBeTruthy();
+    await user.clear(zoom());
+    await user.tab();
+    expect(map(store)?.camera).toBeUndefined();
+    expect(zoom().disabled).toBe(true);
   });
 
   it("shows and sets how often ambient pulses walk and how far, from the renderer's defaults", async () => {
