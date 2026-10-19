@@ -31,6 +31,7 @@ import {
   Image,
   Menu,
   Paper,
+  SegmentedControl,
   Select,
   Stack,
   Text,
@@ -39,10 +40,10 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { CommitText } from '../map/inputs.tsx';
-import { sourceChoices } from '../sources/citations.tsx';
+import { STRENGTHS, type Strength, sourceChoices } from '../sources/citations.tsx';
 
 type Kind = Overlay['type'];
 type Edit = ReturnType<typeof useEdit>;
@@ -92,6 +93,22 @@ function Citations({
   const project = useStudio((s) => s.project);
   const [source, setSource] = useState<string | null>(null);
   const [pages, setPages] = useState('');
+  // The same source at the same pages is cited once, as the model's own citation operations keep it.
+  const cited = (c: Citation, except = -1) =>
+    citations.some((o, k) => k !== except && o.source === c.source && o.pages === c.pages);
+  const change = (i: number, changes: Partial<Record<keyof Citation, string | null>>) => {
+    const next: Record<string, unknown> = { ...citations[i] };
+    for (const [field, value] of Object.entries(changes)) {
+      if (value === null) delete next[field];
+      else next[field] = value;
+    }
+    const citation = next as Citation;
+    if (cited(citation, i)) {
+      refused(new OpError(`It already cites ${citation.source} at those pages.`, 'conflict'));
+      return;
+    }
+    onChange(citations.map((c, k) => (k === i ? citation : c)));
+  };
   if (project.sources.length === 0) {
     return (
       <Text size="xs" c="dimmed">
@@ -109,26 +126,55 @@ function Citations({
           None
         </Text>
       )}
-      {citations.map((c, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: citations are positional
-        <Group key={i} gap={4} wrap="nowrap">
-          <Text size="xs" style={{ flex: 1 }}>
-            {project.sources.find((s) => s.id === c.source)?.label ?? c.source}
-            {c.pages ? `, p. ${c.pages}` : ''}
-          </Text>
-          <ActionIcon
-            variant="subtle"
-            size="xs"
-            aria-label={`Remove the citation of ${c.source}${c.pages ? ` p. ${c.pages}` : ''}`}
-            onClick={() => {
-              const next = citations.filter((_, k) => k !== i);
-              onChange(next.length ? next : null);
-            }}
-          >
-            <IconX size={12} aria-hidden />
-          </ActionIcon>
-        </Group>
-      ))}
+      {citations.map((c, i) => {
+        const who = `${project.sources.find((s) => s.id === c.source)?.label ?? c.source}${c.pages ? `, p. ${c.pages}` : ''}`;
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: citations are positional
+          <Paper key={i} withBorder p={6} radius="sm" role="group" aria-label={`Citation of ${who}`}>
+            <Stack gap={4}>
+              <Group gap={4} wrap="nowrap">
+                <Text size="xs" fw={500} style={{ flex: 1 }}>
+                  {who}
+                </Text>
+                <ActionIcon
+                  variant="subtle"
+                  size="xs"
+                  aria-label={`Remove the citation of ${c.source}${c.pages ? ` p. ${c.pages}` : ''}`}
+                  onClick={() => {
+                    const next = citations.filter((_, k) => k !== i);
+                    onChange(next.length ? next : null);
+                  }}
+                >
+                  <IconX size={12} aria-hidden />
+                </ActionIcon>
+              </Group>
+              <Group gap={4} grow align="flex-start">
+                <CommitText
+                  label="Pages"
+                  ariaLabel={`Pages: ${who}`}
+                  placeholder="e.g. 11–12"
+                  value={c.pages ?? ''}
+                  onCommit={(next) => change(i, { pages: next })}
+                />
+                <CommitText
+                  label="Note"
+                  ariaLabel={`Note: ${who}`}
+                  placeholder="e.g. Fig. 6c"
+                  value={c.note ?? ''}
+                  onCommit={(next) => change(i, { note: next })}
+                />
+              </Group>
+              <SegmentedControl
+                size="xs"
+                value={c.strength ?? ''}
+                data={STRENGTHS}
+                onChange={(value) => change(i, { strength: value ? (value as Strength) : null })}
+                aria-label={`Strength of the evidence: ${who}`}
+              />
+            </Stack>
+          </Paper>
+        );
+      })}
       <Group gap={4} align="flex-end" wrap="nowrap">
         <Select
           label="Source to cite"
@@ -142,9 +188,9 @@ function Citations({
           comboboxProps={{ withinPortal: true }}
         />
         <TextInput
-          label="Pages"
+          label="Pages to cite"
           size="xs"
-          w={70}
+          w={90}
           value={pages}
           onChange={(e) => setPages(e.currentTarget.value)}
         />
@@ -153,7 +199,8 @@ function Citations({
           disabled={!source}
           onClick={() => {
             if (!source) return;
-            onChange([...citations, { source, ...(pages.trim() ? { pages: pages.trim() } : {}) }]);
+            const next: Citation = { source, ...(pages.trim() ? { pages: pages.trim() } : {}) };
+            if (!cited(next)) onChange([...citations, next]);
             setSource(null);
             setPages('');
           }}
@@ -177,6 +224,7 @@ function Fields({
   overlay: Overlay;
   edit: Edit;
 }) {
+  const store = useStudioStore();
   const project = useStudio((s) => s.project);
   const set = (changes: Record<string, unknown>) => edit((p) => setOverlay(p, stepKey, index, changes));
   // Every overlay but the caption and the title page has a place and citations, set or not.
@@ -361,29 +409,46 @@ function Fields({
       );
     case 'image': {
       const data = project.assets[overlay.asset];
+      const uses = assetUses(project, overlay.asset).length;
       return (
         <Stack gap="xs">
           {data && <Image src={data} alt={overlay.alt} radius="sm" mah={160} fit="contain" />}
           <Group gap="xs">
             <Text size="xs" c="dimmed" style={{ flex: 1 }}>
               Image {overlay.asset}
-              {assetUses(project, overlay.asset).length > 1
-                ? `, also shown on ${assetUses(project, overlay.asset).length - 1} other steps`
-                : ''}
+              {uses > 1 ? `, also shown on ${uses - 1} other ${uses === 2 ? 'step' : 'steps'}` : ''}
             </Text>
             <FileButton
               accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
               onChange={(file) => {
                 if (!file) return;
+                // A project opened while the file is read is not the one it was chosen for: nothing changes.
+                const generation = store.getState().generation;
                 readImage(file).then(
-                  (uri) => edit((p) => setAsset(p, overlay.asset, uri)),
+                  (uri) => {
+                    if (store.getState().generation === generation)
+                      edit((p) => setAsset(p, overlay.asset, uri));
+                  },
                   (error) => refused(error, 'Not an image'),
                 );
               }}
             >
               {(props) => (
-                <Button size="compact-xs" variant="default" {...props}>
-                  Replace the image…
+                <Button
+                  size="compact-xs"
+                  variant="default"
+                  {...props}
+                  onClick={() => {
+                    // The image is the same one on every step that shows it: replacing it here replaces it there.
+                    if (
+                      uses > 1 &&
+                      !window.confirm(`Replace image ${overlay.asset} on all ${uses} steps that show it?`)
+                    )
+                      return;
+                    props.onClick();
+                  }}
+                >
+                  {uses > 1 ? `Replace the image on all ${uses} steps…` : 'Replace the image…'}
                 </Button>
               )}
             </FileButton>
@@ -453,9 +518,19 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
   const [text, setText] = useState('');
   const [alt, setAlt] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  // Set when the form is cancelled or closes: an image still being read is then not added. (Cleared on every
+  // mount, as React may mount a component twice in development.)
+  const cancelled = useRef(false);
+  useEffect(() => {
+    cancelled.current = false;
+    return () => {
+      cancelled.current = true;
+    };
+  }, []);
   const add = async () => {
     if (kind === 'image') {
       if (!file || !alt.trim()) return;
+      const generation = store.getState().generation;
       let data: string;
       try {
         data = await readImage(file);
@@ -463,6 +538,7 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
         refused(error, 'Not an image');
         return;
       }
+      if (cancelled.current || store.getState().generation !== generation) return;
       // The image and the overlay that shows it: one undoable step.
       try {
         const asset = addAsset(store.getState().project, { data, name: file.name });
@@ -553,13 +629,55 @@ function NewOverlay({ kind, stepKey, onDone }: { kind: Kind; stepKey: string; on
           <Button size="compact-xs" disabled={!ready} onClick={() => void add()}>
             Add
           </Button>
-          <Button size="compact-xs" variant="default" onClick={onDone}>
+          <Button
+            size="compact-xs"
+            variant="default"
+            onClick={() => {
+              cancelled.current = true;
+              onDone();
+            }}
+          >
             Cancel
           </Button>
         </Group>
       </Stack>
     </Paper>
   );
+}
+
+/**
+ * A key for each overlay that follows it when overlays move, so what is being typed in one (a new card, a
+ * citation being chosen) stays with that overlay: an overlay keeps its key wherever it goes while it is
+ * unchanged, and one changed in place keeps the key of its place. Keys start again on another step.
+ */
+function useOverlayKeys(stepKey: string, overlays: readonly Overlay[]): string[] {
+  const memory = useRef({
+    stepKey,
+    prints: [] as string[],
+    types: [] as string[],
+    keys: [] as string[],
+    next: 0,
+  });
+  const m = memory.current;
+  if (m.stepKey !== stepKey) Object.assign(m, { stepKey, prints: [], types: [], keys: [] });
+  const prints = overlays.map((o) => JSON.stringify(o));
+  const used = new Set<number>();
+  const kept = prints.map((print) => {
+    const k = m.prints.findIndex((p, j) => p === print && !used.has(j));
+    if (k < 0) return null;
+    used.add(k);
+    return m.keys[k] as string;
+  });
+  const keys = kept.map((key, i) => {
+    if (key) return key;
+    if (i < m.keys.length && !used.has(i) && m.types[i] === overlays[i]?.type) {
+      used.add(i);
+      return m.keys[i] as string;
+    }
+    return `${stepKey}:${m.next++}`;
+  });
+  Object.assign(m, { prints, types: overlays.map((o) => o.type), keys });
+  return keys;
 }
 
 /** Copies an overlay to every later step of its scene (a caption only where there is none yet), as one step. */
@@ -582,6 +700,7 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
   const edit = useEdit();
   const project = useStudio((s) => s.project);
   const [adding, setAdding] = useState<Kind | null>(null);
+  const keys = useOverlayKeys(stepKey, step.overlays);
   const hasCaption = step.overlays.some((o) => o.type === 'caption');
   const start = (kind: Kind) => {
     if (kind === 'caption' || kind === 'legend') edit((p) => addOverlay(p, stepKey, { type: kind }));
@@ -619,8 +738,7 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
           </Text>
         )}
         {step.overlays.map((overlay, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: overlays are positional
-          <Paper key={`${i}-${overlay.type}`} withBorder p="xs" radius="sm" className="lw-overlay-card">
+          <Paper key={keys[i]} withBorder p="xs" radius="sm" className="lw-overlay-card">
             <Stack gap="xs">
               <Group gap={2} wrap="nowrap">
                 <Text size="sm" fw={500} style={{ flex: 1 }}>
@@ -683,24 +801,20 @@ export function OverlaysPanel({ stepKey, step }: { stepKey: string; step: Step }
                     color="red"
                     size="sm"
                     aria-label={`Remove overlay ${i + 1}`}
-                    onClick={() => {
-                      // An image no other step shows goes with its overlay (undo brings both back).
-                      const lone = overlay.type === 'image' && assetUses(project, overlay.asset).length === 1;
-                      if (!lone) {
-                        edit((p) => removeOverlay(p, stepKey, i));
-                        return;
-                      }
-                      try {
-                        store
-                          .getState()
-                          .editAll(
-                            [(p) => removeOverlay(p, stepKey, i), (p) => removeAsset(p, overlay.asset)],
-                            `Step ${stepKey}: removed the image ${overlay.asset} and its overlay.`,
-                          );
-                      } catch (error) {
-                        refused(error);
-                      }
-                    }}
+                    onClick={() =>
+                      // An image that nothing shows once the overlay is gone goes with it, in the same undoable
+                      // step; counted after the removal, so another overlay of it on this step keeps it.
+                      edit((p) => {
+                        const removed = removeOverlay(p, stepKey, i);
+                        if (overlay.type !== 'image' || assetUses(removed.project, overlay.asset).length)
+                          return removed;
+                        return {
+                          ...removed,
+                          project: removeAsset(removed.project, overlay.asset).project,
+                          summary: `Step ${stepKey}: removed the image ${overlay.asset} and its overlay.`,
+                        };
+                      })
+                    }
                   >
                     <IconTrash size={14} aria-hidden />
                   </ActionIcon>

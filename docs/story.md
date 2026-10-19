@@ -102,7 +102,9 @@ the audience will see it, drawn by the same renderer as the viewer) and a panel 
   for Show), and Enter or Space applies it.
 - **Panels:** *Step* (label, cue, the time it is due, the sources it draws on), *Map* (everything the map
   shows, field by field, including loop badges, pulse timing, the camera, reveal and ambient pulses),
-  *Overlays* (add, change, order, copy forward and remove; images with their description), *Scene* (title,
+  *Overlays* (add, change, order, copy forward and remove; images with their description; citations with
+  their pages, strength and note; replacing an image that other steps show asks first, as it changes it
+  there too), *Scene* (title,
   headline, target time, sources), *Notes* (speaker notes and the script, cut at its key marks beside the
   steps they bring up) and *Checks* (the story's warnings, each a link to its step).
 - **Preview:** play into the chosen step, or play the scene from it (each step when the next is due, or

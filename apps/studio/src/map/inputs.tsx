@@ -14,6 +14,8 @@ interface CommitTextProps {
   placeholder?: string;
   description?: string;
   disabled?: boolean;
+  /** An accessible name of its own, where the visible label alone would be shared with other fields. */
+  ariaLabel?: string;
 }
 
 export function CommitText({
@@ -25,6 +27,7 @@ export function CommitText({
   placeholder,
   description,
   disabled,
+  ariaLabel,
 }: CommitTextProps) {
   const [draft, setDraft] = useState(value);
   const [editing, setEditing] = useState(false);
@@ -51,6 +54,7 @@ export function CommitText({
     placeholder,
     description,
     disabled,
+    'aria-label': ariaLabel,
     size: 'sm' as const,
     onFocus: () => setEditing(true),
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

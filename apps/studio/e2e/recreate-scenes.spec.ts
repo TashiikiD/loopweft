@@ -239,7 +239,7 @@ async function recreateOverlays(page: Page, project: Project, overlays: Overlay[
       for (const citation of overlay.citations ?? []) {
         const source = project.sources.find((x) => x.id === citation.source);
         await choose(page, card.getByLabel('Source to cite'), `${source?.label} [${citation.source}]`);
-        if (citation.pages) await card.getByLabel('Pages').fill(citation.pages);
+        if (citation.pages) await card.getByLabel('Pages to cite').fill(citation.pages);
         await card.getByRole('button', { name: 'Cite', exact: true }).click();
       }
     } else throw new Error(`The test does not recreate ${overlay.type} overlays.`);

@@ -21,14 +21,14 @@ import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { CommitText } from '../map/inputs.tsx';
 import { plainReference } from './reference-text.tsx';
 
-const STRENGTHS = [
+export const STRENGTHS = [
   { value: '', label: 'Not rated' },
   { value: 'strong', label: 'Strong' },
   { value: 'moderate', label: 'Moderate' },
   { value: 'weak', label: 'Weak' },
 ];
 
-type Strength = 'strong' | 'moderate' | 'weak';
+export type Strength = 'strong' | 'moderate' | 'weak';
 
 /** A source as a person picks it: its in-text label, or the start of its reference, and its id. */
 export const sourceChoices = (project: Project) =>
