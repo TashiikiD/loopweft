@@ -124,7 +124,8 @@ Confirmed at the Phase 3 checkpoint review:
 
 1. **A journal article's year is its issue's** once it is in an issue, as APA 7 gives it; before that, the
    year it was published online. The polycrisis example's Søgaard Jørgensen et al. (J) was corrected to 2024
-   accordingly (the talk had 2023, the year it went online).
+   accordingly, in its reference, its label and the story's key facts that cite it (the talk had 2023, the
+   year it went online).
 2. **Capitals and quotation marks are kept as Crossref writes them**, with a note to correct them by hand.
    Converting a title to APA's sentence case would need to know which words are proper nouns ("Anthropocene"),
    so Loopweft does not try.

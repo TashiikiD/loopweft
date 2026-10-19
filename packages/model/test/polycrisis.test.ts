@@ -125,6 +125,22 @@ describe('the polycrisis example', () => {
       expect(r.scenes.length, `${r.source.id} is drawn on in some scene`).toBeGreaterThan(0);
   });
 
+  it('dates source J by its issue, 2024, in its reference, its label and the story that cites it', () => {
+    const j = example.sources.find((s) => s.id === 'J');
+    expect(j?.label).toBe('Søgaard Jørgensen et al. (2024)');
+    expect(j?.apa).toContain('Crépin, A.-S. (2024). Evolution of the polycrisis');
+    // Its supplement keeps its own date.
+    expect(example.sources.find((s) => s.id === 'JS')?.label).toBe(
+      'Søgaard Jørgensen et al. (2023), supplement',
+    );
+    const notes = (id: string) => example.story.scenes.find((s) => s.id === id)?.notes ?? '';
+    for (const scene of ['S06', 'S10']) {
+      expect(notes(scene), scene).toContain('Søgaard Jørgensen et al. (2024,');
+      expect(notes(scene), scene).not.toContain('Søgaard Jørgensen et al. (2023,');
+    }
+    expect(TEXT).not.toContain('Søgaard Jørgensen et al. (2023,');
+  });
+
   it('keeps every step of the story but the fake title page', () => {
     expect(example.story.scenes.map((s) => `${s.id} ${s.steps.length}`)).toEqual([
       'S00 1',

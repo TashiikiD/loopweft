@@ -198,8 +198,11 @@ export interface Cleanup {
   dropNotes: Record<string, string[]>;
   /** Scenes whose "tone" note is left out. */
   dropTone: string[];
-  /** Speaker-note lines reworded, by scene id: [deck line, new line]. Applies to tone, guided notes and key facts. */
-  rewordNotes: Record<string, [string, string][]>;
+  /**
+   * Speaker-note lines reworded, by scene id: each [deck line, new line], and why (it ends the note that says
+   * so: "Reworded 1 speaker-note line(s) of S01 <why>."). Applies to tone, guided notes and key facts.
+   */
+  rewordNotes: Record<string, { lines: [string, string][]; why: string }>;
   /**
    * Links whose curve is written into the layout as the deck draws it, because Loopweft's crossing refinement
    * would otherwise re-bend them (the example keeps the deck's curves; a test in @loopweft/layout checks that
@@ -240,32 +243,63 @@ export const POLYCRISIS_CLEANUP: Cleanup = {
     S00: ['Untimed. The fake title page', "Don't acknowledge the switch", "The fake slide's"],
   },
   dropTone: ['S00'],
-  // Notes that spoke to the talk's own audience, made to suit any audience.
   rewordNotes: {
-    S01: [
-      [
-        'Open with familiar crises, not statistics; this room knows each one. Name the six words slowly.',
-        'Open with familiar crises, not statistics. Name the six words slowly.',
+    // Notes that spoke to the talk's own audience, made to suit any audience.
+    S01: {
+      lines: [
+        [
+          'Open with familiar crises, not statistics; this room knows each one. Name the six words slowly.',
+          'Open with familiar crises, not statistics. Name the six words slowly.',
+        ],
       ],
-    ],
-    S03: [
-      [
-        'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. The class knows the notation; give the legend five seconds.',
-        'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. For an audience that knows causal-loop notation, five seconds on the legend is enough.',
+      why: "that addressed the talk's own audience",
+    },
+    S03: {
+      lines: [
+        [
+          'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. The class knows the notation; give the legend five seconds.',
+          'The map: a qualitative synthesis of 41 variables and 132 links, not a simulation. For an audience that knows causal-loop notation, five seconds on the legend is enough.',
+        ],
       ],
-    ],
-    S07: [
-      [
-        'The turn toward agency: warmer and more direct. Speak to the room as fellow practitioners.',
-        'The turn toward agency: warmer and more direct. Speak to the audience as fellow practitioners.',
+      why: "that addressed the talk's own audience",
+    },
+    S07: {
+      lines: [
+        [
+          'The turn toward agency: warmer and more direct. Speak to the room as fellow practitioners.',
+          'The turn toward agency: warmer and more direct. Speak to the audience as fellow practitioners.',
+        ],
       ],
-    ],
-    S09: [
-      [
-        'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the room.',
-        'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the audience.',
+      why: "that addressed the talk's own audience",
+    },
+    S09: {
+      lines: [
+        [
+          'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the room.',
+          'Hope with honesty. Let the teal relief travel before you speak; name the trade-offs plainly, without deflating the audience.',
+        ],
       ],
-    ],
+      why: "that addressed the talk's own audience",
+    },
+    // The key facts that cite source J, dated as its corrected reference is (see correctSources).
+    S06: {
+      lines: [
+        [
+          'Søgaard Jørgensen et al. (2023, p. 1, p. 4): 14 traps in three groups; 12 possibly in an advanced phase; 10 growing.',
+          'Søgaard Jørgensen et al. (2024, p. 1, p. 4): 14 traps in three groups; 12 possibly in an advanced phase; 10 growing.',
+        ],
+      ],
+      why: 'to give source J the year of its corrected reference, 2024',
+    },
+    S10: {
+      lines: [
+        [
+          'Søgaard Jørgensen et al. (2023, pp. 11-12): five capacities for navigating traps.',
+          'Søgaard Jørgensen et al. (2024, pp. 11-12): five capacities for navigating traps.',
+        ],
+      ],
+      why: 'to give source J the year of its corrected reference, 2024',
+    },
   },
   deckBends: ['E005', 'E015', 'E016', 'E017', 'E030', 'E041', 'E045', 'E059', 'E106', 'E116', 'E119', 'E131'],
   correctSources: {
@@ -576,7 +610,7 @@ function notesFor(
     if (rule) used.add(`note ${scene.id} ${rule}`);
     return !rule;
   };
-  const reworded = cleanup.rewordNotes[scene.id] ?? [];
+  const reworded = cleanup.rewordNotes[scene.id]?.lines ?? [];
   const reword = (line: string) => {
     const rule = reworded.find(([deck]) => deck === line);
     if (!rule) return line;
@@ -796,8 +830,8 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
       starts.map((s) => `note ${scene} ${s}`),
     ),
     ...cleanup.dropTone.map((s) => `tone ${s}`),
-    ...Object.entries(cleanup.rewordNotes).flatMap(([scene, pairs]) =>
-      pairs.map(([deck]) => `reword ${scene} ${deck}`),
+    ...Object.entries(cleanup.rewordNotes).flatMap(([scene, { lines }]) =>
+      lines.map(([deck]) => `reword ${scene} ${deck}`),
     ),
     ...Object.entries(cleanup.correctSources).flatMap(([id, fix]) => [
       ...(fix.apa ? [`source ${id} apa`] : []),
@@ -889,8 +923,7 @@ export function convertPolycrisis(deck: PolycrisisDeck, cleanup: Cleanup = POLYC
         `Corrected the ${[fix.apa ? 'reference' : '', fix.label ? 'label' : ''].filter(Boolean).join(' and ')} of source ${id}: ${fix.why}.`,
     ),
     ...Object.entries(cleanup.rewordNotes).map(
-      ([scene, pairs]) =>
-        `Reworded ${pairs.length} speaker-note line(s) of ${scene} that addressed the talk's own audience.`,
+      ([scene, { lines, why }]) => `Reworded ${lines.length} speaker-note line(s) of ${scene} ${why}.`,
     ),
     ...[...dropped.visuals].map(
       ([kind, keys]) => `Left out the one-off visual "${kind}" (it stays in the deck) on ${keys.join(', ')}.`,

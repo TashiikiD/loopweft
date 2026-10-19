@@ -287,7 +287,12 @@ export const MINI_CLEANUP: Cleanup = {
   },
   dropNotes: { S00: ['Untimed. The fake title page'] },
   dropTone: ['S00'],
-  rewordNotes: { S01: [['This room knows it.', 'Say what it is.']] },
+  rewordNotes: {
+    S01: {
+      lines: [['This room knows it.', 'Say what it is.']],
+      why: "that addressed the talk's own audience",
+    },
+  },
   deckBends: ['E2'],
   correctSources: {},
   banned: ['fake', 'deadpan', 'this room'],
