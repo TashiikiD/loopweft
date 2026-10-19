@@ -2,47 +2,20 @@
 // The example opens, its whole story is removed in the Story workspace, and three of its scenes (S01 "Not a
 // perfect storm", S04 "How crises cascade" and S05 "Feedback: the widening lens") are built again by hand:
 // scenes and steps added in the outline, what each step shows set with the record view's tools on the stage
-// (real pointer clicks) and the Map panel, overlays added in the Overlays panel, notes typed in the Notes panel. The saved file's
-// three scenes then equal the example's, field for field, apart from the ids the Studio chose. With
-// LOOPWEFT_REVIEW set to a folder, a still of the stage after each step is saved there.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+// (real pointer clicks) and the Map panel, overlays added in the Overlays panel, notes typed in the Notes
+// panel. The saved file's three scenes then equal the example's, field for field, apart from the ids the
+// Studio chose. With LOOPWEFT_REVIEW set to a folder, a still of the stage after each step is saved there.
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import {
-  LEVELS,
-  type MapState,
-  type Overlay,
-  type Project,
-  readProject,
-  type Scene,
-  type Step,
-} from '@loopweft/model';
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { LEVELS, type MapState, type Overlay, type Project, type Scene, type Step } from '@loopweft/model';
+import { expect, type Page, test } from '@playwright/test';
+import { choose, commit, example, literal, panel, plainBrowser, save, section, side, tool } from './story.ts';
 
-const EXAMPLE = resolve('examples/polycrisis.loopweft');
 const REVIEW = process.env.LOOPWEFT_REVIEW ? resolve(process.env.LOOPWEFT_REVIEW) : null;
 const SCENES = ['S01', 'S04', 'S05'];
 
-const example = (): Project => {
-  const parsed = readProject(readFileSync(EXAMPLE, 'utf8'));
-  if (!parsed.ok) throw new Error('The example does not open.');
-  return parsed.project;
-};
+plainBrowser();
 
-// A step that cannot be done fails at once rather than waiting out the whole test.
-test.use({ actionTimeout: 15_000 });
-
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    const w = window as unknown as Record<string, unknown>;
-    delete w.showSaveFilePicker;
-    delete w.showOpenFilePicker;
-  });
-  page.on('dialog', (dialog) => void dialog.accept());
-});
-
-const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** Clicks one of the record view's targets over the stage (by its accessible name). */
 /**
  * Clicks one of the record view's targets on the stage (by its accessible name) with the real pointer, at a
  * point where the target is on top (along a link's curve, or on a variable). A target with no such point
@@ -78,71 +51,6 @@ async function hit(page: Page, name: RegExp, shift = false) {
   if (shift) await page.keyboard.down('Shift');
   await page.mouse.click(position.x, position.y);
   if (shift) await page.keyboard.up('Shift');
-}
-
-const side = (page: Page) => page.getByRole('complementary', { name: 'Story panel' });
-
-async function panel(page: Page, name: string) {
-  await side(page).getByRole('tab', { name, exact: true }).click();
-}
-
-async function tool(page: Page, name: string, option?: string) {
-  await page.getByRole('radiogroup', { name: 'Record tool' }).getByText(name, { exact: true }).click();
-  if (option) await page.getByText(option, { exact: true }).click();
-}
-
-/** Opens a section of the Map panel if it is closed, and returns it. */
-async function section(page: Page, name: string): Promise<Locator> {
-  const control = side(page).getByRole('button', { name, exact: true });
-  if ((await control.getAttribute('aria-expanded')) !== 'true') await control.click();
-  return side(page).getByRole('region', { name, exact: true });
-}
-
-/** Chooses an option of a Mantine select by its label. */
-async function choose(page: Page, field: Locator, option: string) {
-  // A searchable select is narrowed by typing the option's whole name, then chosen from the keyboard.
-  if ((await field.getAttribute('readonly')) === null) {
-    const wanted = page.getByRole('option', { name: option, exact: true });
-    // Narrow the list by typing; a slow machine may miss that, so a retry opens the list first (three tries).
-    for (let attempt = 1; ; attempt++) {
-      if (attempt > 1) await field.click();
-      await field.fill(option);
-      try {
-        await expect(wanted).toHaveCount(1, { timeout: 4000 });
-        break;
-      } catch (error) {
-        if (attempt === 3) {
-          const shown = await page.getByRole('option').allInnerTexts();
-          throw new Error(
-            `"${option}" is not offered (typed: "${await field.inputValue()}"; offered: ${JSON.stringify(shown.slice(0, 8))}).`,
-            { cause: error },
-          );
-        }
-        await page.keyboard.press('Escape');
-      }
-    }
-    await field.press('ArrowDown');
-    await field.press('Enter');
-    return;
-  }
-  // A click opens the list (or, if it was still open, closes it): a pick that finds the option hidden closes
-  // the list and tries again (three tries).
-  for (let attempt = 1; ; attempt++) {
-    await field.click();
-    try {
-      await page.getByRole('option', { name: option, exact: true }).click({ timeout: 4000 });
-      return;
-    } catch (error) {
-      if (attempt === 3) throw error;
-      await page.keyboard.press('Escape');
-    }
-  }
-}
-
-/** Types into a field that keeps its value when it is left. */
-async function commit(field: Locator, text: string) {
-  await field.fill(text);
-  await field.press('Enter');
 }
 
 /** Sets up what a step's map shows, as a person would: tools on the stage first, then the Map panel. */
@@ -269,6 +177,11 @@ async function recreateMap(page: Page, project: Project, map: MapState) {
     const labels = await section(page, 'Label text for this step');
     for (const [id, text] of Object.entries(map.labelText)) {
       const v = project.variables.find((x) => x.id === id);
+      // The list leaves out variables that already have label text on this step.
+      await expect(
+        labels.getByLabel(`Label of ${id} on this step`),
+        `${id} already has label text`,
+      ).toHaveCount(0);
       await choose(
         page,
         labels.getByLabel('Give a variable other label text on this step'),
@@ -429,14 +342,8 @@ test('recreate polycrisis scenes using only the Studio', async ({ page }) => {
   }
 
   // The saved file: the three scenes, as the example has them.
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Save', exact: true }).click(),
-  ]);
-  const text = readFileSync(await download.path(), 'utf8');
-  const saved = readProject(text);
-  if (!saved.ok) throw new Error(JSON.stringify(saved.issues, null, 2));
-  if (REVIEW) writeFileSync(join(REVIEW, 'recreated.loopweft'), text);
+  const saved = await save(page);
+  if (REVIEW) writeFileSync(join(REVIEW, 'recreated.loopweft'), saved.text);
   expect(saved.project.story.scenes.map((s) => s.id)).toEqual(['S1', 'S2', 'S3']);
   for (const [n, sceneId] of SCENES.entries()) {
     const original = project.story.scenes.find((s) => s.id === sceneId) as Scene;
@@ -446,41 +353,4 @@ test('recreate polycrisis scenes using only the Studio', async ({ page }) => {
   const { story: _a, meta: _b, ...map } = saved.project;
   const { story: _c, meta: _d, ...originalMap } = project;
   expect(map).toEqual(originalMap);
-});
-
-test('the record view works from the keyboard', async ({ page }) => {
-  const project = example();
-  await page.goto('/?example');
-  await page.getByRole('tab', { name: 'Story' }).click();
-  await page
-    .getByRole('navigation', { name: 'Story outline' })
-    .getByRole('button', { name: /^S04\.1\s/ })
-    .click();
-  await tool(page, 'Show', 'Active');
-  // From the stage, Tab reaches the first link's target; Enter applies the tool.
-  await page.getByRole('region', { name: /^Stage/ }).focus();
-  await page.keyboard.press('Tab');
-  const first = project.links[0]?.id as string;
-  await expect(page.locator(':focus')).toHaveAttribute('aria-label', new RegExp(`^${first}: `));
-  await page.keyboard.press('Enter');
-  // Past every link, the first variable's target; Space applies the tool.
-  for (let i = 0; i < project.links.length; i++) await page.keyboard.press('Tab');
-  const variable = project.variables[0];
-  if (!variable) throw new Error('the example has no variables');
-  await expect(page.locator(':focus')).toHaveAttribute(
-    'aria-label',
-    new RegExp(`^${literal((variable.mapLabel ?? variable.label).replace(/\n/g, ' '))} \\(variable`),
-  );
-  await page.keyboard.press(' ');
-  await expect(page.locator(':focus')).toHaveAttribute('aria-label', / \(variable, active\)$/);
-
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Save', exact: true }).click(),
-  ]);
-  const saved = readProject(readFileSync(await download.path(), 'utf8'));
-  if (!saved.ok) throw new Error(JSON.stringify(saved.issues, null, 2));
-  const step = saved.project.story.scenes.find((s) => s.id === 'S04')?.steps.find((s) => s.id === '1');
-  expect(step?.map.links?.active).toEqual([first]);
-  expect(step?.map.variables?.active).toEqual([variable.id]);
 });
