@@ -53,7 +53,9 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
           // The scan's data, which must have some bytes before the end mark.
           const data = at + 2 + length;
           for (let i = data; i + 1 < bytes.length; i++) {
-            if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return i > data ? null : EMPTY;
+            // Fill bytes (FF) before the end mark are not data.
+            if (bytes[i] === 0xff && bytes[i + 1] === 0xd9)
+              return bytes.subarray(data, i).some((b) => b !== 0xff) ? null : EMPTY;
           }
           return STOPS;
         }
@@ -101,6 +103,8 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
         if (webpPicture(bytes, kind, at + 8, size)) picture = true;
         at += 8 + size + (size % 2);
       }
+      // An odd-sized last chunk's padding byte counts within the size RIFF states.
+      if (at > end) return STOPS;
       return picture ? null : EMPTY;
     }
     case 'svg+xml': {
@@ -224,7 +228,12 @@ export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 
   if (starts(bytes, 0, 'RIFF') && starts(bytes, 8, 'WEBP')) return 'webp';
   // The whole text, however long the preamble before the root; TextDecoder drops a byte-order mark.
   const head = new TextDecoder().decode(bytes).trimStart();
-  if (/^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(head))
+  // An XML declaration, comments and a doctype (with an internal subset in brackets) may come before the root.
+  if (
+    /^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^[>]*(\[[\s\S]*?\])?\s*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(
+      head,
+    )
+  )
     return 'svg+xml';
   return null;
 }

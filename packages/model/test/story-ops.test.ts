@@ -495,6 +495,18 @@ describe('embedded images', () => {
     );
     const preamble = svg(`<!--${' '.repeat(3000)}--><svg xmlns="http://www.w3.org/2000/svg"><g/></svg>`);
     expect(addAsset(richProject(), { data: preamble, id: 'long' }).result.id).toBe('long');
+    // A JPEG scan of nothing but a fill byte; a WebP's odd-sized last chunk without its padding byte.
+    expect(not(uri('jpeg', [...jpeg.subarray(0, scan), 0xff, 0xff, 0xd9]))).toBe(
+      'The image data is not a whole JPEG image: it has no picture in it.',
+    );
+    expect(not(uri('webp', riff([...new TextEncoder().encode('VP8L'), 5, 0, 0, 0, 0x2f, 0, 0, 0, 0])))).toBe(
+      stops('WEBP'),
+    );
+    // An SVG whose doctype has an internal subset is taken.
+    const subset = svg(
+      '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY harmless "ok">]><svg xmlns="http://www.w3.org/2000/svg"><g/></svg>',
+    );
+    expect(addAsset(richProject(), { data: subset, id: 'subset' }).result.id).toBe('subset');
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(
