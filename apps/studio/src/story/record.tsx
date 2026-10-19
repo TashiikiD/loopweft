@@ -6,14 +6,16 @@
 // - Pulse: each link clicked is the next hop (Shift adds it to the last hop);
 // - Frame: a variable clicked joins (or leaves) what the camera frames.
 // While a tool is on, hidden variables and links are drawn as dashed outlines so they can be clicked too. Every
-// target on the stage can also be reached with Tab and applied with Enter or Space; those the step's camera
-// leaves off the stage are skipped (the Map panel's lists reach them).
+// target the tool applies to can also be reached with Tab and applied with Enter or Space: Pulse reaches the
+// links, Trend, Spread and Frame the variables, Show both. Those the step's camera leaves off the stage are
+// skipped (the Map panel's lists reach them).
 import { cameraTransform, circleOnStage, curveOnStage } from '@loopweft/layout';
 import {
   addPulseHop,
   LEVELS,
   type Level,
   type MapState,
+  type OpOutput,
   type Project,
   resolveLevels,
   setStepLevel,
@@ -119,14 +121,22 @@ export function RecordBar({ brush, onChange }: { brush: Brush; onChange(next: Br
   );
 }
 
+/** Whether a tool does anything to a variable or a link: Show to both, Pulse to links, the rest to variables. */
+export function toolApplies(tool: Tool, kind: 'variable' | 'link'): boolean {
+  if (tool === 'look') return false;
+  if (tool === 'show') return true;
+  return tool === 'pulse' ? kind === 'link' : kind === 'variable';
+}
+
 /** The edit a click with `brush` makes on the step `key`, or null when the tool does not apply to it. */
 export function pickEdit(
   brush: Brush,
   key: string,
   map: MapState,
   pick: { kind: 'variable' | 'link'; id: string; shift: boolean },
-): ((p: Project) => ReturnType<typeof setStepMap>) | null {
+): ((p: Project) => OpOutput<unknown>) | null {
   const { kind, id, shift } = pick;
+  if (!toolApplies(brush.tool, kind)) return null;
   switch (brush.tool) {
     case 'show':
       return (p) =>
@@ -142,7 +152,7 @@ export function pickEdit(
         ? (p) => setStepTrend(p, key, [id], brush.trend === 'none' ? null : brush.trend)
         : null;
     case 'spread':
-      return kind === 'variable' ? (p) => spreadTrend(p, key, id, brush.direction) as never : null;
+      return kind === 'variable' ? (p) => spreadTrend(p, key, id, brush.direction) : null;
     case 'pulse':
       return kind === 'link' ? (p) => addPulseHop(p, key, [id], { join: shift }) : null;
     case 'frame': {
@@ -167,8 +177,8 @@ export function pickEdit(
 
 /**
  * Click targets over the stage, in the step's camera: every variable and link, with hidden ones drawn as
- * dashed outlines. Drawn into the stage's top layer, so it scales with the stage. Only targets with some part
- * on the stage are in the Tab order.
+ * dashed outlines. Drawn into the stage's top layer, so it scales with the stage. Only targets the tool applies
+ * to, with some part on the stage, are in the Tab order; the others are marked as not available.
  */
 export function RecordLayer({
   view,
@@ -217,6 +227,7 @@ export function RecordLayer({
           const name = `${e.id}: ${e.source.label.replace(/\n/g, ' ')} → ${e.target.label.replace(/\n/g, ' ')} (link, ${level})`;
           // Half the 14-pixel target either side of the curve counts.
           const onStage = curveOnStage(camera, e.geom.p0, e.geom.c, e.geom.p1, 7);
+          const applies = toolApplies(brush.tool, 'link');
           return (
             <g key={e.id} className={`lw-rec-edge level-${level}`}>
               {level === 'hidden' && <path className="hint" d={e.geom.d} strokeWidth={1.5 / k} />}
@@ -226,7 +237,8 @@ export function RecordLayer({
                 d={e.geom.d}
                 strokeWidth={14 / k}
                 role="button"
-                tabIndex={onStage ? 0 : -1}
+                tabIndex={onStage && applies ? 0 : -1}
+                aria-disabled={applies ? undefined : true}
                 aria-label={name}
                 onClick={(event) => pick('link', e.id, event.shiftKey)}
                 onKeyDown={(event) => press(event, 'link', e.id)}
@@ -245,6 +257,7 @@ export function RecordLayer({
           const level = levels.variables.get(n.id) ?? 'normal';
           const name = `${n.label.replace(/\n/g, ' ')} (variable, ${level})`;
           const onStage = circleOnStage(camera, n.x, n.y, n.r + 10 / k);
+          const applies = toolApplies(brush.tool, 'variable');
           return (
             <g key={n.id} className={`lw-rec-node level-${level}`} transform={`translate(${n.x} ${n.y})`}>
               {level === 'hidden' && (
@@ -263,7 +276,8 @@ export function RecordLayer({
                 className="hit"
                 r={n.r + 10 / k}
                 role="button"
-                tabIndex={onStage ? 0 : -1}
+                tabIndex={onStage && applies ? 0 : -1}
+                aria-disabled={applies ? undefined : true}
                 aria-label={name}
                 onClick={(event) => pick('variable', n.id, event.shiftKey)}
                 onKeyDown={(event) => press(event, 'variable', n.id)}

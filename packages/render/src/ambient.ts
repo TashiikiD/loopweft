@@ -10,6 +10,12 @@ import { type ResolvedMap, rank } from './resolve.ts';
 
 export type AmbientSpec = NonNullable<MapState['ambient']>;
 
+/** What a walk takes when its spec leaves these out: seconds between walks, and links per walk ([min, max]). */
+export const AMBIENT_DEFAULTS: { every: [number, number]; hops: [number, number] } = {
+  every: [1.6, 3],
+  hops: [2, 4],
+};
+
 /** A small seeded generator (Park–Miller), so the wandering differs from one showing to the next. */
 export function seededRandom(seed: number): () => number {
   let s = Math.abs(Math.trunc(seed)) % 2147483647 || 1;
@@ -51,7 +57,7 @@ export function ambientWalker(
     walk() {
       if (starts.length === 0) return null;
       const start = starts[Math.floor(random() * starts.length)] as string;
-      const want = Math.round(between(spec.hops ?? [2, 4]));
+      const want = Math.round(between(spec.hops ?? AMBIENT_DEFAULTS.hops));
       const seen = new Set([start]);
       const path: string[] = [];
       let at = start;
@@ -69,7 +75,7 @@ export function ambientWalker(
       return path;
     },
     gap() {
-      return between(spec.every ?? [1.6, 3]);
+      return between(spec.every ?? AMBIENT_DEFAULTS.every);
     },
   };
 }

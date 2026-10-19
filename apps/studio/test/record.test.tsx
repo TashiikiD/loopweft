@@ -112,6 +112,32 @@ describe('the record view', () => {
     expect(map(store)?.camera).toEqual({ fit: ['population'] });
     expect(store.getState().past.at(-1)?.label).toBe('Step S1.1: the camera no longer frames births.');
   });
+
+  it('works from the keyboard: Tab reaches what the tool applies to, and Enter or Space applies it', async () => {
+    const { store, user } = await openStory();
+    const tabbable = (name: RegExp) => target(name).getAttribute('tabindex') === '0';
+    // Pulse: the links are in the Tab order; the variables are not, and say they are not available.
+    await user.click(screen.getByRole('radio', { name: 'Pulse' }));
+    expect([/^L1:/, /^L2:/, /^L3:/, /^L4:/].every(tabbable)).toBe(true);
+    expect([/^Births/, /^Population/, /^Deaths/].some(tabbable)).toBe(false);
+    expect(target(/^Births/).getAttribute('aria-disabled')).toBe('true');
+    target(/^L1:/).focus();
+    await user.keyboard('{Enter}');
+    target(/^L2:/).focus();
+    await user.keyboard('{Shift>}{Enter}{/Shift}');
+    target(/^L3:/).focus();
+    await user.keyboard(' ');
+    expect(map(store)?.pulses).toEqual({ hops: [['L1', 'L2'], ['L3']] });
+    // Trend reaches the variables, not the links; Show reaches both.
+    await user.click(screen.getByRole('radio', { name: 'Trend' }));
+    expect(tabbable(/^Births/) && !tabbable(/^L1:/)).toBe(true);
+    expect(target(/^L1:/).getAttribute('aria-disabled')).toBe('true');
+    target(/^Deaths/).focus();
+    await user.keyboard('{Enter}');
+    expect(map(store)?.trends).toEqual({ deaths: 'up' });
+    await user.click(screen.getByRole('radio', { name: 'Show' }));
+    expect(tabbable(/^Births/) && tabbable(/^L1:/)).toBe(true);
+  });
 });
 
 describe('the Map panel', () => {
@@ -175,5 +201,55 @@ describe('the Map panel', () => {
     await pick('Add a start', 'Births (births)');
     await pick('Add a start', 'Population (population)');
     expect(map(store)?.ambient).toEqual({ from: ['deaths', 'births', 'population'], tone: 'harm' });
+  });
+
+  it('offers a zoom limit only where the camera keeps it, and refuses one it would ignore', async () => {
+    const { store, user } = await openStory();
+    const panel = within(screen.getByRole('complementary', { name: 'Story panel' }));
+    await user.click(panel.getByRole('tab', { name: 'Map' }));
+    const zoom = () => screen.getByRole('textbox', { name: 'Zoom at most' }) as HTMLInputElement;
+    // The whole map as it is: the limit would do nothing, so it is off, and says when it counts.
+    expect(zoom().disabled).toBe(true);
+    expect(
+      screen.getByText('Only when the camera frames variables, or sets the whole map aside'),
+    ).toBeTruthy();
+    // Framing a variable: no limit below the whole map's zoom, which the camera never goes beneath.
+    await user.click(screen.getByRole('combobox', { name: 'Add a variable to frame' }));
+    await user.click(screen.getByRole('option', { name: 'Births (births)' }));
+    expect(zoom().disabled).toBe(false);
+    const least = screen.getByText(/^At least [\d.]+ \(the whole map's zoom\)$/).textContent ?? '';
+    await user.type(zoom(), '0.1{Enter}');
+    expect(map(store)?.camera).toEqual({ fit: ['births'] });
+    expect(await screen.findByText(/^A zoom limit of 0\.1 would be ignored/)).toBeTruthy();
+    const floor = Number(/At least ([\d.]+)/.exec(least)?.[1]);
+    await user.clear(zoom());
+    await user.type(zoom(), `${floor + 1}{Enter}`);
+    expect(map(store)?.camera).toEqual({ fit: ['births'], maxZoom: floor + 1 });
+  });
+
+  it("shows and sets how often ambient pulses walk and how far, from the renderer's defaults", async () => {
+    const project = small();
+    const step = project.story.scenes[0]?.steps[0];
+    if (step) step.map.ambient = { from: ['births'], tone: 'harm', hops: [3, 5] };
+    const { store, user } = await openStory(project);
+    const panel = within(screen.getByRole('complementary', { name: 'Story panel' }));
+    await user.click(panel.getByRole('tab', { name: 'Map' }));
+    await user.click(screen.getByRole('button', { name: 'Ambient pulses' }));
+    const field = async (name: string) =>
+      (await screen.findByRole('textbox', { name }, { timeout: 5000 })) as HTMLInputElement;
+    // Links per walk as the step sets them; the time between walks left out, with what the renderer uses.
+    expect((await field('Links per walk: from')).value).toBe('3');
+    expect((await field('Links per walk: to')).value).toBe('5');
+    const from = await field('Seconds between walks: from (s)');
+    expect(from.value).toBe('');
+    expect(from.placeholder).toBe('1.6');
+    expect(screen.getByText('Left out: 1.6–3')).toBeTruthy();
+    // Setting one end keeps the other at what was in effect.
+    await user.type(from, '2{Enter}');
+    expect(map(store)?.ambient).toEqual({ from: ['births'], tone: 'harm', hops: [3, 5], every: [2, 3] });
+    const to = await field('Links per walk: to');
+    await user.clear(to);
+    await user.type(to, '6{Enter}');
+    expect(map(store)?.ambient?.hops).toEqual([3, 6]);
   });
 });

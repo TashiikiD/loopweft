@@ -14,6 +14,7 @@ import {
   project,
   quad,
   wholeMapCamera,
+  zoomFloor,
 } from '../src/index.ts';
 import { example } from './helpers.ts';
 
@@ -128,6 +129,23 @@ describe('the camera', () => {
     expect(fitCamera(positions, { fit: [...positions.keys()] }, home).zoom).toBe(1.2);
     // Frames that set the whole map aside for an overlay keep their own scale.
     expect(fitCamera(positions, { frame: 'inset' }, home)).toEqual(fitCamera(positions, { frame: 'inset' }));
+  });
+
+  it('says how far a zoom limit can go: the least zoom of each frame, or none for the whole map as it is', () => {
+    const whole = wholeMapCamera(positions).zoom;
+    const two = ['geopolitical_conflict', 'energy_price_shocks'];
+    // The whole map as it is: a zoom limit does nothing.
+    expect(zoomFloor(positions, undefined)).toBeNull();
+    expect(zoomFloor(positions, { frame: 'center', maxZoom: 0.5 })).toBeNull();
+    expect(zoomFloor(positions, { frame: 'right', fit: ['not_on_the_map'] })).toBeNull();
+    expect(fitCamera(positions, { maxZoom: 0.5 })).toEqual(wholeMapCamera(positions));
+    // A subject never shows smaller than the whole map, so a limit below that is ignored.
+    expect(zoomFloor(positions, { fit: two })).toBe(whole);
+    expect(fitCamera(positions, { fit: two, maxZoom: 0.1 }).zoom).toBe(whole);
+    // The whole map set aside keeps its own least zoom.
+    expect(zoomFloor(positions, { frame: 'inset' })).toBe(0.25);
+    expect(zoomFloor(positions, { frame: 'left' })).toBe(0.4);
+    expect(fitCamera(positions, { frame: 'left', maxZoom: 0.2 }).zoom).toBe(0.4);
   });
 });
 

@@ -127,6 +127,8 @@ export function NumberValue({
   max,
   step,
   description,
+  placeholder,
+  disabled,
 }: {
   label: string;
   value: number | undefined;
@@ -135,6 +137,8 @@ export function NumberValue({
   max?: number;
   step?: number;
   description?: string;
+  placeholder?: string;
+  disabled?: boolean;
 }) {
   const [draft, setDraft] = useState<string | number>(value ?? '');
   const [editing, setEditing] = useState(false);
@@ -154,6 +158,8 @@ export function NumberValue({
     <NumberInput
       label={label}
       description={description}
+      placeholder={placeholder}
+      disabled={disabled}
       size="sm"
       value={draft}
       min={min}

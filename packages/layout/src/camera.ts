@@ -102,6 +102,25 @@ export function wholeMapCamera(positions: ReadonlyMap<string, Pt>, home: Camera 
 }
 
 /**
+ * The least zoom `fitCamera` gives a step's camera, which its `maxZoom` cannot go below: the whole-map zoom
+ * for a subject, 0.25 for the whole map in the inset and 0.4 in another frame aside. Null when the camera shows
+ * the whole map as it is (no subject in the center or full frame, or a subject none of which is on the map),
+ * where `maxZoom` has no effect at all.
+ */
+export function zoomFloor(
+  positions: ReadonlyMap<string, Pt>,
+  spec: CameraSpec | undefined,
+  home: Camera | null = null,
+): number | null {
+  if (spec?.fit?.length) {
+    return spec.fit.some((id) => positions.has(id)) ? wholeMapCamera(positions, home).zoom : null;
+  }
+  const aside = spec?.frame !== undefined && spec.frame !== 'full' && spec.frame !== 'center';
+  if (!aside || positions.size === 0) return null;
+  return spec.frame === 'inset' ? 0.25 : 0.4;
+}
+
+/**
  * The camera for a step: its subject (or, with a frame other than full or center and no subject, the whole
  * map shrunk into that frame, leaving room for an overlay) placed in its frame. A subject is never shown
  * smaller than the whole-map view shows it (`home`, else the fitted map).
@@ -111,18 +130,10 @@ export function fitCamera(
   spec: CameraSpec | undefined,
   home: Camera | null = null,
 ): Camera {
-  const wholeMapAside =
-    !spec?.fit?.length && spec?.frame !== undefined && spec.frame !== 'full' && spec.frame !== 'center';
-  if (!spec?.fit?.length && !wholeMapAside) return wholeMapCamera(positions, home);
-  const ids = spec?.fit?.length ? spec.fit : [...positions.keys()];
-  const pts = ids.map((id) => positions.get(id)).filter((p): p is Pt => !!p);
-  if (pts.length === 0 || !spec) return wholeMapCamera(positions, home);
-  const b = bounds(pts);
-  const minZoom = wholeMapAside
-    ? spec.frame === 'inset'
-      ? 0.25
-      : 0.4
-    : wholeMapCamera(positions, home).zoom;
+  const minZoom = zoomFloor(positions, spec, home);
+  if (minZoom === null || !spec) return wholeMapCamera(positions, home);
+  const ids = spec.fit?.length ? spec.fit : [...positions.keys()];
+  const b = bounds(ids.map((id) => positions.get(id)).filter((p): p is Pt => !!p));
   return frameBox(
     { x0: b.x0 - PAD_X, x1: b.x1 + PAD_X, y0: b.y0 - PAD_Y, y1: b.y1 + PAD_Y },
     FRAMES[spec.frame ?? 'center'],

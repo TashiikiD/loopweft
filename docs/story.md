@@ -97,7 +97,9 @@ the audience will see it, drawn by the same renderer as the viewer) and a panel 
 - **Record view:** choose a tool above the stage and click variables and links: *Show* puts them at a level
   or back to the base, *Trend* marks ▲ ▼ ±, *Spread* marks a what-if by sign along the lit links, *Pulse*
   adds hops in the order clicked (Shift adds to the last hop), *Frame* chooses what the camera frames. While
-  a tool is on, hidden things show as dashed outlines so they can be clicked back.
+  a tool is on, hidden things show as dashed outlines so they can be clicked back. From the keyboard, Tab
+  reaches what the tool applies to on the stage (links for Pulse, variables for Trend, Spread and Frame, both
+  for Show), and Enter or Space applies it.
 - **Panels:** *Step* (label, cue, the time it is due, the sources it draws on), *Map* (everything the map
   shows, field by field, including loop badges, pulse timing, the camera, reveal and ambient pulses),
   *Overlays* (add, change, order, copy forward and remove; images with their description), *Scene* (title,

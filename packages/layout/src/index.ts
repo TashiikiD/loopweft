@@ -29,6 +29,7 @@ export {
   STAGE,
   viewRect,
   wholeMapCamera,
+  zoomFloor,
 } from './camera.ts';
 export {
   type ClusterHalo,

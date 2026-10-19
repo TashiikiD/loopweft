@@ -798,6 +798,19 @@ body {
   stroke: none;
 }
 
+/* A target the tool does nothing to (a variable under Pulse, a link under Trend): no hand, no highlight. */
+.lw-record-layer .hit[aria-disabled="true"] {
+  cursor: default;
+}
+
+.lw-record-layer .lw-rec-edge .hit[aria-disabled="true"]:hover {
+  stroke: transparent;
+}
+
+.lw-record-layer .lw-rec-node .hit[aria-disabled="true"]:hover {
+  fill: transparent;
+}
+
 .lw-record-layer .hint {
   fill: none;
   stroke: rgba(200, 220, 210, 0.55);

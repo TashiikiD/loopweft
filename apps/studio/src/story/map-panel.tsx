@@ -1,12 +1,14 @@
 // What a step's map shows, field by field: the exact counterpart of the record view's clicks, and the way to
 // reach things the stage cannot click (an element by name, a loop's badge, the timing of pulses, the reveal
 // and the ambient pulses). Each change is one undoable edit through the model's story operations.
+import { homeCamera, mapGeometry, zoomFloor } from '@loopweft/layout';
 import {
   FRAMES,
   LEVELS,
   type Level,
   loopPolarity,
   type MapState,
+  OpError,
   type Project,
   pulseRoundLoop,
   resolveLevels,
@@ -18,6 +20,7 @@ import {
   setStepTrend,
   type Trend,
 } from '@loopweft/model';
+import { AMBIENT_DEFAULTS } from '@loopweft/render';
 import {
   Accordion,
   ActionIcon,
@@ -33,8 +36,8 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconRepeat, IconX } from '@tabler/icons-react';
-import { useState } from 'react';
-import { useEdit, useStudio } from '../context.tsx';
+import { useMemo, useState } from 'react';
+import { refused, useEdit, useStudio } from '../context.tsx';
 import { CommitText, NumberValue } from '../map/inputs.tsx';
 
 const TREND_MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
@@ -255,6 +258,23 @@ function Camera({
     ...project.links.filter((l) => litLinks.has(l.id)).flatMap((l) => [l.from, l.to]),
   ]);
   const lit = project.variables.filter((v) => ends.has(v.id)).map((v) => v.id);
+  // The least zoom the camera takes here, by the renderer's own rule (@loopweft/layout), which "zoom at most"
+  // cannot go below; null when the camera shows the whole map as it is and the limit does nothing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: positions come from the variables and the layout only
+  const positions = useMemo(
+    () =>
+      new Map(
+        [...mapGeometry(project, { refineBends: false }).nodes].map(([id, n]) => [id, { x: n.x, y: n.y }]),
+      ),
+    [project.variables, project.layout],
+  );
+  const floor = zoomFloor(positions, camera, homeCamera(project.layout));
+  const least = floor === null ? '' : String(Math.ceil(floor * 100) / 100);
+  const why = camera.fit?.length
+    ? "the whole map's zoom"
+    : camera.frame === 'inset'
+      ? 'the whole map in the inset'
+      : 'the whole map in a frame aside';
   return (
     <Stack gap="xs">
       <Text size="xs" fw={500}>
@@ -322,7 +342,22 @@ function Camera({
           value={camera.maxZoom}
           min={0.1}
           step={0.1}
+          disabled={floor === null}
+          description={
+            floor === null
+              ? 'Only when the camera frames variables, or sets the whole map aside'
+              : `At least ${least} (${why})`
+          }
           onCommit={(next) => {
+            if (next !== null && floor !== null && next < floor) {
+              refused(
+                new OpError(
+                  `A zoom limit of ${next} would be ignored: here the camera never zooms out further than ${least} (${why}).`,
+                  'usage',
+                ),
+              );
+              return;
+            }
             const { maxZoom: _, ...rest } = camera;
             setCamera(next === null ? rest : { ...rest, maxZoom: next });
           }}
@@ -712,6 +747,57 @@ function Reveal({
   );
 }
 
+/**
+ * A [min, max] range in two fields. Left out, the renderer uses `fallback`, shown as the fields' placeholders;
+ * setting one end keeps the other as it is (its fallback, when the range was left out), and an end emptied
+ * takes its fallback.
+ */
+function Range({
+  label,
+  unit,
+  value,
+  fallback,
+  min,
+  step,
+  onCommit,
+}: {
+  label: string;
+  unit?: string;
+  value: [number, number] | undefined;
+  fallback: [number, number];
+  min: number;
+  step: number;
+  onCommit(next: [number, number]): void;
+}) {
+  const commit = (end: 0 | 1, given: number | null) => {
+    const next: [number, number] = [...(value ?? fallback)];
+    next[end] = given ?? fallback[end];
+    onCommit(next);
+  };
+  const suffix = unit ? ` (${unit})` : '';
+  return (
+    <Group grow gap="xs" align="flex-start">
+      <NumberValue
+        label={`${label}: from${suffix}`}
+        value={value?.[0]}
+        placeholder={String(fallback[0])}
+        min={min}
+        step={step}
+        description={value ? undefined : `Left out: ${fallback[0]}–${fallback[1]}`}
+        onCommit={(next) => commit(0, next)}
+      />
+      <NumberValue
+        label={`${label}: to${suffix}`}
+        value={value?.[1]}
+        placeholder={String(fallback[1])}
+        min={min}
+        step={step}
+        onCommit={(next) => commit(1, next)}
+      />
+    </Group>
+  );
+}
+
 function Ambient({
   project,
   stepKey,
@@ -805,6 +891,23 @@ function Ambient({
         allowDeselect={false}
         onChange={(next) => next && set({ tone: next })}
         comboboxProps={{ withinPortal: true }}
+      />
+      <Range
+        label="Seconds between walks"
+        unit="s"
+        value={ambient.every}
+        fallback={AMBIENT_DEFAULTS.every}
+        min={0}
+        step={0.1}
+        onCommit={(every) => set({ every })}
+      />
+      <Range
+        label="Links per walk"
+        value={ambient.hops}
+        fallback={AMBIENT_DEFAULTS.hops}
+        min={1}
+        step={1}
+        onCommit={(hops) => set({ hops })}
       />
       <Group grow gap="xs">
         <NumberValue

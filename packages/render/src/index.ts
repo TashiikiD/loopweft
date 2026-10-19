@@ -3,7 +3,13 @@
 //   of a forward step, the walks of a held step, the glyphs and the themes.
 // - Browser: the map view on @loopweft/motion, its minimap, the overlays, the stage that holds them and the
 //   story view. Styles: render.css, exported as "@loopweft/render/render.css".
-export { type AmbientSpec, type AmbientWalker, ambientWalker, seededRandom } from './ambient.ts';
+export {
+  AMBIENT_DEFAULTS,
+  type AmbientSpec,
+  type AmbientWalker,
+  ambientWalker,
+  seededRandom,
+} from './ambient.ts';
 export {
   DRAW,
   HOP_GAP,
