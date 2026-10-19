@@ -1,4 +1,4 @@
-// The Loopweft Studio: one window with five workspaces (the Map workspace in this phase). It holds one map
+// The Loopweft Studio: one window with five workspaces (Map, Sources and Story so far). It holds one map
 // at a time, saved to a .loopweft file; while it has unsaved changes a copy is kept in the browser, so a
 // crash or a closed tab loses nothing.
 import { createProject, type Project, serializeProject } from '@loopweft/model';
@@ -18,6 +18,7 @@ import { crossrefLookup, type Lookup, LookupContext } from './sources/lookup.tsx
 import { SourcesWorkspace } from './sources/workspace.tsx';
 import { browserRecovery, type RecoveryCopy, type RecoveryStore, watchRecovery } from './state/recovery.ts';
 import { createStudioStore, hasUnsavedWork, type StudioStore } from './state/store.ts';
+import { StoryWorkspace } from './story/workspace.tsx';
 
 export interface AppProps {
   /** The map to start with (tests); default: an untitled blank map, or the example with ?example. */
@@ -29,10 +30,12 @@ export interface AppProps {
   lookup?: Lookup;
 }
 
-/** The workspace shown: Map or Sources (Story, Present and Export arrive in later phases). */
+/** The workspace shown: Map, Sources or Story (Present and Export arrive in later phases). */
 function Workspace() {
   const workspace = useStudio((s) => s.workspace);
-  return workspace === 'sources' ? <SourcesWorkspace /> : <MapWorkspace />;
+  if (workspace === 'sources') return <SourcesWorkspace />;
+  if (workspace === 'story') return <StoryWorkspace />;
+  return <MapWorkspace />;
 }
 
 /** The map the Studio opens with: the polycrisis example with ?example in the address, else a blank one. */

@@ -628,3 +628,132 @@ body {
 .lw-path:hover {
   background: var(--mantine-color-default-hover);
 }
+
+/* ----- The Story workspace ----- */
+
+/* The outline of scenes and steps, on the left. */
+.lw-outline {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.lw-outline-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px 6px 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.lw-outline-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0 24px;
+}
+
+.lw-outline-scenes,
+.lw-outline-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lw-outline-scene + .lw-outline-scene {
+  margin-top: 6px;
+}
+
+.lw-outline-scene-head,
+.lw-outline-step {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+}
+
+.lw-outline-scene-head.chosen,
+.lw-outline-step.chosen {
+  background: var(--mantine-primary-color-light);
+}
+
+.lw-outline-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 5px 4px 5px 12px;
+}
+
+.lw-outline-pick:hover {
+  background: var(--mantine-color-default-hover);
+}
+
+.lw-outline-pick:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.lw-outline-step .lw-outline-pick {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  padding-left: 22px;
+}
+
+.lw-outline-title {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+.lw-outline-meta,
+.lw-outline-key {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.lw-outline-key {
+  flex: none;
+  min-width: 52px;
+}
+
+.lw-outline-label {
+  font-size: var(--mantine-font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.lw-outline-form {
+  padding: 6px 12px 8px 22px;
+}
+
+/* The stage: the audience's 16:9 view, letterboxed in the space it has. */
+.lw-story-frame {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #050d0a;
+}
+
+.lw-story-stage {
+  position: absolute;
+  inset: 12px;
+}

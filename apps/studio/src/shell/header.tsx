@@ -32,7 +32,7 @@ import { isDirty, type WorkspaceId } from '../state/store.ts';
 export const WORKSPACES = [
   { id: 'map', label: 'Map', ready: true, note: '' },
   { id: 'sources', label: 'Sources', ready: true, note: '' },
-  { id: 'story', label: 'Story', ready: false, note: 'Scenes and steps arrive in Phase 4.' },
+  { id: 'story', label: 'Story', ready: true, note: '' },
   { id: 'present', label: 'Present', ready: false, note: 'The presenter arrives in Phase 5.' },
   { id: 'export', label: 'Export', ready: false, note: 'Exports arrive in Phase 6.' },
 ] as const;
