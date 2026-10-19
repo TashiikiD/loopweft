@@ -465,6 +465,13 @@ describe('embedded images', () => {
     expect(not(uri('gif', [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0, 0x3b]))).toBe(
       'The image data is not a whole GIF image: it has no picture in it.',
     );
+    // A GIF whose image has a descriptor and a code size but no data at all.
+    const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
+    expect(
+      not(
+        uri('gif', [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0, ...descriptor, 2, 0, 0x3b]),
+      ),
+    ).toBe('The image data is not a whole GIF image: it has no picture in it.');
   });
 });
 

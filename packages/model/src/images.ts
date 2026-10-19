@@ -78,8 +78,9 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
           if (at + 10 > bytes.length) return STOPS;
           const local = bytes[at + 9] as number;
           at += 10 + (local & 0x80 ? 3 * 2 ** ((local & 7) + 1) : 0);
-          at = subBlocks(at + 1); // past the LZW code size
-          image = true;
+          // Past the LZW code size: an image holds a picture only when its data has some bytes.
+          if ((bytes[at + 1] ?? 0) > 0) image = true;
+          at = subBlocks(at + 1);
         } else return STOPS;
         if (at < 0) return STOPS;
       }
