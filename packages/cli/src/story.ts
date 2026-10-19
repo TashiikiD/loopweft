@@ -268,16 +268,26 @@ const quoted = (lines: readonly string[]) => lines.map((l) => `"${l}"`).join(' /
 
 /**
  * One overlay as lines, with everything it shows: its first line has the overlay's own fields, where it goes
- * and the sources it cites, with their pages; a set of cards has a line for each card.
+ * and the sources it cites, with their pages; a set of cards has a line for each card. The caption shows its
+ * scene's number (its place in the story), title and headline.
  */
-function overlayLines(o: Overlay, i: number): string[] {
+function overlayLines(
+  o: Overlay,
+  i: number,
+  scene: { index: number; title: string; headline?: string | undefined },
+): string[] {
   const fields = (parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ');
   const place = 'place' in o && o.place ? `place ${o.place}` : undefined;
   const cites =
     'citations' in o && o.citations?.length ? `cites ${o.citations.map(citationText).join('; ')}` : undefined;
   switch (o.type) {
     case 'caption':
-      return [`${i} caption`];
+      return [
+        fields([
+          `${i} caption: ${String(scene.index).padStart(2, '0')} · "${scene.title}"`,
+          scene.headline !== undefined && `headline "${scene.headline}"`,
+        ]),
+      ];
     case 'title':
       return [
         fields([
@@ -360,7 +370,12 @@ function sceneOrStep(project: Project, ref: string): FoundScene | FoundStep {
     );
   }
   const step = attempt(() => resolveStep(project, ref));
-  if (!(step instanceof OpError)) return step;
+  if (!(step instanceof OpError)) {
+    // A title several scenes share names them all: the step is meant only when named by its own key.
+    if (scene.kind === 'usage' && step.key !== ref)
+      throw new OpError(`${scene.message} It also names step ${step.key}.`, 'usage');
+    return step;
+  }
   // Neither: about the step when a scene is named before one of the dots, else about the scene.
   const sceneBeforeDot = [...ref.matchAll(/\./g)].some(
     (dot) => !(attempt(() => resolveScene(project, ref.slice(0, dot.index))) instanceof OpError),
@@ -384,7 +399,11 @@ export function storyShowCommand(file: string, ref: string): CommandResult {
     'Map:',
     ...mapLines(step.map).map((l) => `  ${l}`),
     step.overlays.length ? 'Overlays (counted from 0, later ones on top):' : 'Overlays: none',
-    ...step.overlays.flatMap((o, i) => overlayLines(o, i).map((l) => `  ${l}`)),
+    ...step.overlays.flatMap((o, i) =>
+      overlayLines(o, i, { index: sceneIndex, title: scene.title, headline: scene.headline }).map(
+        (l) => `  ${l}`,
+      ),
+    ),
     `Sources it draws on: ${sources.length ? sources.join(', ') : 'none'}`,
     ...(issues.length ? ['Warnings:', ...issues.map((i) => `  ${i.message}`)] : []),
   ];

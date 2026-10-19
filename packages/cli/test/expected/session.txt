@@ -279,7 +279,7 @@ Map:
   loop badges: R1 (named)
   pulses: L2 → L1
 Overlays (counted from 0, later ones on top):
-  0 caption
+  0 caption: 00 · "Growth" · headline "Births feed the population."
   1 statement (question) · lines "More people, more births." · place bottom · cites test2020 pp. 4–5
 Sources it draws on: test2020
 [exit 0]

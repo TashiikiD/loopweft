@@ -1034,6 +1034,21 @@ describe('story show, when a reference names several steps', () => {
       '"One.x" is the title of scene S2 and also names steps S1.1 and S1.2; use S2, S1.1 or S1.2.',
     );
   });
+
+  it('refuses a title several scenes share that also names a step, unless by its key', async () => {
+    const file = 'show-titles.loopweft';
+    await run('new', file, '--title', 'Titles');
+    await run('story', 'scene', 'add', file, '--title', 'One');
+    await run('story', 'step', 'add', file, 'S1', '--label', 'x');
+    await run('story', 'scene', 'add', file, '--title', 'One.x');
+    await run('story', 'scene', 'add', file, '--title', 'One.x');
+    const shared = await json('story', 'show', file, 'One.x');
+    expect(shared.code).toBe(2);
+    expect((shared.doc.error as { message: string }).message).toBe(
+      '"One.x" is the title of 2 scenes (S2, S3); use the id of the one you mean. It also names step S1.1.',
+    );
+    expect((await json('story', 'show', file, 'S1.1')).code).toBe(0);
+  });
 });
 
 describe('placing scenes and steps', () => {
