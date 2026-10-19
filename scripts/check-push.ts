@@ -13,16 +13,28 @@ import { buffer } from 'node:stream/consumers';
 import { privateWords } from '../packages/model/scripts/polycrisis-deck.ts';
 import { findPrivateWordsInPush } from '../test/private-words.ts';
 
+/**
+ * Something the check cannot read, such as the words themselves (a `.local.json` it cannot find or parse):
+ * stop the push rather than let it through unread.
+ */
+function stop(error: unknown): never {
+  process.stderr.write(`The private-word check stopped this push: ${(error as Error).message}\n`);
+  process.exit(1);
+}
+
 const [remote, url] = process.argv.slice(2);
-const words = privateWords();
+let words: string[];
+try {
+  words = privateWords();
+} catch (error) {
+  stop(error);
+}
 if (words.length > 0) {
   let found: string[];
   try {
     found = findPrivateWordsInPush(process.cwd(), words, await buffer(process.stdin), url ?? remote);
   } catch (error) {
-    // Something the check cannot read: stop the push rather than let it through unread.
-    process.stderr.write(`The private-word check stopped this push: ${(error as Error).message}\n`);
-    process.exit(1);
+    stop(error);
   }
   if (found.length > 0) {
     process.stderr.write(

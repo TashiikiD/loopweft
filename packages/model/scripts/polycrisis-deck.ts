@@ -10,46 +10,72 @@ import type { DeckScene, PolycrisisDeck } from '../src/importers/polycrisis.ts';
 /** The checkout these scripts are in. */
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
+/** What `.local.json` can set. */
+type Settings = { polycrisisDeck?: string; privateWords?: string[] };
+
+/**
+ * The variables that tie git to one repository, as git lists them (`git rev-parse --local-env-vars`): GIT_DIR,
+ * GIT_WORK_TREE and the like. Git gives a hook some of them, and they may name another repository than the
+ * folder git is asked about. Settings given with `git -c` (GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT) are kept,
+ * as git keeps them when it runs in another repository (a submodule).
+ */
+let bound: Set<string> | undefined;
+
+/** Git, in the folder `cwd`, finding the repository from that folder itself. */
+function gitIn(cwd: string, ...args: string[]): string {
+  bound ??= new Set(
+    execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8', stdio: 'pipe' })
+      .split('\n')
+      .map((name) => name.trim())
+      .filter((name) => name !== '' && name !== 'GIT_CONFIG_PARAMETERS' && name !== 'GIT_CONFIG_COUNT'),
+  );
+  const names = bound;
+  // Windows reads a variable's name in any letter case.
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !names.has(name.toUpperCase())),
+  );
+  return execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: 'pipe' }).trim();
+}
+
 /**
  * The main checkout of the repository that the checkout at `root` is a linked worktree of
  * (`git worktree add`): the folder that holds the repository's `.git` folder, as `git worktree list` names
  * it. Undefined when `root` is not a linked worktree, or when the repository has no main checkout (a bare
- * repository, or a submodule's).
+ * repository, or a submodule's). Where `root` is a linked worktree but git cannot say which, if any, is its
+ * main checkout, it throws: that is no sign that the main checkout sets nothing.
  */
 function mainCheckout(root: string): string | undefined {
   // A linked worktree has a `.git` file, naming its own folder in the repository; a main checkout has the
   // `.git` folder itself.
   if (!statSync(join(root, '.git'), { throwIfNoEntry: false })?.isFile()) return undefined;
-  let shared: string;
   try {
-    shared = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      cwd: root,
-      // Git finds the repository from `root` itself, not from the one a hook names (GIT_DIR), which may be
-      // another repository's (Windows reads a variable's name in any letter case).
-      env: Object.fromEntries(
-        Object.entries(process.env).filter(
-          ([name]) => !['GIT_DIR', 'GIT_COMMON_DIR'].includes(name.toUpperCase()),
-        ),
-      ),
-      encoding: 'utf8',
-      stdio: 'pipe',
-    }).trim();
-  } catch {
-    return undefined;
+    const shared = gitIn(root, 'rev-parse', '--path-format=absolute', '--git-common-dir');
+    // Another name is a bare repository's, or a submodule's (in the `modules` folder of another repository).
+    if (basename(shared) !== '.git') return undefined;
+    // A bare repository can be named `.git` too. Git, asked in the folder around it, says which it is.
+    const main = dirname(shared);
+    return gitIn(main, 'rev-parse', '--is-bare-repository') === 'false' ? main : undefined;
+  } catch (error) {
+    throw new Error(
+      `git cannot say which is the main checkout of the linked worktree ${root}, whose .local.json holds ` +
+        `its settings: ${(error as Error).message.trim()}`,
+    );
   }
-  return basename(shared) === '.git' ? dirname(shared) : undefined;
 }
 
 /**
  * This machine's settings, from the git-ignored `.local.json` at the root of the checkout at `root`. A linked
- * worktree shares the repository but not its ignored files, so one that has none reads the main checkout's.
- * Empty when there is none.
+ * worktree shares the repository but not its ignored files, so it reads the main checkout's too: each
+ * setting that its own `.local.json` gives replaces the main checkout's, and any other comes from the main
+ * checkout. Empty when there is none.
  */
-function localSettings(root: string): { polycrisisDeck?: string; privateWords?: string[] } {
-  const own = join(root, '.local.json');
-  const main = existsSync(own) ? undefined : mainCheckout(root);
-  const local = main === undefined ? own : join(main, '.local.json');
-  return existsSync(local) ? JSON.parse(readFileSync(local, 'utf8')) : {};
+function localSettings(root: string): Settings {
+  const read = (folder: string): Settings => {
+    const local = join(folder, '.local.json');
+    return existsSync(local) ? JSON.parse(readFileSync(local, 'utf8')) : {};
+  };
+  const main = mainCheckout(root);
+  return { ...(main === undefined ? {} : read(main)), ...read(root) };
 }
 
 /**
@@ -67,8 +93,9 @@ export function deckFolder(argv: readonly string[] = process.argv): string | und
 
 /**
  * Words that must never appear in the example, such as the presenter's name, kept out of the repository:
- * LOOPWEFT_PRIVATE_WORDS (comma-separated), else "privateWords" in `.local.json` (of the checkout at `root`,
- * or of the main checkout from a linked worktree that has none). Empty when neither is set.
+ * LOOPWEFT_PRIVATE_WORDS (comma-separated), else "privateWords" in `.local.json` (the checkout at `root`'s,
+ * else, from a linked worktree, the main checkout's). Empty when neither is set; throws where a linked
+ * worktree's main checkout cannot be found, rather than give none.
  */
 export function privateWords(root: string = repoRoot): string[] {
   const env = process.env.LOOPWEFT_PRIVATE_WORDS;

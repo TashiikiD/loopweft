@@ -70,9 +70,12 @@ function checkouts(copied: string[] = []): { main: string; worktree: string } {
   return { main, worktree };
 }
 
+/** A `.local.json` in the folder `dir`, holding `json`. */
+const local = (dir: string, json: { polycrisisDeck?: string; privateWords?: string[] }) =>
+  writeFileSync(join(dir, '.local.json'), `${JSON.stringify(json)}\n`);
+
 /** A `.local.json` in the folder `dir`, setting these private words. */
-const settings = (dir: string, ...words: string[]) =>
-  writeFileSync(join(dir, '.local.json'), `${JSON.stringify({ privateWords: words })}\n`);
+const settings = (dir: string, ...words: string[]) => local(dir, { privateWords: words });
 
 describe('the private words of a linked worktree', () => {
   // LOOPWEFT_PRIVATE_WORDS comes before any `.local.json`, so it is left empty where they are what is read.
@@ -84,11 +87,35 @@ describe('the private words of a linked worktree', () => {
     expect(shown(privateWords(worktree))).toEqual([WORD]);
   });
 
-  it("come from the worktree's own .local.json where it has one", () => {
+  it("come from the worktree's own .local.json where it sets them", () => {
     const { main, worktree } = checkouts();
     settings(main, WORD);
     settings(worktree, OTHER);
     expect(shown(privateWords(worktree))).toEqual([OTHER]);
+  });
+
+  // Each setting is read on its own: one the worktree's file gives replaces the main checkout's, and one it
+  // leaves out still comes from the main checkout.
+  it("come from the main checkout where the worktree's own .local.json sets only other things", () => {
+    const { main, worktree } = checkouts();
+    settings(main, WORD);
+    local(worktree, { polycrisisDeck: join(worktree, 'deck') });
+    expect(shown(privateWords(worktree))).toEqual([WORD]);
+  });
+
+  it("are none where the worktree's own .local.json sets none", () => {
+    const { main, worktree } = checkouts();
+    settings(main, WORD);
+    settings(worktree);
+    expect(shown(privateWords(worktree))).toEqual([]);
+  });
+
+  // Not finding the main checkout is no sign that it sets no words, so the lookup stops rather than read none.
+  it('stop where git cannot name the main checkout', () => {
+    const { main, worktree } = checkouts();
+    settings(main, WORD);
+    vi.stubEnv('PATH', join(main, 'nowhere'));
+    expect(() => privateWords(worktree)).toThrow('main checkout');
   });
 
   it('come from LOOPWEFT_PRIVATE_WORDS before any .local.json', () => {
@@ -114,17 +141,24 @@ describe('the private words of a linked worktree', () => {
     expect(shown(privateWords(worktree))).toEqual([WORD]);
   });
 
-  it('come from no folder around a bare repository, which has no main checkout', () => {
-    const { main } = checkouts();
-    const around = folder('loopweft-bare-');
-    const bare = join(around, 'project.git');
-    git(around, 'clone', '--quiet', '--bare', main, bare);
-    settings(around, WORD);
-    const worktree = folder('loopweft-worktree-');
-    // The clone has the main checkout's branches, `side` among them.
-    git(bare, 'worktree', 'add', '--quiet', '-b', 'elsewhere', worktree);
-    expect(shown(privateWords(worktree))).toEqual([]);
-  });
+  // A bare repository can be named `.git` too, like a checkout's, so the name alone does not tell them apart.
+  it.each(['project.git', '.git'])(
+    'come from no folder around a bare repository named %s, which has no main checkout',
+    (name) => {
+      const { main } = checkouts();
+      const around = folder('loopweft-bare-');
+      const bare = join(around, name);
+      git(around, 'clone', '--quiet', '--bare', main, bare);
+      settings(around, WORD);
+      const worktree = folder('loopweft-worktree-');
+      // The clone has the main checkout's branches, `side` among them.
+      git(bare, 'worktree', 'add', '--quiet', '-b', 'elsewhere', worktree);
+      expect(shown(privateWords(worktree))).toEqual([]);
+      // Nor where a hook names a work tree (GIT_WORK_TREE), with which git takes any repository for a checkout.
+      vi.stubEnv('GIT_WORK_TREE', worktree);
+      expect(shown(privateWords(worktree))).toEqual([]);
+    },
+  );
 });
 
 /**
@@ -135,15 +169,16 @@ const HOOK = ['scripts/check-push.ts', 'packages/model/scripts/polycrisis-deck.t
 
 /**
  * A throwaway repository holding the hook's files, a linked worktree of it, and somewhere to push to. Its
- * pre-push hook runs the privacy check as .githooks/pre-push does, from the checkout that pushes.
+ * pre-push hook runs the privacy check as .githooks/pre-push does, from the checkout that pushes, after the
+ * shell commands `before`.
  */
-function guarded(): { main: string; worktree: string } {
+function guarded(before = ''): { main: string; worktree: string } {
   const { main, worktree } = checkouts(HOOK);
   const hook = join(main, '.git', 'hooks', 'pre-push');
   mkdirSync(dirname(hook), { recursive: true });
   writeFileSync(
     hook,
-    `#!/bin/sh\nexec "${process.execPath.replaceAll('\\', '/')}" scripts/check-push.ts "$@"\n`,
+    `#!/bin/sh\n${before}exec "${process.execPath.replaceAll('\\', '/')}" scripts/check-push.ts "$@"\n`,
   );
   chmodSync(hook, 0o755);
   const remote = folder('loopweft-remote-');
@@ -177,6 +212,29 @@ describe('the pre-push hook of a linked worktree', () => {
     const sent = push(worktree);
     expect(sent.status, sent.stderr).toBe(0);
     expect(printed(sent)).toContain('No private word in what this push sends.');
+  });
+
+  it("stops a private word set only in the main checkout, where the worktree's own .local.json sets other things", () => {
+    const { main, worktree } = guarded();
+    settings(main, WORD);
+    local(worktree, { polycrisisDeck: join(worktree, 'deck') });
+    git(worktree, 'commit', '--quiet', '--allow-empty', `--message=Notes for ${WORD}`);
+    const stopped = push(worktree);
+    expect(stopped.status).not.toBe(0);
+    expect(stopped.stderr).toContain(`message: "${WORD}"`);
+    expect(git(worktree, 'ls-remote', 'origin')).toBe('');
+  });
+
+  it('stops the push where git cannot name the main checkout that sets the words', () => {
+    // The hook finds no git to ask; the push itself has already found its own.
+    const { main, worktree } = guarded('PATH=/nowhere\n');
+    settings(main, WORD);
+    git(worktree, 'commit', '--quiet', '--allow-empty', '--message=Notes');
+    const stopped = push(worktree);
+    expect(stopped.status).not.toBe(0);
+    expect(stopped.stderr).toContain('The private-word check stopped this push');
+    expect(stopped.stderr).toContain('main checkout');
+    expect(git(worktree, 'ls-remote', 'origin')).toBe('');
   });
 
   it('says that it checked nothing where no words are set, as on CI, and lets the push through', () => {
