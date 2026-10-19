@@ -465,6 +465,13 @@ describe('embedded images', () => {
     expect(not(uri('gif', [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0, 0x3b]))).toBe(
       'The image data is not a whole GIF image: it has no picture in it.',
     );
+    // A JPEG whose scan has a header but no data before the end mark.
+    const jpeg = bytesOf(whole.jpeg);
+    const sos = jpeg.findIndex((b, i) => b === 0xff && jpeg[i + 1] === 0xda);
+    const scan = sos + 2 + (((jpeg[sos + 2] ?? 0) << 8) | (jpeg[sos + 3] ?? 0));
+    expect(not(uri('jpeg', [...jpeg.subarray(0, scan), 0xff, 0xd9]))).toBe(
+      'The image data is not a whole JPEG image: it has no picture in it.',
+    );
     // A GIF whose image has a descriptor and a code size but no data at all.
     const descriptor = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0];
     expect(

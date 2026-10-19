@@ -50,8 +50,10 @@ function incomplete(bytes: Uint8Array, type: NonNullable<ReturnType<typeof image
           frame = true;
         if (marker === 0xda) {
           if (!frame) return EMPTY;
-          for (let i = at + 2 + length; i + 1 < bytes.length; i++) {
-            if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return null;
+          // The scan's data, which must have some bytes before the end mark.
+          const data = at + 2 + length;
+          for (let i = data; i + 1 < bytes.length; i++) {
+            if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return i > data ? null : EMPTY;
           }
           return STOPS;
         }
@@ -154,8 +156,13 @@ export function imageType(bytes: Uint8Array): 'png' | 'jpeg' | 'gif' | 'webp' | 
   return null;
 }
 
-/** Problems already found, by data URI: a project is checked after every edit, and its images rarely change. */
+/**
+ * Problems already found, by data URI: a project is checked after every edit, and its images rarely change.
+ * The data URIs kept are bounded by their total length (about 8 million characters), oldest first out.
+ */
 const found = new Map<string, string | null>();
+const KEPT = 8_000_000;
+let kept = 0;
 
 /**
  * Why image data (a data URI) could not be shown, or null when it is a whole image of the type it names: base64
@@ -165,8 +172,14 @@ export function imageProblem(data: string): string | null {
   const known = found.get(data);
   if (known !== undefined) return known;
   const problem = readProblem(data);
-  if (found.size >= 64) found.delete(found.keys().next().value as string);
+  if (data.length > KEPT) return problem;
+  for (const old of found.keys()) {
+    if (kept + data.length <= KEPT) break;
+    found.delete(old);
+    kept -= old.length;
+  }
   found.set(data, problem);
+  kept += data.length;
   return problem;
 }
 
