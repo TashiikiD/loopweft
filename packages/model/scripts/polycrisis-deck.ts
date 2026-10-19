@@ -1,16 +1,54 @@
 // Reads the private polycrisis deck (PolycrisisPresentation) into the shape the converter takes. Node only:
 // it reads the deck's content files and imports its assembled scene specs, which are plain TypeScript data.
 // The deck itself is never written to.
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { DeckScene, PolycrisisDeck } from '../src/importers/polycrisis.ts';
 
-const repoRoot = new URL('../../../', import.meta.url);
+/** The checkout these scripts are in. */
+const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
-/** This machine's settings, from the repository's git-ignored `.local.json` (empty when there is none). */
-function localSettings(): { polycrisisDeck?: string; privateWords?: string[] } {
-  const local = new URL('.local.json', repoRoot);
+/**
+ * The main checkout of the repository that the checkout at `root` is a linked worktree of
+ * (`git worktree add`): the folder that holds the repository's `.git` folder, as `git worktree list` names
+ * it. Undefined when `root` is not a linked worktree, or when the repository has no main checkout (a bare
+ * repository, or a submodule's).
+ */
+function mainCheckout(root: string): string | undefined {
+  // A linked worktree has a `.git` file, naming its own folder in the repository; a main checkout has the
+  // `.git` folder itself.
+  if (!statSync(join(root, '.git'), { throwIfNoEntry: false })?.isFile()) return undefined;
+  let shared: string;
+  try {
+    shared = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      cwd: root,
+      // Git finds the repository from `root` itself, not from the one a hook names (GIT_DIR), which may be
+      // another repository's (Windows reads a variable's name in any letter case).
+      env: Object.fromEntries(
+        Object.entries(process.env).filter(
+          ([name]) => !['GIT_DIR', 'GIT_COMMON_DIR'].includes(name.toUpperCase()),
+        ),
+      ),
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
+  } catch {
+    return undefined;
+  }
+  return basename(shared) === '.git' ? dirname(shared) : undefined;
+}
+
+/**
+ * This machine's settings, from the git-ignored `.local.json` at the root of the checkout at `root`. A linked
+ * worktree shares the repository but not its ignored files, so one that has none reads the main checkout's.
+ * Empty when there is none.
+ */
+function localSettings(root: string): { polycrisisDeck?: string; privateWords?: string[] } {
+  const own = join(root, '.local.json');
+  const main = existsSync(own) ? undefined : mainCheckout(root);
+  const local = main === undefined ? own : join(main, '.local.json');
   return existsSync(local) ? JSON.parse(readFileSync(local, 'utf8')) : {};
 }
 
@@ -22,17 +60,19 @@ function localSettings(): { polycrisisDeck?: string; privateWords?: string[] } {
 export function deckFolder(argv: readonly string[] = process.argv): string | undefined {
   const flag = argv.indexOf('--deck');
   const folder =
-    (flag >= 0 ? argv[flag + 1] : process.env.LOOPWEFT_POLYCRISIS_DECK) || localSettings().polycrisisDeck;
+    (flag >= 0 ? argv[flag + 1] : process.env.LOOPWEFT_POLYCRISIS_DECK) ||
+    localSettings(repoRoot).polycrisisDeck;
   return folder && existsSync(join(folder, 'content', 'map.json')) ? folder : undefined;
 }
 
 /**
  * Words that must never appear in the example, such as the presenter's name, kept out of the repository:
- * LOOPWEFT_PRIVATE_WORDS (comma-separated), else "privateWords" in `.local.json`. Empty when neither is set.
+ * LOOPWEFT_PRIVATE_WORDS (comma-separated), else "privateWords" in `.local.json` (of the checkout at `root`,
+ * or of the main checkout from a linked worktree that has none). Empty when neither is set.
  */
-export function privateWords(): string[] {
+export function privateWords(root: string = repoRoot): string[] {
   const env = process.env.LOOPWEFT_PRIVATE_WORDS;
-  const words = env ? env.split(',') : (localSettings().privateWords ?? []);
+  const words = env ? env.split(',') : (localSettings(root).privateWords ?? []);
   return words.map((w) => w.trim().toLowerCase()).filter(Boolean);
 }
 

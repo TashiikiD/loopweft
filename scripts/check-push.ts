@@ -2,7 +2,8 @@
 // gives the hook the remote's name and URL, and lists the refs being pushed on its standard input;
 // findPrivateWordsInPush (test/private-words.ts) reads those refs' names, their annotated tags and every
 // commit they send that the URL does not already hold. Where no words are set (privateWords, see
-// CONTRIBUTING.md), as on CI, it checks nothing.
+// CONTRIBUTING.md), as on CI, it checks nothing and says so, so a push it did not check never passes for one
+// it did.
 //
 //   node scripts/check-push.ts [<remote> [<url>]] < <the lines git gives the pre-push hook>
 //
@@ -35,4 +36,8 @@ if (words.length > 0) {
     process.exit(1);
   }
   process.stdout.write('No private word in what this push sends.\n');
+} else {
+  process.stdout.write(
+    'No private words are set (privateWords, see CONTRIBUTING.md), so none were checked.\n',
+  );
 }

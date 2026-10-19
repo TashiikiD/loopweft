@@ -48,7 +48,8 @@ presentation is available they also rebuild it and compare byte for byte. To poi
 { "polycrisisDeck": "C:/path/to/PolycrisisPresentation", "privateWords": ["a name", "a course code"] }
 ```
 
-Elsewhere (and on CI) those two tests are skipped.
+A linked worktree (`git worktree add`) shares the repository but not its git-ignored files, so one without a
+`.local.json` of its own reads the main checkout's. Elsewhere (and on CI) those two tests are skipped.
 
 `privateWords` lists words that must never appear in the example, such as the presenter's name. They live
 only in `.local.json` (or `LOOPWEFT_PRIVATE_WORDS`, comma-separated) so the repository never contains them;
@@ -59,7 +60,7 @@ pre-push hook ([`scripts/check-push.ts`](scripts/check-push.ts)) also looks for 
 sends: the names of the refs it pushes to, its annotated tags, and every commit the remote does not already
 hold (the message, the author's and committer's names and emails, every other header, such as a merged tag,
 and the name and contents of every file the commit adds or changes), so a word that a later commit removes
-still stops the push.
+still stops the push. Where no words are set, as on CI, it checks nothing and says so in one line.
 
 ### Comparing renders with the presentation
 
