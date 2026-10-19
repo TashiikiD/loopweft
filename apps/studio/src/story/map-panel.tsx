@@ -62,6 +62,39 @@ function elementOptions(project: Project) {
 const variableOptions = (project: Project) =>
   project.variables.map((v) => ({ value: v.id, label: `${v.label} (${v.id})` }));
 
+/**
+ * A searchable list that adds what is picked and then empties itself, ready for the next one (the choice
+ * is an action, not a value the list keeps).
+ */
+function AddSelect({
+  label,
+  data,
+  onPick,
+}: {
+  label: string;
+  data: { value: string; label: string }[];
+  onPick(id: string): void;
+}) {
+  const [search, setSearch] = useState('');
+  return (
+    <Select
+      label={label}
+      placeholder="Search by name"
+      size="xs"
+      searchable
+      data={data}
+      value={null}
+      searchValue={search}
+      onSearchChange={setSearch}
+      onChange={(id) => {
+        setSearch('');
+        if (id) onPick(id);
+      }}
+      comboboxProps={{ withinPortal: true }}
+    />
+  );
+}
+
 /** Ids as small removable pills. */
 function Ids({
   ids,
@@ -222,7 +255,6 @@ function Camera({
     ...project.links.filter((l) => litLinks.has(l.id)).flatMap((l) => [l.from, l.to]),
   ]);
   const lit = project.variables.filter((v) => ends.has(v.id)).map((v) => v.id);
-  const [adding, setAdding] = useState<string | null>(null);
   return (
     <Stack gap="xs">
       <Text size="xs" fw={500}>
@@ -266,19 +298,10 @@ function Camera({
           Whole map
         </Button>
       </Group>
-      <Select
+      <AddSelect
         label="Add a variable to frame"
-        placeholder="Search by name"
-        size="xs"
-        searchable
-        data={variableOptions(project)}
-        value={adding}
-        onChange={(id) => {
-          if (!id) return;
-          setAdding(null);
-          if (!camera.fit?.includes(id)) setCamera({ ...camera, fit: [...(camera.fit ?? []), id] });
-        }}
-        comboboxProps={{ withinPortal: true }}
+        data={variableOptions(project).filter((o) => !camera.fit?.includes(o.value))}
+        onPick={(id) => setCamera({ ...camera, fit: [...(camera.fit ?? []), id] })}
       />
       <Group grow gap="xs">
         <Select
@@ -652,15 +675,10 @@ function Reveal({
           set({ from: from.length ? from : null });
         }}
       />
-      <Select
+      <AddSelect
         label="Add a variable it grows from"
-        placeholder="Search by name"
-        size="xs"
-        searchable
-        data={variableOptions(project)}
-        value={null}
-        onChange={(id) => id && !reveal.from?.includes(id) && set({ from: [...(reveal.from ?? []), id] })}
-        comboboxProps={{ withinPortal: true }}
+        data={variableOptions(project).filter((o) => !reveal.from?.includes(o.value))}
+        onPick={(id) => set({ from: [...(reveal.from ?? []), id] })}
       />
       <CommitText
         label="Exact order (ids, comma-separated)"
@@ -771,15 +789,10 @@ function Ambient({
           else edit((p) => setStepMap(p, stepKey, { ambient: null }));
         }}
       />
-      <Select
+      <AddSelect
         label="Add a start"
-        placeholder="Search by name"
-        size="xs"
-        searchable
-        data={variableOptions(project)}
-        value={null}
-        onChange={(id) => id && !ambient.from.includes(id) && set({ from: [...ambient.from, id] })}
-        comboboxProps={{ withinPortal: true }}
+        data={variableOptions(project).filter((o) => !ambient.from.includes(o.value))}
+        onPick={(id) => set({ from: [...ambient.from, id] })}
       />
       <Select
         label="Tone"
@@ -853,18 +866,13 @@ function LabelText({
           </ActionIcon>
         </Group>
       ))}
-      <Select
+      <AddSelect
         label="Give a variable other label text on this step"
-        placeholder="Search by name"
-        size="xs"
-        searchable
         data={variableOptions(project).filter((o) => !(o.value in (map.labelText ?? {})))}
-        value={null}
-        onChange={(id) => {
+        onPick={(id) => {
           const variable = project.variables.find((v) => v.id === id);
           if (variable) setText(variable.id, (variable.mapLabel ?? variable.label).replace(/\n/g, ' '));
         }}
-        comboboxProps={{ withinPortal: true }}
       />
     </Stack>
   );
