@@ -1,7 +1,8 @@
 // The Story workspace in jsdom: the outline of scenes and steps, the stage showing the chosen step, and the
 // panels that change a step and its scene. Every change is one of the model's operations, so it can be undone.
-import { createProject, type Project } from '@loopweft/model';
-import { render, screen, within } from '@testing-library/react';
+import { createProject, type Project, setSource } from '@loopweft/model';
+import { FrameClock } from '@loopweft/motion';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -179,6 +180,77 @@ describe('the Story workspace', () => {
     store.getState().undo();
     expect(store.getState().project.story.scenes[0]?.steps).toHaveLength(1);
     expect(Object.keys(store.getState().project.assets)).toEqual(['chart']);
+  });
+
+  it('draws the evidence as it is now: a source relabelled, and the change undone', async () => {
+    const project = small();
+    project.sources = [
+      { id: 'T', label: 'Test (2020)', apa: 'Test, A. (2020). *A fictitious source for tests*. Test Press.' },
+    ];
+    project.story.scenes[0]?.steps[0]?.overlays.push({
+      type: 'cards',
+      items: [{ title: 'A card' }],
+      citations: [{ source: 'T', pages: '4' }],
+    });
+    const { store } = await openStory(project);
+    const stage = () => screen.getByTestId('story-stage').textContent;
+    expect(stage()).toContain('Test (2020), p. 4');
+    act(() => {
+      store.getState().edit((p) => setSource(p, 'T', { label: 'Renamed (2020)' }));
+    });
+    expect(stage()).toContain('Renamed (2020), p. 4');
+    act(() => {
+      store.getState().undo();
+    });
+    expect(stage()).toContain('Test (2020), p. 4');
+  });
+
+  it('stops its animation clock when the Story workspace closes', async () => {
+    // Every subscription to a frame clock, until it is stopped: only the Story stage has one.
+    const live = new Set<object>();
+    const onFrame = FrameClock.prototype.onFrame;
+    vi.spyOn(FrameClock.prototype, 'onFrame').mockImplementation(function (this: FrameClock, frame) {
+      const stop = onFrame.call(this, frame);
+      const token = {};
+      live.add(token);
+      return () => {
+        live.delete(token);
+        stop();
+      };
+    });
+    const { user } = await openStory();
+    expect(live.size).toBe(1);
+    await user.click(within(screen.getByLabelText('Workspaces')).getByRole('tab', { name: 'Map' }));
+    expect(live.size).toBe(0);
+    await user.click(screen.getByRole('tab', { name: 'Story' }));
+    expect(live.size).toBe(1);
+  });
+
+  it('gives keyboard focus back when a naming form closes: to what it added, or to what opened it', async () => {
+    const { user } = await openStory();
+    // Enter: focus goes to the new scene.
+    await user.click(screen.getByRole('button', { name: 'Scene' }));
+    await user.type(screen.getByRole('textbox', { name: 'Title of the new scene' }), 'Limits{Enter}');
+    expect(document.activeElement).toBe(within(outline()).getByRole('button', { name: /Limits/ }));
+    // Escape: back to the button that opened the form.
+    const addStep = screen.getByRole('button', { name: 'Add a step to scene S1' });
+    await user.click(addStep);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('textbox', { name: 'Label of the new step in scene S1' })).toBeNull();
+    expect(document.activeElement).toBe(addStep);
+    // Enter on a new step: focus goes to it.
+    await user.click(addStep);
+    await user.type(
+      screen.getByRole('textbox', { name: 'Label of the new step in scene S1' }),
+      'Third{Enter}',
+    );
+    expect(document.activeElement).toBe(within(outline()).getByRole('button', { name: /S1\.3\s*Third/ }));
+    // Cancel: back to the step's menu, which opened the form.
+    await user.click(screen.getByRole('button', { name: 'Step S1.1: more' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Copy this step…' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('textbox', { name: 'Label of the copy of S1.1' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Step S1.1: more' }));
   });
 
   it('opens the polycrisis example’s story', async () => {

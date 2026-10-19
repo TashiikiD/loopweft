@@ -1,6 +1,7 @@
 // The stage as the audience will see it: @loopweft/render's story view, drawn from the open project and
-// showing the chosen step. The view is built again only when the map itself changes (variables, links,
-// layout, types, theme, loops or images); an edit to the story just shows the step again.
+// showing the chosen step. The view is built again only when what it draws from changes (variables, links,
+// layout, types, theme, loops, sources or images); an edit to the story just shows the step again. Its
+// animation clock lives as long as the stage: it stops when the stage closes.
 import type { Project, Scene, Step } from '@loopweft/model';
 import { FrameClock, Motion } from '@loopweft/motion';
 import { StoryView, type Transition } from '@loopweft/render';
@@ -16,7 +17,8 @@ export interface Shown {
 export interface StageHandle {
   /** The story view, once built. */
   view(): StoryView | null;
-  motion: Motion;
+  /** Skip: every animation playing jumps to its end. */
+  skip(): void;
   /** Shows a step with a transition (the preview). */
   show(shown: Shown, transition: Transition): void;
   /** The transition the next change of step shows with (once; then changes show at once again). */
@@ -42,14 +44,22 @@ export const StoryStage = forwardRef<
   }
 >(function StoryStage({ project, shown, className, children }, ref) {
   const host = useRef<HTMLDivElement>(null);
-  const [motion] = useState(() => new Motion(new FrameClock()));
+  const [motion, setMotion] = useState<Motion | null>(null);
   const [view, setView] = useState<StoryView | null>(null);
   const upcoming = useRef<Transition>('instant');
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rebuilt from the parts of the map it draws, not the story
+  // The clock is made and stopped by an effect, not when the state is first made, so that every clock
+  // started is stopped (React may mount a component twice in development).
+  useEffect(() => {
+    const next = new Motion(new FrameClock());
+    setMotion(next);
+    return () => next.dispose();
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rebuilt from the parts of the project it draws, not the story
   useEffect(() => {
     const el = host.current;
-    if (!el) return;
+    if (!el || !motion) return;
     motion.landAll();
     const next = new StoryView(el, { project, motion });
     setView(next);
@@ -68,26 +78,25 @@ export const StoryStage = forwardRef<
     project.types,
     project.theme,
     project.loops,
+    project.sources,
     project.assets,
     motion,
   ]);
 
   useEffect(() => {
-    if (!view) return;
+    if (!view || !motion) return;
     motion.landAll();
     present(view, shown ?? { scene: { title: '' }, sceneIndex: 0, step: null }, upcoming.current);
     upcoming.current = 'instant';
   }, [view, shown, motion]);
 
-  useEffect(() => () => motion.landAll(), [motion]);
-
   useImperativeHandle(
     ref,
     () => ({
       view: () => view,
-      motion,
+      skip: () => motion?.landAll(),
       show: (shownNext, transition) => {
-        if (!view) return;
+        if (!view || !motion) return;
         motion.landAll();
         present(view, shownNext, transition);
       },

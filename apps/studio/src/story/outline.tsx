@@ -21,7 +21,16 @@ import {
 } from '@loopweft/model';
 import { ActionIcon, Button, Group, Menu, Radio, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
-import { createContext, useContext, useMemo, useState } from 'react';
+import {
+  createContext,
+  type RefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { refused, useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { useStoryWarnings } from './checks.tsx';
 import { type Current, useCurrent } from './current.ts';
@@ -40,6 +49,13 @@ function Flag({ at: key }: { at: string }) {
     </Tooltip>
   );
 }
+
+/**
+ * Moves keyboard focus, once the outline has drawn it, to the button of a scene or step just added ("S05",
+ * "S05.3"), or else to `fallback` (the button that opened the form). A naming form closes when it is done, so
+ * focus goes somewhere sensible instead of back to the page.
+ */
+const FocusAfter = createContext<(key: string, fallback: RefObject<HTMLElement | null>) => void>(() => {});
 
 const seconds = (s: number) =>
   s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}`;
@@ -147,6 +163,8 @@ function StepRow({
   const key = `${scene.id}.${step.id}`;
   const chosen = current?.key === key;
   const [copying, setCopying] = useState(false);
+  const more = useRef<HTMLButtonElement>(null);
+  const focusAfter = useContext(FocusAfter);
   const scenes = useStudio((s) => s.project.story.scenes);
   const sceneIndex = scenes.findIndex((s) => s.id === scene.id);
   const last = index === scene.steps.length - 1;
@@ -170,6 +188,7 @@ function StepRow({
         <button
           type="button"
           className="lw-outline-pick"
+          data-outline-key={key}
           aria-current={chosen ? 'step' : undefined}
           onClick={() => store.getState().selectStory(key)}
         >
@@ -179,7 +198,7 @@ function StepRow({
         <Flag at={key} />
         <Menu position="bottom-end" withinPortal>
           <Menu.Target>
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Step ${key}: more`}>
+            <ActionIcon ref={more} variant="subtle" color="gray" size="sm" aria-label={`Step ${key}: more`}>
               <IconDots size={14} aria-hidden />
             </ActionIcon>
           </Menu.Target>
@@ -210,11 +229,15 @@ function StepRow({
         <NameForm
           label={`Label of the copy of ${key}`}
           placeholder="The copy's label"
-          onCancel={() => setCopying(false)}
+          onCancel={() => {
+            setCopying(false);
+            more.current?.focus();
+          }}
           onAdd={(label) => {
             const out = edit((p) => copyStep(p, key, { label }));
             if (!out) return false;
             store.getState().selectStory(out.result.key);
+            focusAfter(out.result.key, more);
             setCopying(false);
             return true;
           }}
@@ -230,6 +253,8 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
   const removeWithImages = useRemoveWithImages();
   const count = useStudio((s) => s.project.story.scenes.length);
   const [adding, setAdding] = useState(false);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const focusAfter = useContext(FocusAfter);
   const chosenStep = current?.sceneIndex === index ? current.step : null;
   const [start, setStart] = useState<'copy' | 'whole'>('copy');
   const chosen = current?.key === scene.id;
@@ -239,6 +264,7 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
         <button
           type="button"
           className="lw-outline-pick"
+          data-outline-key={scene.id}
           aria-current={chosen ? 'true' : undefined}
           onClick={() => store.getState().selectStory(scene.id)}
         >
@@ -252,6 +278,7 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
         </button>
         <Tooltip label="Add a step">
           <ActionIcon
+            ref={addButton}
             variant="subtle"
             color="gray"
             size="sm"
@@ -308,7 +335,10 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
         <NameForm
           label={`Label of the new step in scene ${scene.id}`}
           placeholder="The new step's label"
-          onCancel={() => setAdding(false)}
+          onCancel={() => {
+            setAdding(false);
+            addButton.current?.focus();
+          }}
           onAdd={(label) => {
             const copyFrom = start === 'copy' ? (chosenStep ?? scene.steps.at(-1) ?? null) : null;
             const after = chosenStep ? { after: chosenStep.id } : undefined;
@@ -322,6 +352,7 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
               : edit((p) => addStep(p, scene.id, { label, map: {} }, after));
             if (!out) return false;
             store.getState().selectStory(out.result.key);
+            focusAfter(out.result.key, addButton);
             setAdding(false);
             return true;
           }}
@@ -354,60 +385,83 @@ export function StoryOutline() {
   const scenes = useStudio((s) => s.project.story.scenes);
   const current = useCurrent();
   const [adding, setAdding] = useState(false);
+  const sceneButton = useRef<HTMLButtonElement>(null);
   const steps = scenes.reduce((n, s) => n + s.steps.length, 0);
   const warnings = useStoryWarnings();
   const flags = useMemo(
     () => new Map(warnings.flatMap((g) => (g.key ? [[g.key, g.issues.length] as const] : []))),
     [warnings],
   );
+  const nav = useRef<HTMLElement>(null);
+  const pending = useRef<{ key: string; fallback: RefObject<HTMLElement | null> } | null>(null);
+  const focusAfter = useCallback((key: string, fallback: RefObject<HTMLElement | null>) => {
+    pending.current = { key, fallback };
+  }, []);
+  // After each drawing of the outline: focus waiting for a scene or step just added goes to it.
+  useEffect(() => {
+    const wanted = pending.current;
+    if (!wanted) return;
+    pending.current = null;
+    const button = [...(nav.current?.querySelectorAll<HTMLElement>('[data-outline-key]') ?? [])].find(
+      (b) => b.dataset.outlineKey === wanted.key,
+    );
+    (button ?? wanted.fallback.current)?.focus();
+  });
   return (
     <Flags.Provider value={flags}>
-      <nav className="lw-outline" aria-label="Story outline">
-        <div className="lw-outline-top">
-          <Text size="sm" fw={600}>
-            Story
-          </Text>
-          <Text size="xs" c="dimmed" style={{ flex: 1 }}>
-            {plural(scenes.length, 'scene')}, {plural(steps, 'step')}
-          </Text>
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconPlus size={12} aria-hidden />}
-            onClick={() => setAdding(true)}
-          >
-            Scene
-          </Button>
-        </div>
-        <div className="lw-outline-body">
-          {scenes.length === 0 && !adding && (
-            <Text size="sm" c="dimmed" p="sm">
-              No story yet. A story is a list of scenes, each a list of steps: one keypress each. Add a scene,
-              then its steps, and set up what each step shows.
+      <FocusAfter.Provider value={focusAfter}>
+        <nav ref={nav} className="lw-outline" aria-label="Story outline">
+          <div className="lw-outline-top">
+            <Text size="sm" fw={600}>
+              Story
             </Text>
-          )}
-          <ol className="lw-outline-scenes">
-            {scenes.map((scene, i) => (
-              <SceneBlock key={scene.id} scene={scene} index={i} current={current} />
-            ))}
-          </ol>
-          {adding && (
-            <NameForm
-              label="Title of the new scene"
-              placeholder="The new scene's title"
-              onCancel={() => setAdding(false)}
-              onAdd={(title) => {
-                const after = current ? { after: current.scene.id } : undefined;
-                const out = edit((p) => addScene(p, { title }, after));
-                if (!out) return false;
-                store.getState().selectStory(out.result.id);
-                setAdding(false);
-                return true;
-              }}
-            />
-          )}
-        </div>
-      </nav>
+            <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+              {plural(scenes.length, 'scene')}, {plural(steps, 'step')}
+            </Text>
+            <Button
+              ref={sceneButton}
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconPlus size={12} aria-hidden />}
+              onClick={() => setAdding(true)}
+            >
+              Scene
+            </Button>
+          </div>
+          <div className="lw-outline-body">
+            {scenes.length === 0 && !adding && (
+              <Text size="sm" c="dimmed" p="sm">
+                No story yet. A story is a list of scenes, each a list of steps: one keypress each. Add a
+                scene, then its steps, and set up what each step shows.
+              </Text>
+            )}
+            <ol className="lw-outline-scenes">
+              {scenes.map((scene, i) => (
+                <SceneBlock key={scene.id} scene={scene} index={i} current={current} />
+              ))}
+            </ol>
+            {adding && (
+              <NameForm
+                label="Title of the new scene"
+                placeholder="The new scene's title"
+                onCancel={() => {
+                  setAdding(false);
+                  sceneButton.current?.focus();
+                }}
+                onAdd={(title) => {
+                  const after = current ? { after: current.scene.id } : undefined;
+                  const out = edit((p) => addScene(p, { title }, after));
+                  if (!out) return false;
+                  store.getState().selectStory(out.result.id);
+                  focusAfter(out.result.id, sceneButton);
+                  setAdding(false);
+                  return true;
+                }}
+              />
+            )}
+          </div>
+        </nav>
+      </FocusAfter.Provider>
     </Flags.Provider>
   );
 }

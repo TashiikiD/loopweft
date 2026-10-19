@@ -181,7 +181,7 @@ export function StoryWorkspace() {
               <ActionIcon
                 variant="subtle"
                 color="gray"
-                onClick={() => stage.current?.motion.landAll()}
+                onClick={() => stage.current?.skip()}
                 aria-label="Skip to the end of the motion"
               >
                 <IconPlayerSkipForward size={18} aria-hidden />
@@ -205,8 +205,8 @@ export function StoryWorkspace() {
               PageUp: () => go(-1),
               r: playInto,
               R: playInto,
-              s: () => stage.current?.motion.landAll(),
-              S: () => stage.current?.motion.landAll(),
+              s: () => stage.current?.skip(),
+              S: () => stage.current?.skip(),
             };
             const run = keyMap[event.key];
             if (run) {
