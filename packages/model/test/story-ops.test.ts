@@ -75,6 +75,9 @@ describe('naming scenes and steps', () => {
     const p = setScene(richProject(), 'S1', { title: 'Part 1. Growth' }).project;
     expect(resolveStep(p, 'Part 1. Growth.2').key).toBe('S1.2');
     expect(resolveStep(p, 'part 1. growth.The loop').key).toBe('S1.2');
+    // The dots are found by UTF-16 offset, as the title is cut: an emoji before them shifts nothing.
+    const sprout = setScene(richProject(), 'S1', { title: '🌱 Part 1. Growth' }).project;
+    expect(resolveStep(sprout, '🌱 Part 1. Growth.2').key).toBe('S1.2');
     // When no split names a step, the error is about the scene that was found.
     expect(refused(() => resolveStep(p, 'Part 1. Growth.9')).message).toBe(
       'No step "9" in scene S1 (it has S1.1, S1.2 and S1.3).',
@@ -406,6 +409,62 @@ describe('embedded images', () => {
     const gone = removeAsset(richProject(), 'chart', { cascade: true });
     expect(gone.project.assets).toEqual({});
     expect(stepOf(gone.project, 'S1.2').overlays.some((o) => o.type === 'image')).toBe(false);
+  });
+
+  it('refuses an image that is cut off or has no picture in it, whatever its type', () => {
+    const bytesOf = (uri: string) =>
+      Uint8Array.from(atob(uri.split(',')[1] as string), (c) => c.charCodeAt(0));
+    const uri = (type: string, bytes: ArrayLike<number>) =>
+      `data:image/${type};base64,${btoa(String.fromCharCode(...Array.from(bytes)))}`;
+    const not = (data: string) => refused(() => addAsset(richProject(), { data })).message;
+    // Whole 1×1 images, written by an image library (and an SVG by hand), are taken.
+    const whole = {
+      png: TINY_PNG,
+      jpeg: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAABP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AC//Z',
+      gif: 'data:image/gif;base64,R0lGODdhAQABAIEAAA9/agAAAAAAAAAAACwAAAAAAQABAAAIBAABBAQAOw==',
+      webp: 'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQvz5Urf+BiOh/AAA=',
+      svg: uri(
+        'svg+xml',
+        new TextEncoder().encode(
+          '<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>\n<!-- end -->\n',
+        ),
+      ),
+      svgClosed: uri('svg+xml', new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')),
+    };
+    for (const data of Object.values(whole))
+      expect(addAsset(richProject(), { data }).project.assets.image).toBe(data);
+
+    // Only a header: the start of a JPEG, a PNG's signature; through both operations.
+    const stops = (type: string) => `The image data is not a whole ${type} image: it stops before its end.`;
+    expect(not('data:image/jpeg;base64,/9j/')).toBe(stops('JPEG'));
+    expect(not('data:image/png;base64,iVBORw0KGgo=')).toBe(stops('PNG'));
+    expect(refused(() => setAsset(richProject(), 'chart', 'data:image/jpeg;base64,/9j/')).message).toBe(
+      stops('JPEG'),
+    );
+    expect(
+      refused(() => setAsset(richProject(), 'chart', 'data:image/png;base64,iVBORw0KGgo=')).message,
+    ).toBe(stops('PNG'));
+
+    // Cut off before the end each format marks: PNG's IEND, JPEG's end of image, GIF's trailer, the size WebP
+    // states, SVG's closing tag.
+    const cut = (data: string, type: string, drop: number) => {
+      const bytes = bytesOf(data);
+      return uri(type, bytes.subarray(0, bytes.length - drop));
+    };
+    expect(not(cut(whole.png, 'png', 4))).toBe(stops('PNG'));
+    expect(not(cut(whole.jpeg, 'jpeg', 2))).toBe(stops('JPEG'));
+    expect(not(cut(whole.gif, 'gif', 1))).toBe(stops('GIF'));
+    expect(not(cut(whole.webp, 'webp', 4))).toBe(stops('WEBP'));
+    expect(not(cut(whole.svg, 'svg+xml', 30))).toBe(stops('SVG'));
+
+    // Whole, but no picture in it: a PNG without its image data, a GIF without an image.
+    const png = bytesOf(whole.png); // signature (8), IHDR (25), IDAT (25), IEND (12)
+    expect(not(uri('png', [...png.subarray(0, 33), ...png.subarray(58)]))).toBe(
+      'The image data is not a whole PNG image: it has no picture in it.',
+    );
+    expect(not(uri('gif', [...new TextEncoder().encode('GIF89a'), 1, 0, 1, 0, 0, 0, 0, 0x3b]))).toBe(
+      'The image data is not a whole GIF image: it has no picture in it.',
+    );
   });
 });
 

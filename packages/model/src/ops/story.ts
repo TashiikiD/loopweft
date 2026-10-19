@@ -102,7 +102,9 @@ function stepIn(project: Project, sceneRef: string, stepRef: string): FoundStep 
  * that names two different steps that way is refused as ambiguous.
  */
 export function resolveStep(project: Project, ref: string): FoundStep {
-  const dots = [...ref].flatMap((ch, i) => (ch === '.' && i > 0 && i < ref.length - 1 ? [i] : []));
+  // Offsets in UTF-16 units, as `slice` counts them (an emoji before the dot is two).
+  const dots: number[] = [];
+  for (let i = 1; i < ref.length - 1; i++) if (ref[i] === '.') dots.push(i);
   if (dots.length === 0) {
     throw new OpError(`Name a step by its scene and its id, e.g. "S05.3" (not "${ref}").`, 'usage');
   }
