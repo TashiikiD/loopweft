@@ -14,6 +14,7 @@
   "dependencies": {
     "@loopweft/layout": "*",
     "@loopweft/model": "*",
+    "@loopweft/player": "*",
     "commander": "15.0.0"
   }
 }

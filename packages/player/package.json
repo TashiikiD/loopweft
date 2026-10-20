@@ -14,6 +14,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./build": "./build/template.ts",
     "./player.css": "./src/player.css"
   }
 }

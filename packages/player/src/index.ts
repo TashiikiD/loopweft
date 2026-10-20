@@ -56,6 +56,18 @@ export {
   totalSteps,
 } from './deck.ts';
 export {
+  EMBEDDED_FONTS,
+  type ExportImage,
+  type ExportOptions,
+  embeddedProject,
+  exportHtml,
+  type HtmlExport,
+  hasNotes,
+  SIZE_WARNING_BYTES,
+  SLOT,
+  withoutNotes,
+} from './export.ts';
+export {
   isTypingTarget,
   JumpBuffer,
   type KeyAction,
@@ -103,6 +115,7 @@ export {
   sanitizeShowState,
 } from './show.ts';
 export { type StageDriverOptions, stageDriver } from './stage.ts';
+export { presenterWords, type StartOptions, startPage } from './start.ts';
 export {
   browserStorage,
   type KeyValue,

@@ -1,0 +1,225 @@
+/*
+ * The start page of a one-file export. Source: PolycrisisPresentation src/styles/launcher.css @ 3e5da10
+ * (private), with the "lp-" prefix.
+ */
+.lp-start-body {
+  min-height: 100%;
+  background:
+    radial-gradient(900px 600px at 70% 10%, rgba(112, 226, 197, 0.08), transparent 70%), var(--lp-bg);
+  overflow: auto;
+}
+
+.lp-start {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 56px 16px 64px;
+  font: 16px / 1.5 var(--lp-sans);
+  color: var(--lp-text);
+}
+
+.lp-start-kicker {
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lp-glow);
+}
+
+.lp-start h1 {
+  margin: 10px 0 4px;
+  font-family: var(--lp-serif);
+  font-weight: 400;
+  font-size: clamp(40px, 6vw, 68px);
+  line-height: 1.04;
+}
+
+.lp-start-meta {
+  margin: 0;
+  color: var(--lp-faint);
+  font-size: 14px;
+}
+
+.lp-start-intro {
+  max-width: 760px;
+  margin: 18px 0 0;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.lp-start-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 26px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 210, 122, 0.55);
+  background: rgba(255, 210, 122, 0.07);
+  font-size: 15px;
+}
+
+.lp-start-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffd27a;
+  box-shadow: 0 0 10px #ffd27a;
+}
+
+.lp-start-reset {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #ffd27a;
+  background: rgba(255, 210, 122, 0.14);
+  color: #ffe2a8;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lp-start-reset:hover,
+.lp-start-reset:focus-visible {
+  background: rgba(255, 210, 122, 0.26);
+  outline: none;
+}
+
+.lp-start-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 30px 0;
+}
+
+.lp-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--lp-line-strong);
+  background: var(--lp-surface);
+  color: var(--lp-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms,
+    transform 150ms;
+}
+
+.lp-start-card:hover,
+.lp-start-card:focus-visible {
+  border-color: rgba(112, 226, 197, 0.7);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.lp-start-card.primary {
+  background: linear-gradient(180deg, rgba(112, 226, 197, 0.12), var(--lp-surface));
+  border-color: rgba(112, 226, 197, 0.5);
+}
+
+.lp-start-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.lp-start-card p {
+  margin: 0;
+  flex: 1;
+  color: var(--lp-muted);
+}
+
+.lp-start-go {
+  margin-top: 8px;
+  color: var(--lp-glow);
+  font-weight: 600;
+}
+
+.lp-start-steps {
+  margin-top: 18px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--lp-line);
+  background: rgba(14, 42, 34, 0.6);
+}
+
+.lp-start-steps h2,
+.lp-start-refs h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-muted);
+}
+
+.lp-start-steps ol {
+  margin: 0;
+  padding-left: 1.3em;
+  line-height: 1.9;
+}
+
+.lp-start-keys {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 18px;
+  margin: 0;
+}
+
+.lp-start-keys dt {
+  color: var(--lp-glow);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lp-start-keys dd {
+  margin: 0;
+  color: var(--lp-muted);
+}
+
+.lp-start-refs {
+  margin-top: 28px;
+}
+
+.lp-ref-list,
+.lp-ref-parts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-ref-list > li {
+  padding: 12px 0;
+  border-top: 1px solid var(--lp-line);
+}
+
+.lp-ref-parts {
+  margin-top: 8px;
+  padding-left: 28px;
+}
+
+/* APA's hanging indent. */
+.lp-ref-apa {
+  margin: 0;
+  padding-left: 28px;
+  text-indent: -28px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.lp-ref-apa a {
+  color: var(--lp-glow);
+}
+
+.lp-ref-about {
+  margin: 4px 0 0 28px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lp-faint);
+}
+
+@media (max-width: 560px) {
+  .lp-start-keys {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

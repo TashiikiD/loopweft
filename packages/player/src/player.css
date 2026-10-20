@@ -4,6 +4,7 @@
  * whatever the stage's theme, and every class is prefixed "lp-" so the player can sit inside the Studio.
  */
 @import "./console.css";
+@import "./start.css";
 
 .lp-page,
 .lp-overlay {

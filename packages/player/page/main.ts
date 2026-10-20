@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
-// The player's page. One page, several views, chosen by the address: ?view=presenter (the presenter console),
-// ?view=audience (the slides, kept in step with the console), ?view=audience&rehearse (the slides alone, with
-// rehearsal notes on N), ?view=audience&capture (stills, at the step the address names). The project is embedded in the page (the one-file export); served on
+// The player's page. One page, several views, chosen by the address: none (the start page), ?view=presenter
+// (the presenter console), ?view=audience (the slides, kept in step with the console), ?view=audience&rehearse
+// (the slides alone, with rehearsal notes on N), ?view=audience&capture (stills, at the step the address names). The project is embedded in the page (the one-file export); served on
 // this machine, the page has none and plays the polycrisis example.
 import '@fontsource-variable/inter/opsz.css';
 import '@fontsource-variable/fraunces/opsz.css';
@@ -10,16 +10,13 @@ import '@loopweft/render/render.css';
 import '../src/player.css';
 import { issueLines, readProject } from '@loopweft/model';
 import { h } from '@loopweft/render';
-import { presentationId, startAudience, startConsole } from '../src/index.ts';
+import { embeddedProject, presentationId, startAudience, startConsole, startPage } from '../src/index.ts';
+
+/** True on the page served on this machine (npm run player), false in a built page: see vite.config.ts. */
+declare const __PLAYER_SERVED__: boolean;
 
 const host = document.getElementById('player') as HTMLElement;
 const params = new URLSearchParams(location.search);
-
-/** The page's own project, if the export put one in it. */
-function embedded(): string | null {
-  const text = document.getElementById('loopweft-project')?.textContent?.trim();
-  return text ? text : null;
-}
 
 function problem(title: string, details: string): void {
   document.body.replaceChildren(
@@ -33,9 +30,11 @@ function problem(title: string, details: string): void {
 }
 
 async function start(): Promise<void> {
+  const own = embeddedProject(document);
   const text =
-    embedded() ??
-    (import.meta.env.DEV ? (await import('../../../examples/polycrisis.loopweft?raw')).default : null);
+    own?.text ??
+    (__PLAYER_SERVED__ ? (await import('../../../examples/polycrisis.loopweft?raw')).default : null);
+  const notes = own ? own.notes : true;
   if (!text) {
     problem('This page holds no project to present.', '');
     return;
@@ -62,14 +61,13 @@ async function start(): Promise<void> {
     });
     return;
   }
-  host.className = 'lp-audience';
-  startAudience({
-    host,
-    project,
-    show,
-    rehearse: params.get('view') !== 'audience' || params.has('rehearse'),
-    capture: params.has('capture'),
-  });
+  if (params.get('view') === 'audience') {
+    host.className = 'lp-audience';
+    startAudience({ host, project, show, rehearse: params.has('rehearse'), capture: params.has('capture') });
+    return;
+  }
+  document.body.classList.add('lp-start-body');
+  startPage({ host, project, show, notes });
 }
 
 start().catch((err: unknown) => {

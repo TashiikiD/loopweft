@@ -28,6 +28,12 @@ export const BROWSERS = [
   '/usr/bin/microsoft-edge',
 ];
 
+/** This computer's Chrome, or its Edge, if installed (for tests that open a file in each). */
+export function findBrowserNamed(name: 'chrome' | 'edge'): string | null {
+  const word = name === 'edge' ? /edge/i : /chrome/i;
+  return BROWSERS.find((p) => word.test(p) && existsSync(p)) ?? null;
+}
+
 /** Chrome or Edge: LOOPWEFT_CHROME if set, else the first one installed. */
 export function findBrowser(): string {
   const browser = [process.env.LOOPWEFT_CHROME, ...BROWSERS].find((p) => p && existsSync(p));

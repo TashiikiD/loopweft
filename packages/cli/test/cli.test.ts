@@ -33,7 +33,7 @@ const env = { today: '2026-10-18', fetch: recordedFetch };
 async function run(...args: string[]): Promise<{ code: number; out: string; err: string }> {
   let out = '';
   let err = '';
-  const file = (arg: string) => (/\.(loopweft|txt|csv|json|xlsx|png)$/.test(arg) ? join(dir, arg) : arg);
+  const file = (arg: string) => (/\.(loopweft|txt|csv|json|xlsx|png|html)$/.test(arg) ? join(dir, arg) : arg);
   const code = await main(args.map(file), { out: (t) => (out += t), err: (t) => (err += t) }, env);
   const local = (text: string) =>
     text
@@ -431,6 +431,7 @@ describe('the contract for agents', () => {
       'validate',
       'add',
       'import',
+      'export',
       'var list',
       'var add',
       'var set',
@@ -1165,5 +1166,47 @@ describe('placing scenes and steps', () => {
     await run('story', 'step', 'add', file, 'One', '--label', 'Two.1', '--first');
     expect((await run('story', 'step', 'move', file, 'S1.3', '--after', 'Two.1')).code).toBe(0);
     expect(labels(file, 0)).toEqual(['Two.1', 'New', 'b', 'One.1', 'Just before', 'Part 2.b']);
+  });
+});
+
+describe('export', () => {
+  copyFileSync(
+    fileURLToPath(new URL('../../../examples/polycrisis.loopweft', import.meta.url)),
+    join(dir, 'talk.loopweft'),
+  );
+
+  it('writes the project as one HTML file, the same bytes each time, and says what is in it', async () => {
+    const { code, out } = await run('export', 'talk.loopweft', '--html');
+    expect(code).toBe(0);
+    expect(out).toMatch(
+      /^Wrote talk\.html \(1\.\d MB\): 11 scenes, 70 steps, 14 sources; speaker notes included\.\n$/,
+    );
+    const first = readFileSync(join(dir, 'talk.html'), 'utf8');
+    expect(first).toContain('data-notes="included"');
+    expect((await run('export', 'talk.loopweft', '--html', '-o', 'again.html')).code).toBe(0);
+    expect(readFileSync(join(dir, 'again.html'), 'utf8')).toBe(first);
+  });
+
+  it('leaves the notes out on request, and reports in JSON', async () => {
+    const { code, doc } = await json(
+      'export',
+      'talk.loopweft',
+      '--html',
+      '--no-notes',
+      '-o',
+      'audience.html',
+    );
+    expect(code).toBe(0);
+    expect(doc).toMatchObject({ ok: true, format: 'html', notes: false, fontsLeftOut: [], warnings: [] });
+    expect(doc.images).toEqual([{ id: 'richards_2021_fig5', type: 'image/webp', bytes: 204394 }]);
+    expect(readFileSync(join(dir, 'audience.html'), 'utf8')).toContain('data-notes="left-out"');
+  });
+
+  it('asks for the format, and never replaces a file unless told to', async () => {
+    expect((await run('export', 'talk.loopweft')).code).toBe(2);
+    const again = await run('export', 'talk.loopweft', '--html');
+    expect(again.code).toBe(2);
+    expect(again.err).toContain('talk.html already exists; choose another name, or replace it with --force.');
+    expect((await run('export', 'talk.loopweft', '--html', '--force')).code).toBe(0);
   });
 });

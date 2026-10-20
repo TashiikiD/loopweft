@@ -38,7 +38,8 @@ presenter and the exports come in the next phases.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
 - [Importing maps](docs/import.md), [templates](docs/templates.md), [loops, ripples and paths](docs/analysis.md),
-  [sources and citations](docs/sources.md), and [telling a story](docs/story.md)
+  [sources and citations](docs/sources.md), [telling a story](docs/story.md), and
+  [presenting and sharing it](docs/present.md)
 - [The polycrisis example](examples/README.md)
 
 ## Roadmap
@@ -68,13 +69,13 @@ text, in the custom field "DataViz sources".
 | Path | What it holds |
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
-| `docs/` | The format specification, how imports work, the templates, what loops, ripples and paths mean, how sources and citations work, and how a story is told and checked |
+| `docs/` | The format specification, how imports work, the templates, what loops, ripples and paths mean, how sources and citations work, how a story is told and checked, and how it is presented and shared |
 | `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
 | `apps/studio` | The Studio, where maps are drawn and edited ([try it](https://tashiikid.github.io/loopweft/studio/)) |
 | `apps/viewer` | The viewer that plays a project's story ([the example](https://tashiikid.github.io/loopweft/demo/)) |
-| `packages/player` | The presentation runtime (Phase 5, being built): the deck, show state, keys, clock and pace, and the link between a presentation's windows |
+| `packages/player` | The presentation runtime (Phase 5, being built): the audience window, the presenter console, rehearsal notes, the start page and the one-file HTML export |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
 | `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |

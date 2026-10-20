@@ -37,6 +37,7 @@ import {
   varRemoveCommand,
   varSetCommand,
 } from './commands.ts';
+import { exportCommand } from './export.ts';
 import { importCommand } from './import.ts';
 import {
   citeAddCommand,
@@ -160,6 +161,17 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--force', 'replace the output file if it exists')
     .option('--dry-run', 'read and check the file, without writing')
     .action((input: string, o) => run(() => importCommand(env(), input, o))());
+
+  program
+    .command('export <file>')
+    .description(
+      'the project as one HTML file that opens by double-click, offline: a start page, the slides, the presenter console and the sources',
+    )
+    .option('--html', 'one HTML file (the only format so far)')
+    .option('-o, --out <file>', 'the file to write (default: the project name with .html)')
+    .option('--no-notes', 'leave out the speaker notes, the script and the cues (an audience-only copy)')
+    .option('--force', 'replace the output file if it exists')
+    .action((file: string, o) => run(() => exportCommand(file, o))());
 
   const variable = program.command('var').description('variables: list, add, set, rm');
   variable

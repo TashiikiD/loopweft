@@ -44,9 +44,18 @@ Built so far (Phase 5, in slices):
   It answers an audience window that has no copy of the project (the Studio's) with the project.
 - `stageDriver`: how a change of the show moves a stage, shared by the audience window and the console's
   preview.
+- `startPage`: what a one-file export opens on: the title, what the file holds, a saved place and "Start again",
+  the console and the slides, the keys, and every source as an APA list with the scenes citing it.
+- `exportHtml(project, template, { notes })`: the one-file HTML. The project goes into the page's JSON slot
+  (every `<` escaped, so nothing in it can close the element), with or without the presenter's words. The
+  report gives the size, the images and the fonts not carried, and warns past 20 MB. Pure: the same project
+  and template give the same bytes.
+- `build/template.ts` (`@loopweft/player/build`, Node only): `playerTemplate()` builds the page with Vite in
+  memory and inlines its script, styles and fonts into one HTML file with an empty slot. The command line
+  (`loopweft export --html`) and the tests use it.
 - The page (`page/`): `npm run player` serves it on this machine with the polycrisis example:
+  - with no view: the start page;
   - `?view=presenter`: the console;
-  - `?view=audience`: the slides kept in step with other windows;
-  - with nothing else: rehearsal.
+  - `?view=audience`: the slides, kept in step with other windows (`&rehearse`: alone, with notes on N).
 
-Still to come in Phase 5: the start page and the one-file HTML.
+See [presenting and sharing](../../docs/present.md).
