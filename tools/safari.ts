@@ -8,14 +8,20 @@
 // words), the rehearsal notes, the presenter console and the audience window the console opens. WebDriver's
 // Safari refuses files on disk ("outside the sandbox"), so those checks run on the file served from this
 // machine; then the file is opened from disk as a person opens it (open -a Safari), and screens of the start
-// page, the slides and the console are kept for a person to look at. Screens and a report (report.md, report.json) go to the out folder. It fails when
-// a check marked required fails; the others are reported.
+// page, the slides and the console are kept for a person to look at: nothing reads those screens, so they are
+// reported as made, not as passed. Screens and a report (report.md, report.json) go to the out folder. It fails
+// when a check marked required fails; the others are reported.
+//
+// On a Mac of your own it touches only what it makes: folders of its own (in the temporary folder, Downloads
+// and the home folder, each with a fresh name, removed at the end), a driver on a free port, and the Safari
+// tabs it opens (it never quits Safari).
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readProject } from '../packages/model/src/index.ts';
+import { readProject, referenceList } from '../packages/model/src/index.ts';
 import { playerTemplate } from '../packages/player/build/template.ts';
 import { exportHtml } from '../packages/player/src/export.ts';
 import { serve } from './serve.ts';
@@ -31,8 +37,24 @@ mkdirSync(out, { recursive: true });
 // WebDriver's key codes (the W3C spec's private-use characters).
 const KEY = { pageDown: String.fromCharCode(0xe00f), arrowRight: String.fromCharCode(0xe014) };
 const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
-const PORT = 4445;
-const base = `http://127.0.0.1:${PORT}`;
+/** The driver's address, once it runs on a port of its own. */
+let base = '';
+/** The longest a single WebDriver command may take before the run stops with its name. */
+const COMMAND_MS = 60_000;
+
+/** A port no other program is listening on, as the system hands one out. */
+function freePort(): Promise<number> {
+  return new Promise((done, fail) => {
+    const server = createServer();
+    server.once('error', fail);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close(() =>
+        typeof address === 'object' && address ? done(address.port) : fail(new Error('no port')),
+      );
+    });
+  });
+}
 
 interface Result {
   check: string;
@@ -84,20 +106,28 @@ async function byDoubleClick(file: string): Promise<void> {
         const opened = spawnSync('open', ['-a', 'Safari', target], { encoding: 'utf8' });
         if (opened.status !== 0) throw new Error(opened.stderr.trim() || `open failed (${opened.status})`);
         await sleep(8000);
-        spawnSync('screencapture', ['-x', join(out, `${screen}.png`)]);
-        return `opened ${basename(target)}${view ? `, which goes on to ${view}` : ''}; the screen shows what Safari drew`;
+        const png = join(out, `${screen}.png`);
+        const captured = spawnSync('screencapture', ['-x', png], { encoding: 'utf8' });
+        if (captured.status !== 0 || !existsSync(png) || statSync(png).size === 0)
+          throw new Error(captured.stderr?.trim() || `screencapture made no screen (${captured.status})`);
+        return `screen made (${statSync(png).size} bytes) after opening ${basename(target)}${view ? `, which goes on to ${view}` : ''}; what it shows is not checked: look at it`;
       },
     );
   }
-  spawnSync('pkill', ['-x', 'Safari']);
 }
 
 async function wd(method: string, path: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: { 'content-type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${base}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(COMMAND_MS),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  } catch (error) {
+    throw new Error(`${method} ${path}: no answer from safaridriver (${(error as Error).message})`);
+  }
   const json = (await response.json()) as { value: unknown };
   if (!response.ok) {
     const v = json.value as { error?: string; message?: string };
@@ -111,28 +141,44 @@ async function main(): Promise<void> {
   if (!read.ok) throw new Error('The example does not open.');
   const made = exportHtml(read.project, await playerTemplate(), { notes: true });
   const name = 'Global Polycrisis.html';
-  // The file, in a temporary folder and where a person keeps files (each removed again at the end).
-  const folders = [
-    {
-      key: 'temporary',
-      label: 'a temporary folder',
-      path: mkdtempSync(join(tmpdir(), 'loopweft-safari-html-')),
-    },
-    { key: 'downloads', label: 'Downloads', path: join(homedir(), 'Downloads', 'loopweft-safari-html') },
-    { key: 'home', label: 'the home folder', path: join(homedir(), 'loopweft-safari-html') },
+  // The file, in a temporary folder and where a person keeps files: each a new folder of this run's own
+  // (a fresh name, never one that was there), and only those are removed at the end.
+  const places = [
+    { key: 'temporary', label: 'a temporary folder', parent: tmpdir() },
+    { key: 'downloads', label: 'Downloads', parent: join(homedir(), 'Downloads') },
+    { key: 'home', label: 'the home folder', parent: homedir() },
   ];
-  for (const dir of folders) {
-    mkdirSync(dir.path, { recursive: true });
-    writeFileSync(join(dir.path, name), made.html);
-  }
-
-  const driver: ChildProcess = spawn('safaridriver', ['--port', String(PORT)], { stdio: 'inherit' });
+  const folders: Array<{ key: string; label: string; path: string }> = [];
+  let driver: ChildProcess | null = null;
   let served: Awaited<ReturnType<typeof serve>> | null = null;
   let session = '';
   try {
+    for (const place of places) {
+      if (!existsSync(place.parent)) continue;
+      const path = mkdtempSync(join(place.parent, 'loopweft-safari-'));
+      folders.push({ key: place.key, label: place.label, path });
+      writeFileSync(join(path, name), made.html);
+    }
+
+    // The driver, on a free port; if it stops, this run stops rather than talk to another one.
+    const port = await freePort();
+    base = `http://127.0.0.1:${port}`;
+    const started: ChildProcess = spawn('safaridriver', ['--port', String(port)], { stdio: 'inherit' });
+    driver = started;
+    let ended = '';
+    started.once('error', (error) => {
+      ended = error.message;
+    });
+    started.once('exit', (code, signal) => {
+      ended = `it stopped (${signal ?? code})`;
+    });
     for (let i = 0; ; i++) {
+      if (ended)
+        throw new Error(
+          `safaridriver did not start: ${ended}. On your own Mac, run "safaridriver --enable" once.`,
+        );
       if (
-        await fetch(`${base}/status`).then(
+        await fetch(`${base}/status`, { signal: AbortSignal.timeout(2000) }).then(
           (r) => r.ok,
           () => false,
         )
@@ -216,28 +262,43 @@ async function main(): Promise<void> {
       const h1 = await run<string>('return document.querySelector("h1").textContent');
       const meta = await run<string>('return document.querySelector(".lp-start-meta").textContent');
       const refs = await run<number>('return document.querySelectorAll(".lp-ref-list > li").length');
-      if (!h1.startsWith('Global Polycrisis')) throw new Error(`the title reads "${h1}"`);
+      const works = referenceList(read.project).length;
+      if (h1 !== read.project.meta.title) throw new Error(`the title reads "${h1}"`);
       if (meta !== '11 scenes · 70 steps · 14:00 in all') throw new Error(`the counts read "${meta}"`);
+      if (refs !== works) throw new Error(`${refs} sources listed, of ${works}`);
       return `${h1}; ${meta}; ${refs} sources`;
     });
     await shot('1-start');
 
-    await check('the slides: the stage, keys and categories in words', true, async () => {
-      await go(`${page}?view=audience&rehearse`);
+    await check('the slides: the stage, each key, and categories in words', true, async () => {
+      // From a step with more after it, so that each key has somewhere to go.
+      await go(`${page}?view=audience&rehearse#S01.1`);
       await until('return !!document.querySelector(".lw-stage .map-label")', 'the stage');
-      const before = await hash();
+      await until('return location.hash === "#S01.1"', 'the slides at S01.1');
       await press(KEY.pageDown);
+      const afterPageDown = await hash();
+      if (afterPageDown !== '#S01.2') throw new Error(`PageDown went from #S01.1 to ${afterPageDown}`);
       await press(KEY.arrowRight);
-      const after = await hash();
-      if (after === before) throw new Error(`the keys did not move the slides (${before})`);
+      const afterArrow = await hash();
+      if (afterArrow !== '#S01.3') throw new Error(`→ went from #S01.2 to ${afterArrow}`);
       await press('c');
       await until('return !!document.querySelector(".lw-stage.category-words")', 'categories in words');
       await sleep(1500);
-      return `${before} → ${after}; categories named`;
+      // The words themselves, under labels on show: the example's category names, not only the mode's switch.
+      const names = read.project.types.categories.map((c) => c.name);
+      const shown = await run<string[]>(
+        `return [...document.querySelectorAll('.map-label-category:not([hidden])')]
+          .filter((el) => Number(getComputedStyle(el.parentElement).opacity) > 0 && Number(getComputedStyle(el).opacity) > 0 && el.getClientRects().length > 0)
+          .map((el) => el.textContent)`,
+      );
+      const named = [...new Set(shown.filter((t) => names.includes(t)))];
+      if (named.length === 0)
+        throw new Error(`no category named under a label on show (${shown.slice(0, 3).join(', ')})`);
+      return `#S01.1 → PageDown ${afterPageDown} → → ${afterArrow}; categories named: ${named.join(', ')}`;
     });
     await shot('2-slides');
 
-    await check('rehearsal notes on N', false, async () => {
+    await check('rehearsal notes on N', true, async () => {
       await press('n');
       await until('return !document.querySelector(".lp-rehearsal").hidden', 'the notes');
       const heading = await run<string>('return document.querySelector(".lp-rehearsal h2").textContent');
@@ -261,7 +322,7 @@ async function main(): Promise<void> {
     });
     await shot('4-console');
 
-    await check('the audience window the console opens, kept in step', false, async () => {
+    await check('the audience window the console opens, kept in step', true, async () => {
       const opener = (await wd('GET', `${s}/window`)) as string;
       const button = (await wd('POST', `${s}/element`, {
         using: 'xpath',
@@ -278,23 +339,30 @@ async function main(): Promise<void> {
       await wd('POST', `${s}/window`, { handle: opener });
       await press(KEY.pageDown);
       const console_ = await hash();
+      if (console_ === there) throw new Error(`the console did not move from ${there}`);
       await wd('POST', `${s}/window`, { handle: audience });
-      await sleep(800);
-      const followed = await hash();
-      await shot('5-audience-window');
-      if (followed !== console_)
+      await until(
+        `return decodeURIComponent(location.hash) === ${JSON.stringify(console_)}`,
+        'the audience window to follow',
+      ).catch(async () => {
         throw new Error(
-          `the console went to ${console_}, the audience window stayed at ${followed} (it opened at ${there})`,
+          `the console went to ${console_}, the audience window stayed at ${await hash()} (it opened at ${there})`,
         );
+      });
+      await shot('5-audience-window');
       return `opened at ${there}; the console moved to ${console_} and the audience window followed`;
     });
   } finally {
     if (session) await wd('DELETE', `/session/${session}`).catch(() => {});
-    driver.kill();
+    driver?.kill();
     await served?.close();
-    const home = folders.find((f) => f.key === 'home');
-    if (home) await byDoubleClick(join(home.path, name));
-    for (const dir of folders) rmSync(dir.path, { recursive: true, force: true });
+    try {
+      const home = folders.find((f) => f.key === 'home');
+      if (home) await byDoubleClick(join(home.path, name));
+    } finally {
+      // Only the folders this run made, with what it wrote in them.
+      for (const dir of folders) rmSync(dir.path, { recursive: true, force: true });
+    }
   }
 }
 
