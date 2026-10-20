@@ -4,6 +4,7 @@ import {
   deckOf,
   type Envelope,
   initialShowState,
+  type KeyValue,
   LEAD_MS,
   Link,
   nextPos,
@@ -248,6 +249,56 @@ describe('the saved place', () => {
     here.save('clock', { running: false, startedAt: null, accumulatedMs: 60_000 });
     resetSession(new PresentationStore(SHOW, storage));
     expect(here.load('clock')).toBeNull();
+  });
+
+  it('lets storage count again once it works and another window has saved or reset there', () => {
+    const clock = (ms: number) => ({ running: false, startedAt: null, accumulatedMs: ms });
+    const shared = new MemoryStorage();
+    // A storage that refuses to write (full), then writes again; in the second run it cannot even be read at
+    // first.
+    for (const unreadable of [false, true]) {
+      shared.items.clear();
+      let broken = true;
+      const refuse = (): never => {
+        throw new Error('Storage is full.');
+      };
+      const flaky: KeyValue = {
+        getItem: (k) => (broken && unreadable ? refuse() : shared.getItem(k)),
+        setItem: (k, v) => (broken ? refuse() : shared.setItem(k, v)),
+        removeItem: (k) => shared.removeItem(k),
+      };
+      const audience = new PresentationStore(SHOW, flaky);
+      audience.save('clock', clock(10_000));
+      expect(audience.load('clock')).toEqual(clock(10_000));
+      broken = false;
+      // Storage works again, and holds nothing newer: the kept clock is still the one.
+      expect(audience.load('clock')).toEqual(clock(10_000));
+      // The console saves a newer clock, then resets it: this window sees both.
+      const presenter = new PresentationStore(SHOW, flaky);
+      presenter.save('clock', clock(60_000));
+      expect(audience.load('clock')).toEqual(clock(60_000));
+      presenter.remove('clock');
+      expect(audience.load('clock')).toBeNull();
+    }
+  });
+
+  it('saves nothing that is not JSON, without throwing, and keeps what was saved', () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const refuse = (): never => {
+      throw new Error('blocked');
+    };
+    for (const storage of [
+      new MemoryStorage(),
+      null,
+      { getItem: refuse, setItem: refuse, removeItem: refuse },
+    ]) {
+      const store = new PresentationStore(SHOW, storage);
+      store.save('show', { a: 1 });
+      for (const bad of [{ big: 1n }, cyclic, undefined, () => 1])
+        expect(() => store.save('show', bad)).not.toThrow();
+      expect(store.load('show')).toEqual({ a: 1 });
+    }
   });
 });
 

@@ -36,17 +36,25 @@ export function presentationId(text: string): string {
 
 export type StoreKey = 'show' | 'clock' | 'sceneEntry' | 'presenter' | 'audience';
 
+/** A save the browser's storage did not take: kept by the window while it is open. */
+interface Kept {
+  /** What the window saved, as JSON. */
+  text: string;
+  /** What storage held under that name since (undefined while it could not be read). */
+  under: string | null | undefined;
+}
+
 /**
  * One presentation's saved state. Every access is guarded: the show runs the same without storage. Where the
  * browser's storage is missing, blocked or full, the store keeps what this window saved for as long as it is
- * open, so reading it back (the clock, when the console leaves) finds it; where storage works, it is what
- * counts, so a reset made in another window (which removes the saved place) is seen here.
+ * open, so reading it back (the clock, when the console leaves) finds it. Once storage can be read and holds
+ * something else under that name (another window saved or reset it), storage counts again, so a reset made in
+ * another window is seen here.
  */
 export class PresentationStore {
   readonly id: string;
   readonly #storage: KeyValue | null;
-  /** What this window saved that the browser's storage did not take, as JSON. */
-  readonly #kept = new Map<StoreKey, string>();
+  readonly #kept = new Map<StoreKey, Kept>();
 
   constructor(id: string, storage: KeyValue | null = browserStorage()) {
     this.id = id;
@@ -62,9 +70,26 @@ export class PresentationStore {
     return this.#key(name);
   }
 
-  load(name: StoreKey): unknown {
+  /** What storage holds under `name`, or undefined where it cannot be read. */
+  #read(name: StoreKey): string | null | undefined {
     try {
-      const raw = this.#kept.get(name) ?? this.#storage?.getItem(this.#key(name));
+      return this.#storage ? this.#storage.getItem(this.#key(name)) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  load(name: StoreKey): unknown {
+    const stored = this.#read(name);
+    const kept = this.#kept.get(name);
+    let raw = stored;
+    if (kept) {
+      // Unreadable when it was kept: from the first time storage can be read, a change there counts.
+      if (kept.under === undefined) kept.under = stored;
+      if (stored === undefined || stored === kept.under) raw = kept.text;
+      else this.#kept.delete(name);
+    }
+    try {
       return raw ? (JSON.parse(raw) as unknown) : null;
     } catch {
       return null;
@@ -72,7 +97,13 @@ export class PresentationStore {
   }
 
   save(name: StoreKey, value: unknown): void {
-    const text = JSON.stringify(value);
+    let text: string | undefined;
+    try {
+      text = JSON.stringify(value);
+    } catch {
+      // Not JSON (a cycle, a BigInt): nothing is saved, and what was saved stays.
+    }
+    if (typeof text !== 'string') return;
     try {
       if (this.#storage) {
         this.#storage.setItem(this.#key(name), text);
@@ -83,7 +114,7 @@ export class PresentationStore {
       // Blocked or full: kept below.
     }
     // Not needed to present (the show runs without it); this window keeps it while it is open.
-    this.#kept.set(name, text);
+    this.#kept.set(name, { text, under: this.#read(name) });
   }
 
   remove(name: StoreKey): void {
