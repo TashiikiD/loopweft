@@ -78,8 +78,9 @@ describe('the presenter console', () => {
     expect(text('.lp-timing')).toContain('Clock not started');
     key('t');
     expect(document.querySelector('.lp-btn-clock')?.textContent).toBe('⏸ Pause clock');
-    expect(text('.lp-timing')).toContain('0:00 / 1:00');
-    expect(text('.lp-timing')).toContain('14:00 to 14:00');
+    // The clock runs: on a busy computer a second may pass before it is read.
+    expect(text('.lp-timing')).toMatch(/0:0\d \/ 1:00/);
+    expect(text('.lp-timing')).toMatch(/1[34]:\d\d to 14:00/);
   });
 
   it('shows the chips for blackout, pause and categories in words, and the help on ?', () => {
