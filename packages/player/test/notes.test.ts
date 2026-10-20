@@ -45,6 +45,12 @@ describe('speaker notes in Markdown', () => {
     );
   });
 
+  it('keeps a nested numbered list and a bulleted one after it apart', () => {
+    expect(show(parseMarkdown('- parent\n  1. first\n  - second\n- next'))).toBe(
+      '<ul><li>parent<ol><li>first</li></ol><ul><li>second</li></ul></li><li>next</li></ul>',
+    );
+  });
+
   it('keeps HTML and stray marks as the text they are', () => {
     expect(show(parseMarkdown('<script>alert(1)</script> 2 * 3 * 4, snake_case_name, \\*not em\\*'))).toBe(
       '<p><script>alert(1)</script> 2 * 3 * 4, snake_case_name, *not em*</p>',

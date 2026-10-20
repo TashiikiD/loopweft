@@ -7,7 +7,7 @@ import { type Clock, FrameClock, Motion } from '@loopweft/motion';
 import { buildGraph, citationLine, h, namedLoops, resolveMap, StoryView, typeset } from '@loopweft/render';
 import { fmt } from './clock.ts';
 import { type Deck, type DeckScene, deckOf, nextPos, type Pos, sceneAt, sceneTag, stepAt } from './deck.ts';
-import { isTypingTarget, JumpBuffer, jumpDigits, type LocalAction, mapKey } from './keys.ts';
+import { isControlTarget, isTypingTarget, JumpBuffer, jumpDigits, type LocalAction, mapKey } from './keys.ts';
 import { browserHost, joinToken, Link, withJoin } from './link.ts';
 import { markdownToDom, parseMarkdown } from './markdown.ts';
 import { type AudienceTarget, openAudienceWindow, PROJECTOR_MESSAGES, sendToProjector } from './projector.ts';
@@ -827,8 +827,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   // ----- Keys -----
   const onKey = (e: KeyboardEvent) => {
     if (isTypingTarget(e.target)) return;
-    const onButton = (e.target as HTMLElement | null)?.closest?.('button, a');
-    if (onButton && (e.key === ' ' || e.key === 'Enter')) return;
+    if ((e.key === ' ' || e.key === 'Enter') && isControlTarget(e.target)) return;
     const action = mapKey(e, 'presenter');
     if (!action) return;
     e.preventDefault();

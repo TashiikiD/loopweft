@@ -6,7 +6,7 @@ import { type Clock, FrameClock, IntervalClock, Motion } from '@loopweft/motion'
 import { h, StoryView, themeTokens } from '@loopweft/render';
 import { keepAwake, ProgressBar } from './chrome.ts';
 import { type Deck, deckOf, parseKey, sceneAt } from './deck.ts';
-import { isTypingTarget, JumpBuffer, jumpDigits, mapKey } from './keys.ts';
+import { isControlTarget, isTypingTarget, JumpBuffer, jumpDigits, mapKey } from './keys.ts';
 import { browserHost, joinToken, Link } from './link.ts';
 import { RehearsalNotes } from './rehearsal.ts';
 import { browserAddress, type ChangeReason, ShowSession } from './session.ts';
@@ -27,7 +27,7 @@ export interface AudienceOptions {
   capture?: boolean;
   /** Writes the step on show into the page address (default: yes). */
   address?: boolean;
-  /** Paints the page behind the stage in the theme's colour (default: yes; not over the Studio). */
+  /** Paints the page behind the stage in the theme's colour, until disposed (default: yes; not over the Studio). */
   paintPage?: boolean;
   win?: Window;
   storage?: KeyValue | null;
@@ -56,7 +56,13 @@ export function startAudience(o: AudienceOptions): Audience {
   const stops: Array<() => void> = [() => story.dispose(), () => motion.dispose()];
   // Label sizes depend on the web fonts; place them again once the fonts are in.
   void doc.fonts?.ready.then(() => story.relayout());
-  if (o.paintPage !== false) doc.body.style.background = themeTokens(o.project).bgDeep;
+  if (o.paintPage !== false) {
+    const before = doc.body.style.background;
+    doc.body.style.background = themeTokens(o.project).bgDeep;
+    stops.unshift(() => {
+      doc.body.style.background = before;
+    });
+  }
 
   if (o.capture) {
     const show = () => {
@@ -96,8 +102,12 @@ export function startAudience(o: AudienceOptions): Audience {
     if (deck.scenes.length === 0) return;
     drive(next, prev, reason);
     progress.update(next.pos);
-    // The console keeps the clock; a window rehearsing alone keeps it instead.
-    if (!link.alive('presenter')) clock.noteScene(next.pos);
+    // The console keeps the clock; a window rehearsing alone keeps it instead, taking it up from storage,
+    // where the console may have moved it on before it went.
+    if (!link.alive('presenter')) {
+      clock.reload();
+      clock.noteScene(next.pos);
+    }
     notes?.update(next.pos);
     shown = next;
   };
@@ -115,6 +125,8 @@ export function startAudience(o: AudienceOptions): Audience {
     link.onPeers(() => {
       // Never leave rehearsal notes open once a real console is connected.
       if (notes?.isOpen && link.alive('presenter')) notes.setOpen(false);
+      // When the console goes, the clock is this window's again, as the console left it.
+      if (!link.alive('presenter')) clock.reload();
     }),
   );
   render(session.state, null, 'sync');
@@ -131,6 +143,8 @@ export function startAudience(o: AudienceOptions): Audience {
   const jump = new JumpBuffer(2500, jumpDigits(deck));
   const onKey = (e: KeyboardEvent) => {
     if (isTypingTarget(e.target)) return;
+    // Enter on a source's link in the notes opens it; it does not move the show.
+    if ((e.key === 'Enter' || e.key === ' ') && isControlTarget(e.target)) return;
     const action = mapKey(e, 'audience');
     if (!action) return;
     e.preventDefault();
@@ -155,7 +169,10 @@ export function startAudience(o: AudienceOptions): Audience {
             toggleFullscreen(doc);
             return;
           case 'notesOverlay':
-            if (notes && !link.alive('presenter')) notes.toggle();
+            if (notes && !link.alive('presenter')) {
+              clock.reload();
+              notes.toggle();
+            }
             return;
           case 'chrome':
             prefs.chrome = !prefs.chrome;
@@ -240,6 +257,8 @@ export function startAudience(o: AudienceOptions): Audience {
     cursorTimer = win.setTimeout(() => doc.body.classList.add('lp-hide-cursor'), 2500);
   };
   doc.addEventListener('mousemove', onMove);
+  // A pointer that never moves hides too.
+  onMove();
   stops.push(() => {
     hint.remove();
     win.clearTimeout(hintTimer);

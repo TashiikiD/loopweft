@@ -35,12 +35,20 @@ export class RehearsalNotes {
   readonly #clockLine: HTMLElement;
   #open = false;
   #pos: Pos = { s: 0, b: 0 };
+  /** Where the keyboard's focus was before the notes opened, to go back to. */
+  #returnTo: HTMLElement | null = null;
 
   constructor(host: HTMLElement, deck: Deck, clock: PresenterClock) {
     this.#deck = deck;
     this.#clock = clock;
     this.#clockLine = h('p', { class: 'lp-ro-clock' });
-    this.el = h('aside', { class: 'lp-rehearsal', hidden: true, 'aria-label': 'Rehearsal notes' });
+    // Focusable, so that ↑ and ↓ scroll long notes (the show keeps → ← Space and PgUp/PgDn).
+    this.el = h('aside', {
+      class: 'lp-rehearsal',
+      hidden: true,
+      tabindex: '0',
+      'aria-label': 'Rehearsal notes',
+    });
     host.appendChild(this.el);
   }
 
@@ -52,10 +60,27 @@ export class RehearsalNotes {
     this.setOpen(!this.#open);
   }
 
+  /** Opens the notes, taking the keyboard's focus, or closes them, giving it back. */
   setOpen(open: boolean): void {
+    const was = this.#open;
     this.#open = open;
     this.el.hidden = !open;
-    if (open) this.#render();
+    const doc = this.el.ownerDocument;
+    if (open) {
+      this.#render();
+      if (!was) {
+        const active = doc.activeElement;
+        this.#returnTo = active instanceof HTMLElement && !this.el.contains(active) ? active : null;
+        this.el.focus({ preventScroll: true });
+      }
+      return;
+    }
+    const back = this.#returnTo;
+    this.#returnTo = null;
+    if (was && this.el.contains(doc.activeElement)) {
+      if (back?.isConnected) back.focus({ preventScroll: true });
+      else this.el.blur();
+    }
   }
 
   update(pos: Pos): void {

@@ -121,6 +121,9 @@ comes back). N shows notes over the slides:
 - the step's cue, what comes next, and the scene's speaker notes;
 - the presenter's clock and pace (T starts it).
 
+↑ and ↓ scroll long notes; the keys that move the slides still move them, and Enter on a link in the notes
+opens it.
+
 The notes stay in that window. They refuse to open, and close themselves, while a presenter console is
 connected, so they never reach a projector.
 

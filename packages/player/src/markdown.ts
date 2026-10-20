@@ -139,7 +139,8 @@ function list(lines: string[]): MdElement {
       i++;
     }
     const children: MdNode[] = inline(text.join(' '));
-    if (nested.length > 0) children.push(list(nested));
+    // Read as blocks, so a numbered list followed by a bulleted one (or a paragraph) keeps each as written.
+    if (nested.length > 0) children.push(...blocks(nested));
     items.push(el('li', children));
   }
   return el(ordered ? 'ol' : 'ul', items);

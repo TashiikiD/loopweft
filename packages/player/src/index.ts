@@ -68,6 +68,7 @@ export {
   withoutNotes,
 } from './export.ts';
 export {
+  isControlTarget,
   isTypingTarget,
   JumpBuffer,
   jumpDigits,

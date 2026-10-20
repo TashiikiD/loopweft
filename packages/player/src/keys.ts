@@ -163,6 +163,15 @@ export class JumpBuffer {
   }
 }
 
+/**
+ * True when Enter or Space on this element works it (a link in the notes, a button) rather than the show. A
+ * panel focused only to scroll it (the rehearsal notes) is not one: the show keeps those keys there.
+ */
+export function isControlTarget(target: EventTarget | null): boolean {
+  if (!target || typeof (target as Element).closest !== 'function') return false;
+  return !!(target as Element).closest('a[href], button, [role="button"], summary');
+}
+
 /** True when a key belongs to a text field, not to the show. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!target || typeof (target as Element).closest !== 'function') return false;

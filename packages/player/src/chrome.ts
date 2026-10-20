@@ -39,8 +39,9 @@ export class ProgressBar {
   }
 
   update(pos: Pos): void {
-    // The first placement lands at once, so the bar never sweeps across while the window opens.
-    if (!this.#placed) this.el.style.transition = 'none';
+    // The first placement lands at once, so the bar never sweeps across while the window opens: neither the
+    // bar (its fade) nor a scene's fill (its width).
+    if (!this.#placed) this.#setTransitions('none');
     // An untimed scene (a title page) sits outside the talk, so the bar waits until the talk begins.
     const scene = this.#deck.scenes[pos.s];
     this.el.classList.toggle('untimed', this.#deck.targetSeconds > 0 && scene?.targetSeconds === 0);
@@ -52,8 +53,13 @@ export class ProgressBar {
     if (!this.#placed) {
       this.#placed = true;
       void this.el.offsetWidth;
-      this.el.style.transition = '';
+      this.#setTransitions('');
     }
+  }
+
+  #setTransitions(value: string): void {
+    this.el.style.transition = value;
+    for (const fill of this.#fills) fill.style.transition = value;
   }
 
   setVisible(visible: boolean): void {
