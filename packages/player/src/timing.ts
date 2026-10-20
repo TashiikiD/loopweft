@@ -29,7 +29,7 @@ export interface Timing {
 function sanitizeEntry(value: unknown): SceneEntry | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<SceneEntry>;
-  return typeof v.sceneId === 'string' && typeof v.atMs === 'number'
+  return typeof v.sceneId === 'string' && typeof v.atMs === 'number' && Number.isFinite(v.atMs) && v.atMs >= 0
     ? { sceneId: v.sceneId, atMs: v.atMs }
     : null;
 }

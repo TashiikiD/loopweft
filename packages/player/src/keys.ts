@@ -1,5 +1,6 @@
 // Source: PolycrisisPresentation src/core/keys.ts @ 3e5da10 (private), adapted for Loopweft: C names each
 // shown variable's category in words, in either window; the console's G and F choose its Notes and Script.
+import type { Deck } from './deck.ts';
 import type { Command } from './show.ts';
 
 export type Role = 'presenter' | 'audience';
@@ -119,22 +120,28 @@ export function mapKey(e: KeyInput, role: Role): KeyAction | null {
   return null;
 }
 
+/** How many digits a scene jump keeps: enough for the deck's highest scene number, and at least two ("04"). */
+export const jumpDigits = (deck: Deck): number =>
+  Math.max(2, ...deck.scenes.map((s) => (s.number === undefined ? 0 : String(s.number).length)));
+
 /**
  * Collects typed digits for "a number, then Enter" scene jumps. Digits expire after a pause, so a stray key
- * cannot take over a later Enter.
+ * cannot take over a later Enter. It keeps the last `maxDigits` typed (see `jumpDigits`).
  */
 export class JumpBuffer {
   #digits = '';
   #lastAt = Number.NEGATIVE_INFINITY;
   readonly #ttlMs: number;
+  readonly #maxDigits: number;
 
-  constructor(ttlMs = 2500) {
+  constructor(ttlMs = 2500, maxDigits = 2) {
     this.#ttlMs = ttlMs;
+    this.#maxDigits = maxDigits;
   }
 
   push(digit: number, now: number): string {
     if (now - this.#lastAt > this.#ttlMs) this.#digits = '';
-    this.#digits = (this.#digits + String(digit)).slice(-2);
+    this.#digits = (this.#digits + String(digit)).slice(-this.#maxDigits);
     this.#lastAt = now;
     return this.#digits;
   }

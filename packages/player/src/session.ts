@@ -2,7 +2,15 @@
 // the storage and the page address are handed in (so it is tested without a browser), and the time too.
 import { type Deck, parseKey, posKey } from './deck.ts';
 import type { Link, Payload } from './link.ts';
-import { type Command, initialShowState, reduce, type ShowState, sanitizeShowState } from './show.ts';
+import {
+  type Command,
+  initialShowState,
+  isNavKind,
+  isNewer,
+  reduce,
+  type ShowState,
+  sanitizeShowState,
+} from './show.ts';
 import type { PresentationStore } from './storage.ts';
 
 /** Why the show changed: a key pressed here, another window's change, or a window catching up. */
@@ -25,8 +33,10 @@ export interface SessionOptions {
 }
 
 /**
- * One window's copy of the show. The newest snapshot wins. The page address and the browser's storage let a
- * window find its place again after a reload.
+ * One window's copy of the show. The newest snapshot wins: the later time, or at the same millisecond the
+ * later writer, so every window settles on the same one. A window's own changes are stamped at least a
+ * millisecond after the state they change, so two keys pressed within one millisecond both count. The page
+ * address and the browser's storage let a window find its place again after a reload.
  */
 export class ShowSession {
   state: ShowState;
@@ -64,8 +74,9 @@ export class ShowSession {
 
   dispatch(cmd: Command): void {
     const prev = this.state;
-    const next = reduce(this.#o.deck, prev, cmd, this.#o.now());
-    if (next === prev) return;
+    const changed = reduce(this.#o.deck, prev, cmd, this.#stamp(prev));
+    if (changed === prev) return;
+    const next: ShowState = { ...changed, writer: this.link.id };
     this.state = next;
     this.#persist();
     this.link.send({ t: 'state', state: next, reason: 'update' });
@@ -79,16 +90,12 @@ export class ShowSession {
       return;
     }
     if (msg.t !== 'state') return;
-    const incoming = sanitizeShowState(this.#o.deck, msg.state, this.#o.now());
+    const incoming = sanitizeShowState(this.#o.deck, msg.state);
     if (!incoming) return;
     // Keep the sender's kind of move, so that every window animates alike.
-    const nav = msg.state.nav;
-    const validNav =
-      !!nav &&
-      typeof nav.seq === 'number' &&
-      ['forward', 'backward', 'jump', 'replay', 'sync'].includes(nav.kind as string);
-    const fresh: ShowState = { ...incoming, nav: validNav ? nav : incoming.nav };
-    if (fresh.updatedAt <= this.state.updatedAt) return;
+    const kind = (msg.state as { nav?: { kind?: unknown } }).nav?.kind;
+    const fresh: ShowState = { ...incoming, nav: { ...incoming.nav, kind: isNavKind(kind) ? kind : 'sync' } };
+    if (!isNewer(fresh, this.state)) return;
     const prev = this.state;
     this.state = fresh;
     this.#persist();
@@ -96,8 +103,7 @@ export class ShowSession {
   }
 
   #restore(): ShowState {
-    const now = this.#o.now();
-    const stored = sanitizeShowState(this.#o.deck, this.#o.store.load('show'), now);
+    const stored = sanitizeShowState(this.#o.deck, this.#o.store.load('show'));
     // A window with nothing saved starts at the first step, older than any change: the first state another
     // window sends it wins (a reloaded audience window, in a browser that kept nothing, joins the show).
     const start = initialShowState(0);
@@ -107,14 +113,21 @@ export class ShowSession {
     if (fromAddress) {
       const moved = !stored || stored.pos.s !== fromAddress.s || stored.pos.b !== fromAddress.b;
       const base = stored ?? start;
+      if (!moved) return base;
       return {
         ...base,
         pos: fromAddress,
         nav: { kind: 'sync', seq: base.nav.seq },
-        updatedAt: moved ? now : base.updatedAt,
+        updatedAt: this.#stamp(base),
+        writer: this.link.id,
       };
     }
     return stored ?? start;
+  }
+
+  /** The time for a change of `state`: now, or a millisecond after `state` if that is later. */
+  #stamp(state: ShowState): number {
+    return Math.max(this.#o.now(), state.updatedAt + 1);
   }
 
   #persist(): void {

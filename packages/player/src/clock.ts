@@ -27,13 +27,14 @@ export function pauseClock(c: ClockState, now: number): ClockState {
 export const toggleClock = (c: ClockState, now: number): ClockState =>
   c.running ? pauseClock(c, now) : startClock(c, now);
 
-/** A clock read back from storage, if it is one. */
+const isTime = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+
+/** A clock read back from storage, if it is one: anything else (a time that is not a finite number) starts it again. */
 export function sanitizeClock(value: unknown): ClockState | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<ClockState>;
-  if (typeof v.running !== 'boolean' || typeof v.accumulatedMs !== 'number' || v.accumulatedMs < 0)
-    return null;
-  if (v.running && typeof v.startedAt !== 'number') return null;
+  if (typeof v.running !== 'boolean' || !isTime(v.accumulatedMs)) return null;
+  if (v.running && !isTime(v.startedAt)) return null;
   return {
     running: v.running,
     startedAt: v.running ? (v.startedAt as number) : null,

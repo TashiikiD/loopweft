@@ -7,10 +7,14 @@ import {
   fmt,
   initialShowState,
   JumpBuffer,
+  jumpDigits,
   mapKey,
   newClock,
   nextPos,
+  PresentationStore,
+  PresenterClock,
   pace,
+  paceText,
   parseKey,
   posKey,
   prevPos,
@@ -22,7 +26,7 @@ import {
   toggleClock,
   totalSteps,
 } from '../src/index.ts';
-import { example } from './helpers.ts';
+import { example, MemoryStorage } from './helpers.ts';
 
 const project = example();
 const deck = deckOf(project);
@@ -117,13 +121,33 @@ describe('the show', () => {
 
   it('takes back a saved state only if it fits the deck, and shows it at once', () => {
     const saved = run(start, { type: 'gotoScene', number: 5 }, { type: 'toggleCategoryWords' });
-    const read = sanitizeShowState(deck, JSON.parse(JSON.stringify(saved)), 9);
+    const read = sanitizeShowState(deck, JSON.parse(JSON.stringify(saved)));
     expect(read?.pos).toEqual(saved.pos);
     expect(read?.categoryWords).toBe(true);
     expect(read?.nav.kind).toBe('sync');
-    expect(sanitizeShowState(deck, { pos: { s: 40, b: 0 } }, 9)).toBeNull();
-    expect(sanitizeShowState(deck, { pos: { s: '1', b: 0 } }, 9)).toBeNull();
-    expect(sanitizeShowState(deck, 'nonsense', 9)).toBeNull();
+    expect(sanitizeShowState(deck, { pos: { s: 40, b: 0 }, updatedAt: 9 })).toBeNull();
+    expect(sanitizeShowState(deck, { pos: { s: '1', b: 0 }, updatedAt: 9 })).toBeNull();
+    expect(sanitizeShowState(deck, 'nonsense')).toBeNull();
+  });
+
+  it('refuses a state whose time is not a whole number of milliseconds, and starts bad counters from 0', () => {
+    const good = { pos: { s: 1, b: 0 }, updatedAt: 5, nav: { kind: 'forward', seq: 3 }, skipToken: 2 };
+    expect(sanitizeShowState(deck, good)).toMatchObject({
+      updatedAt: 5,
+      skipToken: 2,
+      nav: { kind: 'sync', seq: 3 },
+      writer: '',
+    });
+    for (const updatedAt of [Number.POSITIVE_INFINITY, Number.NaN, -1, 1.5, '5', undefined, 2 ** 60])
+      expect(sanitizeShowState(deck, { ...good, updatedAt })).toBeNull();
+    // JSON reads 1e309 as Infinity.
+    expect(sanitizeShowState(deck, JSON.parse('{"pos":{"s":1,"b":0},"updatedAt":1e309}'))).toBeNull();
+    for (const bad of [Number.POSITIVE_INFINITY, Number.NaN, -1, 0.5, '2'])
+      expect(
+        sanitizeShowState(deck, { ...good, skipToken: bad, nav: { kind: 'jump', seq: bad } }),
+      ).toMatchObject({ skipToken: 0, nav: { seq: 0 } });
+    expect(sanitizeShowState(deck, { ...good, pos: { s: 1.5, b: 0 } })).toBeNull();
+    expect(sanitizeShowState(deck, { ...good, writer: 'x'.repeat(65) })?.writer).toBe('');
   });
 
   it('does nothing for a story without steps', () => {
@@ -170,6 +194,43 @@ describe('keys', () => {
     });
   });
 
+  it('jumps to scene 100 and beyond in a story that long', () => {
+    const captioned = project.story.scenes.find((s) =>
+      s.steps.some((t) => t.overlays.some((o) => o.type === 'caption')),
+    );
+    if (!captioned) throw new Error('The example has a captioned scene');
+    const scenes = Array.from({ length: 120 }, (_, i) => ({ ...captioned, id: `scene_${i}` }));
+    const long = deckOf({ ...project, story: { ...project.story, scenes } });
+    expect(jumpDigits(long)).toBe(3);
+    expect(jumpDigits(deck)).toBe(2);
+    const typed = (keys: string[]) => {
+      const jump = new JumpBuffer(2500, jumpDigits(long));
+      let state = initialShowState(0);
+      keys.forEach((key, i) => {
+        const action = mapKey(
+          { key, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false },
+          'audience',
+        );
+        if (action?.kind === 'digit') jump.push(action.digit, i);
+        if (action?.kind === 'enter') {
+          const n = jump.take(i);
+          state = reduce(
+            long,
+            state,
+            n === null ? { type: 'next' } : { type: 'gotoScene', number: n },
+            10 + i,
+          );
+        }
+      });
+      return long.scenes[state.pos.s]?.number;
+    };
+    expect(typed(['1', '0', '0', 'Enter'])).toBe(100);
+    expect(typed(['1', '2', '0', 'Enter'])).toBe(120);
+    expect(typed(['0', '4', 'Enter'])).toBe(4);
+    // Only the last three digits count: a stray digit before them changes nothing.
+    expect(typed(['9', '1', '0', '7', 'Enter'])).toBe(107);
+  });
+
   it('collects up to two digits for a scene jump, forgetting them after a pause', () => {
     const jump = new JumpBuffer(2500);
     expect(jump.push(1, 0)).toBe('1');
@@ -195,6 +256,25 @@ describe('the clock and pace', () => {
     expect(sanitizeClock(JSON.parse(JSON.stringify(c)))).toEqual(c);
     expect(sanitizeClock({ running: true, accumulatedMs: 0 })).toBeNull();
     expect(sanitizeClock({ running: false, accumulatedMs: -1 })).toBeNull();
+  });
+
+  it('starts again from 0:00 when the saved clock holds a time that is not a finite number', () => {
+    for (const bad of [
+      { running: false, accumulatedMs: Number.POSITIVE_INFINITY, startedAt: null },
+      { running: false, accumulatedMs: Number.NaN, startedAt: null },
+      { running: true, accumulatedMs: 0, startedAt: Number.POSITIVE_INFINITY },
+      { running: true, accumulatedMs: 0, startedAt: Number.NaN },
+      { running: true, accumulatedMs: 0, startedAt: -5 },
+    ])
+      expect(sanitizeClock(bad)).toBeNull();
+    // As storage holds it: JSON reads 1e309 as Infinity.
+    const storage = new MemoryStorage();
+    const store = new PresentationStore('test', storage);
+    storage.setItem(store.keyOf('clock'), '{"running":false,"accumulatedMs":1e309,"startedAt":null}');
+    storage.setItem(store.keyOf('sceneEntry'), '{"sceneId":"s01","atMs":1e309}');
+    const t = new PresenterClock(store, deck, () => 50_000).read({ s: 1, b: 0 });
+    expect([t.elapsed, t.sceneElapsed, t.started]).toEqual([0, 0, false]);
+    expect(paceText(t)).toBe('Clock not started');
   });
 
   it('is on pace within 15 s, late to 45 s, very late beyond, and idle before it starts', () => {

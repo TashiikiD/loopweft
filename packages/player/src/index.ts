@@ -70,6 +70,7 @@ export {
 export {
   isTypingTarget,
   JumpBuffer,
+  jumpDigits,
   type KeyAction,
   type KeyInput,
   type LocalAction,
@@ -82,13 +83,18 @@ export {
   type ChannelLike,
   type Envelope,
   isEnvelope,
+  isOpaqueOrigin,
+  JOIN_PARAM,
+  joinToken,
   Link,
   type LinkHost,
+  type LinkOptions,
   type LinkRole,
   type Payload,
   type Peer,
   PING_MS,
   type PostTarget,
+  withJoin,
 } from './link.ts';
 export { type MdElement, type MdNode, type MdTag, markdownToDom, parseMarkdown } from './markdown.ts';
 export {
@@ -109,6 +115,8 @@ export {
 export {
   type Command,
   initialShowState,
+  isNavKind,
+  isNewer,
   type NavKind,
   reduce,
   type ShowState,

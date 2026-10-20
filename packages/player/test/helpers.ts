@@ -29,8 +29,9 @@ export class FakeBrowser {
   /** Whether BroadcastChannels work here (a file opened from disk in Safari: no). */
   channels = true;
 
-  window(opener: FakeWindow | null = null): FakeWindow {
-    return new FakeWindow(this, opener);
+  /** A window of `origin` ("null" for a file opened from disk). */
+  window(opener: FakeWindow | null = null, origin = 'https://example.test'): FakeWindow {
+    return new FakeWindow(this, opener, origin);
   }
 
   openChannel(name: string, owner: FakeWindow): ChannelLike | null {
@@ -103,14 +104,16 @@ class FakeChannel implements ChannelLike {
 export class FakeWindow implements PostTarget {
   closed = false;
   readonly opener: FakeWindow | null;
+  readonly origin: string;
   readonly #browser: FakeBrowser;
-  readonly #listeners = new Set<(data: unknown, source: unknown) => void>();
+  readonly #listeners = new Set<(data: unknown, source: unknown, origin: string) => void>();
   /** Messages posted to this window, as the sender's origin argument named them. */
   readonly origins: string[] = [];
 
-  constructor(browser: FakeBrowser, opener: FakeWindow | null) {
+  constructor(browser: FakeBrowser, opener: FakeWindow | null, origin: string) {
     this.#browser = browser;
     this.opener = opener;
+    this.origin = origin;
   }
 
   /** Who is posting: set by the sending window's host. */
@@ -122,7 +125,7 @@ export class FakeWindow implements PostTarget {
     const source = FakeWindow.sender;
     // The receiver handles it as itself: whatever it posts in reply comes from it.
     this.run(() => {
-      for (const fn of [...this.#listeners]) fn(structuredClone(message), source);
+      for (const fn of [...this.#listeners]) fn(structuredClone(message), source, source?.origin ?? 'null');
     });
   }
 
@@ -133,6 +136,7 @@ export class FakeWindow implements PostTarget {
         this.#listeners.add(fn);
         return () => this.#listeners.delete(fn);
       },
+      origin: this.origin,
       opener: () => this.opener,
       targetOrigin,
       channel: (name) => browser.openChannel(name, this),

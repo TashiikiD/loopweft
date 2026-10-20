@@ -6,8 +6,8 @@ import { type Clock, FrameClock, IntervalClock, Motion } from '@loopweft/motion'
 import { h, StoryView, themeTokens } from '@loopweft/render';
 import { keepAwake, ProgressBar } from './chrome.ts';
 import { type Deck, deckOf, parseKey, sceneAt } from './deck.ts';
-import { isTypingTarget, JumpBuffer, mapKey } from './keys.ts';
-import { browserHost, Link } from './link.ts';
+import { isTypingTarget, JumpBuffer, jumpDigits, mapKey } from './keys.ts';
+import { browserHost, joinToken, Link } from './link.ts';
 import { RehearsalNotes } from './rehearsal.ts';
 import { browserAddress, type ChangeReason, ShowSession } from './session.ts';
 import type { ShowState } from './show.ts';
@@ -102,7 +102,7 @@ export function startAudience(o: AudienceOptions): Audience {
     shown = next;
   };
 
-  const link = new Link('audience', o.show, browserHost(win));
+  const link = new Link('audience', o.show, browserHost(win), { token: joinToken(win, o.show) });
   const session: ShowSession = new ShowSession({
     deck,
     link,
@@ -128,7 +128,7 @@ export function startAudience(o: AudienceOptions): Audience {
   stops.push(() => win.clearInterval(ticker));
 
   // ----- Keys -----
-  const jump = new JumpBuffer();
+  const jump = new JumpBuffer(2500, jumpDigits(deck));
   const onKey = (e: KeyboardEvent) => {
     if (isTypingTarget(e.target)) return;
     const action = mapKey(e, 'audience');

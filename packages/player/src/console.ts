@@ -7,8 +7,8 @@ import { type Clock, FrameClock, Motion } from '@loopweft/motion';
 import { buildGraph, citationLine, h, namedLoops, resolveMap, StoryView, typeset } from '@loopweft/render';
 import { fmt } from './clock.ts';
 import { type Deck, type DeckScene, deckOf, nextPos, type Pos, sceneAt, sceneTag, stepAt } from './deck.ts';
-import { isTypingTarget, JumpBuffer, type LocalAction, mapKey } from './keys.ts';
-import { browserHost, Link } from './link.ts';
+import { isTypingTarget, JumpBuffer, jumpDigits, type LocalAction, mapKey } from './keys.ts';
+import { browserHost, joinToken, Link, withJoin } from './link.ts';
 import { markdownToDom, parseMarkdown } from './markdown.ts';
 import { type AudienceTarget, openAudienceWindow, PROJECTOR_MESSAGES, sendToProjector } from './projector.ts';
 import { nextLine } from './rehearsal.ts';
@@ -319,7 +319,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     preview: saved.preview !== false,
   };
   const clock = new PresenterClock(store, deck, () => Date.now());
-  const jump = new JumpBuffer();
+  const jump = new JumpBuffer(2500, jumpDigits(deck));
   const stops: Array<() => void> = [];
 
   const button = (label: string, title: string, onClick: () => void, extra = ''): HTMLButtonElement => {
@@ -562,7 +562,10 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   });
 
   // ----- The show -----
-  const link = new Link('presenter', o.show, browserHost(win));
+  const token = joinToken(win, o.show);
+  const link = new Link('presenter', o.show, browserHost(win), { token });
+  // The audience window gets the join token in its address, so that it and this window let each other in.
+  const audience = { ...o.audience, url: withJoin(o.audience.url, token) };
   let renderedScene = -1;
   const session = new ShowSession({
     deck,
@@ -758,7 +761,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   }
 
   function openAudience() {
-    const w = openAudienceWindow(win, o.audience);
+    const w = openAudienceWindow(win, audience);
     adopt(w);
     toast(
       w
@@ -768,7 +771,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   }
 
   async function projector() {
-    const { result, window: w } = await sendToProjector(win, o.audience);
+    const { result, window: w } = await sendToProjector(win, audience);
     adopt(w);
     toast(PROJECTOR_MESSAGES[result]);
   }

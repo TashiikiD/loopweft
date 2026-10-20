@@ -844,7 +844,8 @@ export class MapView {
 
   /**
    * Names each shown variable's category in words, or stops (decision 22 of the format). The step is not
-   * played again: only the labels change, with a short fade.
+   * played again: only the labels change, the category lines fading in or out (0.3 s). While the motion is
+   * paused (the presenter has stopped to explain), the change shows at once: a paused fade would never end.
    */
   setCategoryWords(on: boolean): void {
     if (this.#categoryWords === on) return;
@@ -852,11 +853,35 @@ export class MapView {
     if (!this.current) return;
     const r = resolveMap(this.#project, this.graph, this.#state, { categoryWords: on });
     this.current = r;
-    const hiddenGroups = this.#layoutLabels(r);
-    for (const [id, el] of this.#labels) this.#tween(el, { opacity: r.labels.has(id) ? 1 : 0 }, WORDS_FADE);
-    for (const [id, { el }] of this.#groupLabels) {
-      this.#tween(el, { opacity: r.categoryLabels && !hiddenGroups.has(id) ? 1 : 0 }, WORDS_FADE);
+    const duration = this.#motion.paused ? 0 : WORDS_FADE;
+    const showLabels = (hiddenGroups: Set<string>, fade: number) => {
+      for (const [id, el] of this.#labels) this.#tween(el, { opacity: r.labels.has(id) ? 1 : 0 }, fade);
+      for (const [id, { el }] of this.#groupLabels)
+        this.#tween(el, { opacity: r.categoryLabels && !hiddenGroups.has(id) ? 1 : 0 }, fade);
+    };
+    if (on) {
+      // Placed with the category lines in, which then fade in; a line hidden now shows at full strength
+      // when a later step brings it up.
+      const hiddenGroups = this.#layoutLabels(r);
+      for (const { category } of this.#labelLines.values()) {
+        this.#motion.set(category, { opacity: category.hidden ? 1 : 0 });
+        if (!category.hidden) this.#tween(category, { opacity: 1 }, duration);
+      }
+      showLabels(hiddenGroups, duration);
+      return;
     }
+    // The lines fade out where they are; then they leave, and the labels are placed without them.
+    for (const { category } of this.#labelLines.values())
+      if (!category.hidden) this.#tween(category, { opacity: 0 }, duration);
+    for (const [id, el] of this.#labels) if (!r.labels.has(id)) this.#tween(el, { opacity: 0 }, duration);
+    const settle = () => {
+      if (this.#categoryWords || this.current !== r) return;
+      const hiddenGroups = this.#layoutLabels(r);
+      for (const { category } of this.#labelLines.values()) this.#motion.set(category, { opacity: 1 });
+      showLabels(hiddenGroups, 0);
+    };
+    if (duration === 0) settle();
+    else this.#motion.delayedCall(duration, settle);
   }
 
   get categoryWords(): boolean {

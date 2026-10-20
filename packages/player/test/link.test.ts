@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   type Address,
   deckOf,
+  initialShowState,
   Link,
+  nextPos,
   type Payload,
+  type Pos,
   PresentationStore,
   posKey,
   presentationId,
   resetSession,
   ShowSession,
+  type ShowState,
   savedSession,
 } from '../src/index.ts';
 import { example, exampleText, FakeBrowser, type FakeWindow, MemoryStorage } from './helpers.ts';
@@ -36,8 +40,10 @@ function session(
   role: 'presenter' | 'audience',
   storage = new MemoryStorage(),
   hash = '',
+  token?: string,
+  targetOrigin?: string,
 ) {
-  const link = new Link(role, SHOW, win.host());
+  const link = new Link(role, SHOW, win.host(targetOrigin), { token });
   const changes: string[] = [];
   const s = new ShowSession({
     deck,
@@ -226,5 +232,202 @@ describe('the saved place', () => {
     store.save('show', { a: 1 });
     expect(store.load('show')).toBeNull();
     expect(new PresentationStore(SHOW, null).load('clock')).toBeNull();
+  });
+});
+
+const after = (s: number, steps = 1): string => {
+  let pos: Pos = { s, b: 0 };
+  for (let i = 0; i < steps; i++) pos = nextPos(deck, pos) as Pos;
+  return posKey(deck, pos);
+};
+
+describe('changes made in the same millisecond', () => {
+  it('both reach the other window when one window makes two', () => {
+    const browser = new FakeBrowser();
+    const consoleWin = browser.window();
+    const presenter = session(browser, consoleWin, 'presenter');
+    const audienceWin = browser.window(consoleWin);
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience');
+    // No time passes between the two keys.
+    consoleWin.run(() => {
+      presenter.s.dispatch({ type: 'gotoScene', number: 4 });
+      presenter.s.dispatch({ type: 'next' });
+    });
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(4));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(4));
+    expect(presenter.s.state.updatedAt).toBe(browser.now + 1);
+  });
+
+  it('settles two changes stamped alike the same way in every window, whichever arrives first', () => {
+    const ends = [false, true].map((reversed) => {
+      const browser = new FakeBrowser();
+      browser.channels = false;
+      const stateAt = (s: number, writer: string): ShowState => ({
+        ...initialShowState(browser.now, { s, b: 0 }),
+        writer,
+      });
+      const order = [stateAt(2, 'audience-a'), stateAt(5, 'audience-b')];
+      if (reversed) order.reverse();
+      const win = browser.window();
+      const w = session(browser, win, 'audience');
+      const senderWin = browser.window();
+      const sender = new Link('audience', SHOW, senderWin.host());
+      sender.addWindow(win);
+      senderWin.run(() => {
+        sender.start();
+        for (const state of order) sender.send({ t: 'state', state, reason: 'update' });
+      });
+      return posKey(deck, w.s.state.pos);
+    });
+    expect(ends).toEqual([after(5, 0), after(5, 0)]);
+  });
+});
+
+describe('two audience windows with no BroadcastChannel', () => {
+  it('follow either of them, through the console that opened both', () => {
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const consoleWin = browser.window();
+    const presenter = session(browser, consoleWin, 'presenter');
+    const a = browser.window(consoleWin);
+    const b = browser.window(consoleWin);
+    presenter.link.addWindow(a);
+    presenter.link.addWindow(b);
+    const one = session(browser, a, 'audience');
+    const two = session(browser, b, 'audience');
+    const places = () => [presenter, one, two].map((w) => posKey(deck, w.s.state.pos));
+    browser.advance(10);
+    a.run(() => one.s.dispatch({ type: 'gotoScene', number: 3 }));
+    expect(places()).toEqual(Array(3).fill(after(3, 0)));
+    browser.advance(10);
+    b.run(() => two.s.dispatch({ type: 'next' }));
+    expect(places()).toEqual(Array(3).fill(after(3)));
+    // Each change reached each window once, however many ways it came.
+    expect(two.changes.filter((c) => c.startsWith(`${after(3, 0)} `))).toHaveLength(1);
+    expect(one.changes.filter((c) => c.startsWith(`${after(3)} `))).toHaveLength(1);
+  });
+});
+
+describe('who may move the show', () => {
+  it('ignores a page of another origin that holds the audience window, and never lets it in', () => {
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const consoleWin = browser.window();
+    const presenter = session(browser, consoleWin, 'presenter');
+    const audienceWin = browser.window(consoleWin);
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience');
+    const evil = browser.window(null, 'https://evil.test');
+    const forger = new Link('presenter', SHOW, evil.host());
+    forger.addWindow(audienceWin);
+    const forged = {
+      ...audience.s.state,
+      pos: { s: 9, b: 0 },
+      updatedAt: browser.now + 60_000,
+      writer: 'zzz',
+    };
+    evil.run(() => {
+      forger.start();
+      forger.send({ t: 'state', state: forged, reason: 'update' });
+    });
+    expect(posKey(deck, audience.s.state.pos)).toBe('S00.1');
+    browser.advance(1100);
+    // Nothing the audience window says reaches the forger, and it counts only the real console.
+    expect(evil.origins).toEqual([]);
+    expect(audience.link.count('presenter')).toBe(1);
+    // The real console still moves it.
+    consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(0));
+  });
+
+  it('lets in, on a file opened from disk, only windows with the presentation’s join token', () => {
+    const TOKEN = '0123456789abcdef0123456789abcdef';
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const consoleWin = browser.window(null, 'null');
+    const presenter = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+    const audienceWin = browser.window(consoleWin, 'null');
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(10);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'gotoScene', number: 2 }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+
+    // Another file in the same browser, without the token or with a wrong one, moves nothing.
+    for (const token of [undefined, 'f'.repeat(32)]) {
+      const other = browser.window(null, 'null');
+      const forger = new Link('presenter', SHOW, other.host('*'), { token });
+      forger.addWindow(audienceWin);
+      const forged = { ...audience.s.state, pos: { s: 9, b: 0 }, updatedAt: browser.now + 60_000 };
+      other.run(() => {
+        forger.start();
+        forger.send({ t: 'state', state: forged, reason: 'update' });
+      });
+    }
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+
+    // The audience window reloads: its token is in its address, so it rejoins and follows.
+    audience.link.stop();
+    const again = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    expect(posKey(deck, again.s.state.pos)).toBe(after(2, 0));
+    browser.advance(10);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, again.s.state.pos)).toBe(after(2));
+
+    // The console reloads (its tab keeps the token): the audience window's next message lets it back in.
+    presenter.link.stop();
+    const console2 = session(browser, consoleWin, 'presenter', presenter.storage, '', TOKEN, '*');
+    browser.advance(1100);
+    expect(console2.link.count('audience')).toBe(1);
+    browser.advance(10);
+    consoleWin.run(() => console2.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, again.s.state.pos)).toBe(after(2, 2));
+  });
+
+  it('ignores a state stamped with a time that is not a number of milliseconds, so later changes still arrive', () => {
+    const browser = new FakeBrowser();
+    const a = browser.window();
+    const one = session(browser, a, 'presenter');
+    const b = browser.window(a);
+    one.link.addWindow(b);
+    const two = session(browser, b, 'audience');
+    for (const updatedAt of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -3])
+      a.run(() =>
+        one.link.send({
+          t: 'state',
+          state: { ...one.s.state, pos: { s: 9, b: 0 }, updatedAt },
+          reason: 'update',
+        }),
+      );
+    expect(posKey(deck, two.s.state.pos)).toBe('S00.1');
+    browser.advance(10);
+    a.run(() => one.s.dispatch({ type: 'gotoScene', number: 6 }));
+    expect(posKey(deck, two.s.state.pos)).toBe(after(6, 0));
+  });
+});
+
+describe('what a link remembers', () => {
+  it('forgets the message numbers of a window that left or went quiet', () => {
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const a = browser.window();
+    const one = session(browser, a, 'presenter');
+    const b = browser.window(a);
+    one.link.addWindow(b);
+    const two = session(browser, b, 'audience');
+    browser.advance(1100);
+    expect(one.link.remembered).toBe(1);
+    b.run(() => two.link.stop());
+    expect(one.link.remembered).toBe(0);
+    // A window that says hello and then nothing more (it froze, or its tab was closed without a goodbye).
+    const c = browser.window(a);
+    const quiet = new Link('audience', SHOW, { ...c.host(), every: () => () => {} });
+    c.run(() => quiet.start());
+    expect(one.link.remembered).toBe(1);
+    browser.advance(5000);
+    expect(one.link.remembered).toBe(0);
+    one.link.stop();
+    expect(one.link.count('audience')).toBe(0);
   });
 });

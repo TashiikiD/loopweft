@@ -37,7 +37,13 @@ export interface ShowState {
   categoryWords: boolean;
   /** When this changed, by the presenter's computer clock (ms): the newest state wins on reconnecting. */
   updatedAt: number;
+  /** The window that made the change (its link's id; "" for none): settles two changes made in the same millisecond. */
+  writer: string;
 }
+
+/** True when `a` is a later change than `b`: its time is later, or the same with a later writer (every window agrees). */
+export const isNewer = (a: ShowState, b: ShowState): boolean =>
+  a.updatedAt > b.updatedAt || (a.updatedAt === b.updatedAt && a.writer > b.writer);
 
 export type Command =
   | { type: 'next' }
@@ -65,6 +71,7 @@ export function initialShowState(now: number, pos: Pos = firstPos()): ShowState 
     lowPower: false,
     categoryWords: false,
     updatedAt: now,
+    writer: '',
   };
 }
 
@@ -112,21 +119,35 @@ export function reduce(deck: Deck, state: ShowState, cmd: Command, now: number):
   }
 }
 
-/** A stored or received state, if it still fits the deck; it then shows at once (`sync`). */
-export function sanitizeShowState(deck: Deck, value: unknown, now: number): ShowState | null {
+/** A counter (a whole number from 0): the step's move count, the skip token, a time in milliseconds. */
+const isCount = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+
+const NAV_KINDS: readonly string[] = ['forward', 'backward', 'jump', 'replay', 'sync'];
+
+/** The kind of move a received state names, if it is one. */
+export const isNavKind = (kind: unknown): kind is NavKind => NAV_KINDS.includes(kind as string);
+
+/**
+ * A stored or received state, if it still fits the deck; it then shows at once (`sync`). It comes from
+ * another window or the browser's storage, so nothing in it is trusted: a state without a whole-millisecond
+ * time is refused (one stamped `Infinity` would outrank every later change), and a malformed counter starts
+ * again from 0.
+ */
+export function sanitizeShowState(deck: Deck, value: unknown): ShowState | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<ShowState>;
   const pos = v.pos as Partial<Pos> | undefined;
-  if (!pos || typeof pos.s !== 'number' || typeof pos.b !== 'number') return null;
+  if (!pos || !isCount(pos.s) || !isCount(pos.b)) return null;
   if (!isValidPos(deck, { s: pos.s, b: pos.b })) return null;
+  if (!isCount(v.updatedAt)) return null;
   return {
-    ...initialShowState(now, { s: pos.s, b: pos.b }),
-    skipToken: typeof v.skipToken === 'number' ? v.skipToken : 0,
+    ...initialShowState(v.updatedAt, { s: pos.s, b: pos.b }),
+    skipToken: isCount(v.skipToken) ? v.skipToken : 0,
     paused: v.paused === true,
     blackout: v.blackout === true,
     lowPower: v.lowPower === true,
     categoryWords: v.categoryWords === true,
-    updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : now,
-    nav: { kind: 'sync', seq: typeof v.nav?.seq === 'number' ? v.nav.seq : 0 },
+    writer: typeof v.writer === 'string' && v.writer.length <= 64 ? v.writer : '',
+    nav: { kind: 'sync', seq: isCount(v.nav?.seq) ? v.nav.seq : 0 },
   };
 }

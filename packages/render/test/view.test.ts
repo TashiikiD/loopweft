@@ -110,6 +110,49 @@ describe('the map view', () => {
     expect(label.querySelector('.map-label-category')?.textContent).toBe('');
   });
 
+  it('names categories at once while the motion is paused', () => {
+    const { motion, host, view } = mapView();
+    view.apply(stepAt(project, 'S00.1').map, 'instant');
+    motion.setPaused(true);
+    // No frame passes: a paused fade would never end.
+    view.setCategoryWords(true);
+    const shown = [...host.querySelectorAll('.map-label-category:not([hidden])')];
+    expect(shown.length).toBeGreaterThan(0);
+    for (const line of shown) {
+      expect(opacity(line)).toBe(1);
+      expect(opacity(line.parentElement)).toBe(1);
+    }
+    view.setCategoryWords(false);
+    expect(host.querySelectorAll('.map-label-category:not([hidden])')).toHaveLength(0);
+  });
+
+  it('fades the category line in and out under a label already on show', () => {
+    const { clock, host, view } = mapView();
+    view.apply(stepAt(project, 'S01.1').map, 'instant');
+    view.setCategoryWords(true);
+    // A label on show before the mode came on (one that appears with it is still at 0).
+    const label = [...host.querySelectorAll<HTMLElement>('.map-label')].find(
+      (l) => opacity(l) === 1 && !(l.querySelector('.map-label-category') as HTMLElement).hidden,
+    );
+    if (!label) throw new Error('S01.1 shows labels');
+    const line = label.querySelector('.map-label-category') as HTMLElement;
+    expect(opacity(line)).toBe(0);
+    clock.advance(0.15);
+    expect(opacity(line)).toBeGreaterThan(0);
+    expect(opacity(line)).toBeLessThan(1);
+    clock.advance(0.2);
+    expect(opacity(line)).toBe(1);
+    view.setCategoryWords(false);
+    clock.advance(0.15);
+    // Still there while it fades, then gone; the label stays.
+    expect(line.hidden).toBe(false);
+    expect(opacity(line)).toBeGreaterThan(0);
+    expect(opacity(line)).toBeLessThan(1);
+    clock.advance(0.2);
+    expect(line.hidden).toBe(true);
+    expect(opacity(label)).toBe(1);
+  });
+
   it('plays a forward step: the new link traces, a pulse travels it, the trend lands with it', () => {
     const { clock, host, view } = mapView();
     view.apply(stepAt(project, 'S04.1').map, 'instant');

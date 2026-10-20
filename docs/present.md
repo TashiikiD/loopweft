@@ -131,6 +131,21 @@ connected, so they never reach a projector.
 - **The console closes:** open it again from the start page, without clicking Start again. The audience window
   keeps its place meanwhile, and its keys still work.
 - **Every window remembers its place** and the clock, in this browser, per presentation.
+- **The console no longer finds the audience window** (it says "No audience window"): click **Open audience
+  window** again. The same window opens again, at the same step, and the two find each other.
+
+### How the windows find each other
+
+Each change goes two ways: over the browser's channel for pages of one site (a BroadcastChannel), and
+straight to the windows that opened each other. Every window passes a change on to the others it knows, so
+two audience windows follow either of them.
+
+Only the presentation's own windows can move it. A message from the channel comes from the same site or
+folder. A message posted straight to a window is let in only from the same site, or, for a file opened from
+disk (which has no site of its own), only when it carries the presentation's **join token**. The console makes
+this random token for its browser tab and gives it to the audience window it opens, in that window's address
+(`&join=…`). The token lasts as long as the tab, so a reloaded console or audience window still has it. It is
+never written into a file.
 
 ### Browsers
 

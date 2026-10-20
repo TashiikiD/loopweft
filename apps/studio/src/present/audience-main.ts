@@ -7,7 +7,7 @@ import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@loopweft/render/render.css';
 import '@loopweft/player/player.css';
 import { readProject } from '@loopweft/model';
-import { browserHost, Link, presentationId, startAudience } from '@loopweft/player';
+import { browserHost, joinToken, Link, presentationId, startAudience } from '@loopweft/player';
 
 const host = document.getElementById('player') as HTMLElement;
 const show = new URLSearchParams(location.search).get('show') ?? '';
@@ -17,7 +17,7 @@ waiting.className = 'lp-waiting';
 waiting.textContent = 'Waiting for the presenter console in the Studio…';
 host.append(waiting);
 
-const link = new Link('audience', show, browserHost(window));
+const link = new Link('audience', show, browserHost(window), { token: joinToken(window, show) });
 let started = false;
 link.on((msg) => {
   if (msg.t !== 'project' || started) return;

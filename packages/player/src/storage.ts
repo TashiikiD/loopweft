@@ -92,7 +92,7 @@ export interface SavedSession {
 
 /** What an earlier run (a rehearsal) left in this browser. */
 export function savedSession(deck: Deck, store: PresentationStore, now: number): SavedSession {
-  const show = sanitizeShowState(deck, store.load('show'), now);
+  const show = sanitizeShowState(deck, store.load('show'));
   const clock = sanitizeClock(store.load('clock'));
   const pos = show?.pos ?? firstPos();
   const clockMs = clock ? elapsedMs(clock, now) : 0;
