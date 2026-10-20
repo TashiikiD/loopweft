@@ -1,0 +1,171 @@
+// @vitest-environment jsdom
+import { ManualClock } from '@loopweft/motion';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  deckOf,
+  onScreenView,
+  type Payload,
+  posKey,
+  presentationId,
+  scriptView,
+  startConsole,
+} from '../src/index.ts';
+import { example, exampleText, MemoryStorage } from './helpers.ts';
+
+const project = example();
+const SHOW = presentationId(exampleText());
+
+const key = (k: string, more: KeyboardEventInit = {}) =>
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, ...more }));
+const text = (selector: string) => document.querySelector(selector)?.textContent ?? '';
+
+let dispose: (() => void) | null = null;
+afterEach(() => {
+  dispose?.();
+  dispose = null;
+  document.body.replaceChildren();
+  history.replaceState(null, '', '/');
+});
+
+function open(projectText?: string) {
+  const host = document.createElement('main');
+  document.body.appendChild(host);
+  const c = startConsole({
+    host,
+    project,
+    show: SHOW,
+    audience: { url: '?view=audience', name: 'test-audience' },
+    storage: new MemoryStorage(),
+    clock: new ManualClock(),
+    ...(projectText ? { projectText } : {}),
+  });
+  dispose = c.dispose;
+  return c;
+}
+
+describe('the presenter console', () => {
+  it('shows the scene, the step, what comes next, and moves with the keys', () => {
+    const c = open();
+    key('4');
+    expect(text('.lp-jump')).toBe(`Go to scene 04 · ${project.story.scenes[4]?.title}: press Enter`);
+    key('Enter');
+    expect(posKey(c.deck, c.session.state.pos)).toBe('S04.1');
+    expect(text('.lp-scene-num')).toBe('04');
+    expect(text('.lp-scene-sub')).toMatch(/^Step 1 of 9 · S04\.1 · /);
+    expect(text('.lp-cue.next')).toContain('S04.2a');
+    expect(document.querySelectorAll('.lp-step-list li')).toHaveLength(9);
+    expect(document.querySelector('.lp-scene-chip.current')?.textContent).toMatch(/^04/);
+    key('PageDown');
+    expect(posKey(c.deck, c.session.state.pos)).toBe('S04.2a');
+    expect(document.querySelector('.lp-step-list li.current')?.textContent).toMatch(/^2a/);
+  });
+
+  it('shows the notes and the script, which this example does not have, on G and F', () => {
+    open();
+    key('ArrowRight');
+    expect(document.querySelector('.lp-n-takeaway')?.textContent).toBe(project.story.scenes[1]?.headline);
+    expect(document.querySelector('.lp-notes-body .lp-markdown li')).not.toBeNull();
+    key('f');
+    expect(text('.lp-notes-body')).toMatch(/^This scene has no script/);
+    expect(document.querySelector('.lp-tab.active')?.textContent).toBe('Script');
+    key('g');
+    expect(document.querySelector('.lp-tab.active')?.textContent).toBe('Notes');
+  });
+
+  it('starts the clock on T and keeps time against the scene’s target', () => {
+    open();
+    key('ArrowRight');
+    expect(text('.lp-timing')).toContain('Clock not started');
+    key('t');
+    expect(document.querySelector('.lp-btn-clock')?.textContent).toBe('⏸ Pause clock');
+    expect(text('.lp-timing')).toContain('0:00 / 1:00');
+    expect(text('.lp-timing')).toContain('14:00 to 14:00');
+  });
+
+  it('shows the chips for blackout, pause and categories in words, and the help on ?', () => {
+    open();
+    key('b');
+    key('p');
+    key('c');
+    const chips = [...document.querySelectorAll('.lp-status .lp-chip:not([hidden])')].map(
+      (c) => c.textContent,
+    );
+    expect(chips).toEqual(['Blackout on', 'Animation paused', 'Categories in words', 'No audience window']);
+    key('?');
+    expect((document.querySelector('.lp-help') as HTMLElement).hidden).toBe(false);
+    key('Escape');
+    expect((document.querySelector('.lp-help') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('sends the project to an audience window that asks for it, and only if it was given', async () => {
+    /** What the console says when an audience window on the presentation's channel asks for the project. */
+    const ask = async (): Promise<Payload[]> => {
+      const channel = new BroadcastChannel(`loopweft-present-${SHOW}`);
+      const heard: Payload[] = [];
+      channel.onmessage = (e: MessageEvent) => {
+        if ((e.data as { from?: string }).from === 'presenter') heard.push((e.data as { msg: Payload }).msg);
+      };
+      channel.postMessage({
+        lw: 'loopweft-present',
+        show: SHOW,
+        from: 'audience',
+        id: 'a1',
+        seq: 1,
+        msg: { t: 'needProject' },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      channel.close();
+      return heard;
+    };
+    open(exampleText());
+    expect((await ask()).some((m) => m.t === 'project' && m.text === exampleText())).toBe(true);
+    dispose?.();
+    dispose = null;
+    open();
+    expect((await ask()).some((m) => m.t === 'project')).toBe(false);
+  });
+});
+
+describe('what the console reads from the project', () => {
+  const deck = deckOf(project);
+
+  it('names each lit link with its sign, type, conditions, mechanism and every page cited', () => {
+    const rows = onScreenView(project, deck, { s: 4, b: 1 }).map((r) => r.textContent);
+    const link = project.links.find((l) => l.id === 'E022');
+    expect(rows[0]).toContain('E022');
+    expect(rows[0]).toContain('+ increases');
+    expect(rows[0]).toContain('conditional');
+    expect(rows[0]).toContain(link?.rationale ?? '?');
+    expect(rows[0]).toContain('Lawrence et al. (2024), p. 8');
+  });
+
+  it('says when a step has nothing cited on screen', () => {
+    const empty = {
+      ...project,
+      story: {
+        scenes: [
+          {
+            ...project.story.scenes[0],
+            steps: [{ id: '1', label: 'x', map: { show: false }, overlays: [] }],
+          },
+        ],
+      },
+    };
+    const d = deckOf(empty as typeof project);
+    expect(onScreenView(empty as typeof project, d, { s: 0, b: 0 }).map((r) => r.textContent)).toEqual([
+      'Nothing cited on screen in this step.',
+    ]);
+  });
+
+  it('marks each key press in a script: the steps by their ids, then the next scene', () => {
+    const scripted = structuredClone(project);
+    const scene = scripted.story.scenes[1];
+    if (!scene) throw new Error('no scene');
+    scene.script = 'One. [>] Two. [>] Three. [>] Four. [>] On to the next.';
+    const d = deckOf(scripted);
+    const marks = scriptView(document, d, { s: 1, b: 0 })
+      .flatMap((el) => [...el.querySelectorAll('.lp-key[data-mark]')])
+      .map((k) => k.textContent);
+    expect(marks).toEqual(['2', '3', '4', 'S02']);
+  });
+});

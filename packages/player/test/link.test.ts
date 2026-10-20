@@ -171,6 +171,27 @@ describe('the link between windows', () => {
   });
 });
 
+describe('a step named in the address', () => {
+  it('counts as a move made now, so a window holding an older saved place follows it', () => {
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const storage = new MemoryStorage();
+    const first = session(browser, browser.window(), 'presenter', storage);
+    browser.advance(10);
+    first.s.dispatch({ type: 'gotoScene', number: 1 });
+    first.link.stop();
+    browser.advance(10_000);
+    // The console opens at a bookmarked step; the audience window, opened from it, holds the saved place.
+    const consoleWin = browser.window();
+    const presenter = session(browser, consoleWin, 'presenter', storage, '#S04.2a');
+    const audienceWin = browser.window(consoleWin);
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience', storage);
+    expect(posKey(deck, presenter.s.state.pos)).toBe('S04.2a');
+    expect(posKey(deck, audience.s.state.pos)).toBe('S04.2a');
+  });
+});
+
 describe('the saved place', () => {
   it('opens where the address says, or where the last run left off, and resets to the start', () => {
     const browser = new FakeBrowser();

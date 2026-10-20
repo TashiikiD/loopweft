@@ -30,7 +30,23 @@ Built so far (Phase 5, in slices):
 - `parseMarkdown`, `markdownToDom`: speaker notes read safely (nothing in them is ever read as HTML).
 - `PresenterClock`: the presenter's clock, kept in the presentation's storage, so the console and a
   rehearsal share it.
-- The page (`page/`): `npm run player` serves it on this machine with the polycrisis example
-  (`?view=audience` for the slides kept in step with other windows; with nothing else, rehearsal).
+- `startConsole`: the presenter console, the presenter's private view:
+  - the scene and step;
+  - Now and Next with their cues and due times;
+  - the clocks (total, this scene against its target, pace, time left against the scenes' targets added up);
+  - the scene's speaker notes (G) or its script with each key mark, the next one lit (F);
+  - a live copy of the audience's screen;
+  - the scene's steps and a strip of scenes, each a click to go there;
+  - "On screen now: its evidence": every lit link's sign, type, conditions, mechanism and citations with
+    pages, the lit variables' citations, the loops badged, and what the overlays cite;
+  - the scene's sources;
+  - Open audience window, and Send to projector (Chrome and Edge place it on the second screen).
+  It answers an audience window that has no copy of the project (the Studio's) with the project.
+- `stageDriver`: how a change of the show moves a stage, shared by the audience window and the console's
+  preview.
+- The page (`page/`): `npm run player` serves it on this machine with the polycrisis example:
+  - `?view=presenter`: the console;
+  - `?view=audience`: the slides kept in step with other windows;
+  - with nothing else: rehearsal.
 
-Still to come in Phase 5: the presenter console, the start page and the one-file HTML.
+Still to come in Phase 5: the start page and the one-file HTML.

@@ -102,13 +102,18 @@ export class ShowSession {
     // window sends it wins (a reloaded audience window, in a browser that kept nothing, joins the show).
     const start = initialShowState(0);
     const fromAddress = this.#o.address ? parseKey(this.#o.deck, this.#o.address.read()) : null;
-    // An address that names a step wins (a bookmarked step); otherwise carry on where the show was.
-    if (fromAddress)
+    // An address that names a step wins (a bookmarked step); otherwise carry on where the show was. A step
+    // named that differs from the saved one is a move made now, so other windows follow it.
+    if (fromAddress) {
+      const moved = !stored || stored.pos.s !== fromAddress.s || stored.pos.b !== fromAddress.b;
+      const base = stored ?? start;
       return {
-        ...(stored ?? start),
+        ...base,
         pos: fromAddress,
-        nav: { kind: 'sync', seq: stored?.nav.seq ?? 0 },
+        nav: { kind: 'sync', seq: base.nav.seq },
+        updatedAt: moved ? now : base.updatedAt,
       };
+    }
     return stored ?? start;
   }
 

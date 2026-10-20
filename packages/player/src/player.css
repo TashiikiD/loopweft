@@ -3,6 +3,8 @@
  * Loopweft: the presenter's own surfaces (hints, rehearsal notes, the console) keep the deck's dark palette
  * whatever the stage's theme, and every class is prefixed "lp-" so the player can sit inside the Studio.
  */
+@import "./console.css";
+
 .lp-page,
 .lp-overlay {
   --lp-bg: #071b16;

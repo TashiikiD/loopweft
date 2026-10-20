@@ -3,14 +3,15 @@
 // and the window also names categories in words (C), steps on a tap or swipe, and can take stills (capture).
 import type { Project } from '@loopweft/model';
 import { type Clock, FrameClock, IntervalClock, Motion } from '@loopweft/motion';
-import { h, StoryView, type Transition, themeTokens } from '@loopweft/render';
-import { keepAwake, ProgressBar, renderMode } from './chrome.ts';
-import { type Deck, deckOf, parseKey, prevPos, sceneAt, stepAt } from './deck.ts';
+import { h, StoryView, themeTokens } from '@loopweft/render';
+import { keepAwake, ProgressBar } from './chrome.ts';
+import { type Deck, deckOf, parseKey, sceneAt } from './deck.ts';
 import { isTypingTarget, JumpBuffer, mapKey } from './keys.ts';
 import { browserHost, Link } from './link.ts';
 import { RehearsalNotes } from './rehearsal.ts';
 import { browserAddress, type ChangeReason, ShowSession } from './session.ts';
 import type { ShowState } from './show.ts';
+import { stageDriver } from './stage.ts';
 import { browserStorage, type KeyValue, PresentationStore } from './storage.ts';
 import { PresenterClock } from './timing.ts';
 
@@ -88,37 +89,10 @@ export function startAudience(o: AudienceOptions): Audience {
   if (notes) stops.push(() => notes.el.remove());
 
   let shown: ShowState | null = null;
+  const drive = stageDriver({ story, motion, deck, blackout });
   const render = (next: ShowState, prev: ShowState | null, reason: ChangeReason) => {
     if (deck.scenes.length === 0) return;
-    const mode = renderMode(next, prev, reason);
-    if (prev && next.skipToken !== prev.skipToken && reason !== 'sync') motion.landAll();
-    motion.setPaused(next.paused);
-    blackout.classList.toggle('on', next.blackout);
-    story.setLowPower(next.lowPower);
-    story.setCategoryWords(next.categoryWords);
-    // Blackout, pause or skip alone must not restart or snap the map.
-    const moved = !prev || prev.pos.s !== next.pos.s || prev.pos.b !== next.pos.b;
-    if (moved || mode === 'replay') {
-      const sceneIndex = (pos: { s: number; b: number }) => sceneAt(deck, pos).index;
-      if (mode === 'replay') {
-        // Back to the step before at once (at the very first step, an empty stage), then this one again.
-        const before = prevPos(deck, next.pos);
-        if (before) story.show(sceneIndex(before), before.b, 'instant');
-        else {
-          const scene = deck.scenes[0];
-          if (scene)
-            story.showStep(
-              scene,
-              undefined,
-              { ...stepAt(deck, next.pos).step, map: { show: false }, overlays: [] },
-              'instant',
-            );
-        }
-      }
-      const transition: Transition =
-        mode === 'instant' ? 'instant' : mode === 'forward' || mode === 'replay' ? 'smooth' : 'quick';
-      story.show(sceneIndex(next.pos), next.pos.b, transition);
-    }
+    drive(next, prev, reason);
     progress.update(next.pos);
     // The console keeps the clock; a window rehearsing alone keeps it instead.
     if (!link.alive('presenter')) clock.noteScene(next.pos);

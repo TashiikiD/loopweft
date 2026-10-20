@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
-// The player's page. One page, several views, chosen by the address: ?view=audience (the slides, kept in step
-// with the console), ?view=audience&rehearse (the slides alone, with rehearsal notes on N), ?view=audience&capture
-// (stills, at the step the address names). The project is embedded in the page (the one-file export); served on
+// The player's page. One page, several views, chosen by the address: ?view=presenter (the presenter console),
+// ?view=audience (the slides, kept in step with the console), ?view=audience&rehearse (the slides alone, with
+// rehearsal notes on N), ?view=audience&capture (stills, at the step the address names). The project is embedded in the page (the one-file export); served on
 // this machine, the page has none and plays the polycrisis example.
 import '@fontsource-variable/inter/opsz.css';
 import '@fontsource-variable/fraunces/opsz.css';
@@ -10,7 +10,7 @@ import '@loopweft/render/render.css';
 import '../src/player.css';
 import { issueLines, readProject } from '@loopweft/model';
 import { h } from '@loopweft/render';
-import { presentationId, startAudience } from '../src/index.ts';
+import { presentationId, startAudience, startConsole } from '../src/index.ts';
 
 const host = document.getElementById('player') as HTMLElement;
 const params = new URLSearchParams(location.search);
@@ -49,12 +49,24 @@ async function start(): Promise<void> {
     return;
   }
   const project = result.project;
+  const show = presentationId(text);
   document.title = project.meta.title;
+  if (params.get('view') === 'presenter') {
+    document.title = `Presenter · ${project.meta.title}`;
+    startConsole({
+      host,
+      project,
+      show,
+      // The same page, as the audience window: relative, so it works from a file opened from disk.
+      audience: { url: '?view=audience', name: `loopweft-audience-${show}` },
+    });
+    return;
+  }
   host.className = 'lp-audience';
   startAudience({
     host,
     project,
-    show: presentationId(text),
+    show,
     rehearse: params.get('view') !== 'audience' || params.has('rehearse'),
     capture: params.has('capture'),
   });

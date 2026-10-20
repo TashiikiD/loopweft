@@ -24,6 +24,15 @@ export {
   toggleClock,
 } from './clock.ts';
 export {
+  type ConsoleOptions,
+  markScriptProgress,
+  type NotesMode,
+  onScreenView,
+  type PresenterConsole,
+  scriptView,
+  startConsole,
+} from './console.ts';
+export {
   type Deck,
   type DeckScene,
   type DeckStep,
@@ -70,6 +79,13 @@ export {
   type PostTarget,
 } from './link.ts';
 export { type MdElement, type MdNode, type MdTag, markdownToDom, parseMarkdown } from './markdown.ts';
+export {
+  type AudienceTarget,
+  openAudienceWindow,
+  PROJECTOR_MESSAGES,
+  type ProjectorResult,
+  sendToProjector,
+} from './projector.ts';
 export { nextLine, RehearsalNotes, sceneName } from './rehearsal.ts';
 export {
   type Address,
@@ -86,6 +102,7 @@ export {
   type ShowState,
   sanitizeShowState,
 } from './show.ts';
+export { type StageDriverOptions, stageDriver } from './stage.ts';
 export {
   browserStorage,
   type KeyValue,
