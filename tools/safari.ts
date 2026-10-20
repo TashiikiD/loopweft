@@ -61,16 +61,23 @@ interface Result {
   ok: boolean;
   required: boolean;
   detail: string;
+  /** Only a screen was made, for a person to look at: it reports "screen made", never "pass". */
+  screenOnly?: boolean;
 }
 const results: Result[] = [];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function check(name: string, required: boolean, fn: () => Promise<string>): Promise<void> {
+async function check(
+  name: string,
+  required: boolean,
+  fn: () => Promise<string>,
+  screenOnly = false,
+): Promise<void> {
   try {
-    results.push({ check: name, ok: true, required, detail: await fn() });
+    results.push({ check: name, ok: true, required, detail: await fn(), screenOnly });
   } catch (error) {
-    results.push({ check: name, ok: false, required, detail: (error as Error).message });
+    results.push({ check: name, ok: false, required, detail: (error as Error).message, screenOnly });
   }
 }
 
@@ -110,8 +117,9 @@ async function byDoubleClick(file: string): Promise<void> {
         const captured = spawnSync('screencapture', ['-x', png], { encoding: 'utf8' });
         if (captured.status !== 0 || !existsSync(png) || statSync(png).size === 0)
           throw new Error(captured.stderr?.trim() || `screencapture made no screen (${captured.status})`);
-        return `screen made (${statSync(png).size} bytes) after opening ${basename(target)}${view ? `, which goes on to ${view}` : ''}; what it shows is not checked: look at it`;
+        return `${statSync(png).size} bytes, after opening ${basename(target)}${view ? `, which goes on to ${view}` : ''}; what it shows is not checked: look at it`;
       },
+      true,
     );
   }
 }
@@ -379,7 +387,7 @@ const lines = [
   '|---|---|---|',
   ...results.map(
     (r) =>
-      `| ${r.check}${r.required ? '' : ' (reported)'} | ${r.ok ? 'pass' : 'FAIL'} | ${r.detail.replace(/\|/g, '/')} |`,
+      `| ${r.check}${r.required ? '' : ' (reported)'} | ${r.ok ? (r.screenOnly ? 'screen made' : 'pass') : 'FAIL'} | ${r.detail.replace(/\|/g, '/')} |`,
   ),
   ...(crashed ? ['', `Stopped: ${crashed.message}`] : []),
 ];
