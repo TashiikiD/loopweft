@@ -1,16 +1,16 @@
 // `loopweft export`: a project as one HTML file to share or present (more formats come in Phase 6). The file
 // is the Studio's export, byte for byte: the player's page with the project in it.
 import {
-  constants,
-  copyFileSync,
   existsSync,
   linkSync,
+  mkdirSync,
+  mkdtempSync,
   renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { OpError } from '@loopweft/model';
 import { exportHtml } from '@loopweft/player';
 import { playerTemplate } from '@loopweft/player/build';
@@ -42,27 +42,37 @@ function sameFile(a: string, b: string): boolean {
   }
 }
 
-/** Numbers this process's exports, so that two at once never share a temporary file. */
-let exportsMade = 0;
-
 /**
- * Puts a finished file in place without replacing one: a hard link fails if `out` exists, even one another
- * export wrote a moment ago. Where the drive has no hard links, a copy that refuses to replace does the same.
+ * Puts a finished file in place, whole, without replacing one. A hard link fails if `out` exists, even one
+ * another export wrote a moment ago. Where the drive has no hard links (FAT, some network shares), an export
+ * first makes a lock folder beside the file, which only one can do at a time (making a folder fails if it is
+ * there), then looks and renames: a rename puts the whole file there at once, so an export stopped part way
+ * leaves no half a file.
  */
 function placeNew(temporary: string, out: string, exists: () => Error): void {
   try {
     linkSync(temporary, out);
     return;
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === 'EEXIST') throw exists();
-    if (!['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV'].includes(code ?? '')) throw error;
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw exists();
+    // No hard link here (each system says so its own way): the lock below fails by itself where the folder
+    // cannot be written.
+  }
+  const lock = `${out}.loopweft-lock`;
+  try {
+    mkdirSync(lock);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    throw new OpError(
+      `Another export is writing ${out}; if none is (one was stopped), remove the folder ${lock}.`,
+      'usage',
+    );
   }
   try {
-    copyFileSync(temporary, out, constants.COPYFILE_EXCL);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw exists();
-    throw error;
+    if (existsSync(out)) throw exists();
+    renameSync(temporary, out);
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
   }
 }
 
@@ -78,16 +88,18 @@ export async function exportCommand(file: string, o: ExportCommandOptions): Prom
   if (existsSync(out) && !o.force) throw exists();
   const notes = o.notes !== false;
   const made = exportHtml(project, await playerTemplate(), { notes });
-  // Written beside the file under a name of its own, then put in place, so a failed write never leaves half a
-  // file. With --force it replaces what is there; without, it fails rather than replace a file that another
-  // export wrote while this one was building.
-  const temporary = `${out}.tmp-${process.pid}-${++exportsMade}`;
+  // Written in a new folder of its own beside the file, then put in place, so a failed write never leaves half
+  // a file, and no two exports (two processes, or two threads of one) share a temporary file. With --force it
+  // replaces what is there; without, it fails rather than replace a file that another export wrote while this
+  // one was building.
+  const folder = mkdtempSync(join(dirname(resolve(out)), '.loopweft-export-'));
   try {
-    writeFileSync(temporary, made.html, { flag: 'wx' });
+    const temporary = join(folder, basename(out));
+    writeFileSync(temporary, made.html);
     if (o.force) renameSync(temporary, out);
     else placeNew(temporary, out, exists);
   } finally {
-    rmSync(temporary, { force: true });
+    rmSync(folder, { recursive: true, force: true });
   }
   const scenes = project.story.scenes.length;
   const steps = project.story.scenes.reduce((n, s) => n + s.steps.length, 0);

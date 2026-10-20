@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import { readProject } from '@loopweft/model';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandNames, main, today } from '../src/main.ts';
@@ -1228,8 +1229,15 @@ describe('export', () => {
       const code = await main(args, { out: () => {}, err: (t) => (err += t) }, env);
       return { code, err };
     };
-    const aliases = [`${dir}${sep}.${sep}talk.loopweft`, join(dir, 'hard-link.loopweft')];
-    linkSync(source, join(dir, 'hard-link.loopweft'));
+    const aliases = [`${dir}${sep}.${sep}talk.loopweft`];
+    try {
+      linkSync(source, join(dir, 'hard-link.loopweft'));
+      aliases.push(join(dir, 'hard-link.loopweft'));
+    } catch (error) {
+      // A drive without hard links (FAT, some network shares), as each system says so; anything else is a
+      // failure of the test's own.
+      if (!NO_HARD_LINKS.includes((error as NodeJS.ErrnoException).code ?? '')) throw error;
+    }
     try {
       symlinkSync(source, join(dir, 'soft-link.loopweft'));
       aliases.push(join(dir, 'soft-link.loopweft'));
@@ -1245,14 +1253,62 @@ describe('export', () => {
   });
 
   it('lets only one of two exports at once make a new file, and keeps that file whole', async () => {
+    expect((await run('export', 'talk.loopweft', '--html', '-o', 'reference.html')).code).toBe(0);
     const both = await Promise.all([
       run('export', 'talk.loopweft', '--html', '-o', 'race.html'),
       run('export', 'talk.loopweft', '--html', '-o', 'race.html'),
     ]);
     expect(both.map((r) => r.code).sort()).toEqual([0, 2]);
     expect(both.find((r) => r.code === 2)?.err).toContain('race.html already exists');
-    expect(readFileSync(join(dir, 'race.html'), 'utf8')).toBe(readFileSync(join(dir, 'talk.html'), 'utf8'));
-    // No temporary file is left behind.
-    expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toEqual([]);
+    expect(readFileSync(join(dir, 'race.html'), 'utf8')).toBe(
+      readFileSync(join(dir, 'reference.html'), 'utf8'),
+    );
+    expect(leftovers()).toEqual([]);
   });
+
+  it('gives each export a temporary folder of its own, even two at once in threads of one process', async () => {
+    // Threads of one process share its id, so a name made of the id and a count can be taken already: by
+    // another thread's export, or by a process with the same id that was stopped part way. One is there.
+    const stale = join(dir, `threads.html.tmp-${process.pid}-1`);
+    writeFileSync(stale, 'not an export');
+    expect((await run('export', 'talk.loopweft', '--html', '-o', 'reference.html', '--force')).code).toBe(0);
+    const both = await Promise.all([inThread('threads.html'), inThread('threads.html')]);
+    expect(both.map((r) => r.code).sort()).toEqual([0, 2]);
+    expect(both.find((r) => r.code === 2)?.err).toContain('threads.html already exists');
+    expect(readFileSync(join(dir, 'threads.html'), 'utf8')).toBe(
+      readFileSync(join(dir, 'reference.html'), 'utf8'),
+    );
+    expect(readFileSync(stale, 'utf8')).toBe('not an export');
+    rmSync(stale);
+    expect(leftovers()).toEqual([]);
+  }, 120_000);
 });
+
+/** How systems say a drive has no hard links (Windows names a FAT drive's refusal EISDIR). */
+const NO_HARD_LINKS = ['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV', 'EISDIR'];
+
+/** What an export could leave in the folder: its temporary folder, or a lock. */
+const leftovers = () =>
+  readdirSync(dir).filter((f) => f.startsWith('.loopweft-export-') || f.endsWith('.loopweft-lock'));
+
+/** The command line's main, as another thread of this process loads it (Node runs the source itself). */
+const MAIN = new URL('../src/main.ts', import.meta.url).href;
+const THREAD = `
+import { parentPort, workerData } from 'node:worker_threads';
+const { main } = await import(workerData.main);
+let err = '';
+const code = await main(workerData.args, { out: () => {}, err: (t) => (err += t) }, { today: '2026-10-18' });
+parentPort.postMessage({ code, err });
+`;
+
+/** Exports the example in a new thread of this process, as `out` in the temporary folder. */
+function inThread(out: string): Promise<{ code: number; err: string }> {
+  const args = ['export', join(dir, 'talk.loopweft'), '--html', '-o', join(dir, out)];
+  return new Promise((done, fail) => {
+    const thread = new Worker(new URL(`data:text/javascript,${encodeURIComponent(THREAD)}`), {
+      workerData: { main: MAIN, args },
+    });
+    thread.once('message', done);
+    thread.once('error', fail);
+  });
+}
