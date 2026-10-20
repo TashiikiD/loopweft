@@ -137,12 +137,23 @@ const isCount = (n: unknown): n is number =>
   Number.isSafeInteger(n) && (n as number) >= 0 && (n as number) < COUNT_LIMIT;
 
 /**
- * How far ahead of this window's clock a change may be stamped: a year. The windows of one presentation share
- * one computer's clock, and a window stamps a change at most a few milliseconds ahead of it (keys pressed
- * faster than it ticks), so only a damaged value is further ahead. Refusing those keeps every time far below
- * the limit, so the next change, a millisecond later, always has a whole number to take.
+ * A year: how far ahead of its clock a window takes back a saved state (the clock may have been set back since
+ * it was saved). The windows of one presentation share one computer's clock, and a window stamps a change at
+ * most a few milliseconds ahead of it (keys pressed faster than it ticks), so only a damaged value is further
+ * ahead. Refusing those keeps every time far below the counters' limit.
  */
 export const LEAD_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** The latest stamp of a state a window takes back from storage: a year past its clock. */
+export const restoreLimit = (now: number): number => now + LEAD_MS;
+
+/**
+ * The latest stamp of a change a window takes in from another: two years past the later of its clock and its
+ * own state. A window stamps a change a millisecond after the state it changes, so the change after a state
+ * restored at its limit, or after one both windows took in, still arrives.
+ */
+export const receiveLimit = (now: number, own: ShowState): number =>
+  Math.max(now, own.updatedAt) + 2 * LEAD_MS;
 
 const NAV_KINDS: readonly string[] = ['forward', 'backward', 'jump', 'replay', 'sync'];
 
@@ -152,16 +163,16 @@ export const isNavKind = (kind: unknown): kind is NavKind => NAV_KINDS.includes(
 /**
  * A stored or received state, if it still fits the deck; it then shows at once (`sync`). It comes from
  * another window or the browser's storage, so nothing in it is trusted: a state without a whole-millisecond
- * time, or stamped more than a year after `now` (this window's clock), is refused (one stamped `Infinity`
+ * time, or stamped after `latest` (`restoreLimit` or `receiveLimit`), is refused (one stamped `Infinity`
  * would outrank every later change), and a malformed counter starts again from 0.
  */
-export function sanitizeShowState(deck: Deck, value: unknown, now: number): ShowState | null {
+export function sanitizeShowState(deck: Deck, value: unknown, latest: number): ShowState | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<ShowState>;
   const pos = v.pos as Partial<Pos> | undefined;
   if (!pos || !isCount(pos.s) || !isCount(pos.b)) return null;
   if (!isValidPos(deck, { s: pos.s, b: pos.b })) return null;
-  if (!isCount(v.updatedAt) || v.updatedAt > now + LEAD_MS) return null;
+  if (!isCount(v.updatedAt) || v.updatedAt > latest) return null;
   return {
     ...initialShowState(v.updatedAt, { s: pos.s, b: pos.b }),
     skipToken: isCount(v.skipToken) ? v.skipToken : 0,

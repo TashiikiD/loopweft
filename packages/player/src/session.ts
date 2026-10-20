@@ -7,7 +7,9 @@ import {
   initialShowState,
   isNavKind,
   isNewer,
+  receiveLimit,
   reduce,
+  restoreLimit,
   type ShowState,
   sanitizeShowState,
 } from './show.ts';
@@ -90,7 +92,7 @@ export class ShowSession {
       return;
     }
     if (msg.t !== 'state') return;
-    const incoming = sanitizeShowState(this.#o.deck, msg.state, this.#o.now());
+    const incoming = sanitizeShowState(this.#o.deck, msg.state, receiveLimit(this.#o.now(), this.state));
     if (!incoming) return;
     // Keep the sender's kind of move, so that every window animates alike.
     const kind = (msg.state as { nav?: { kind?: unknown } }).nav?.kind;
@@ -103,7 +105,7 @@ export class ShowSession {
   }
 
   #restore(): ShowState {
-    const stored = sanitizeShowState(this.#o.deck, this.#o.store.load('show'), this.#o.now());
+    const stored = sanitizeShowState(this.#o.deck, this.#o.store.load('show'), restoreLimit(this.#o.now()));
     // A window with nothing saved starts at the first step, older than any change: the first state another
     // window sends it wins (a reloaded audience window, in a browser that kept nothing, joins the show).
     const start = initialShowState(0);

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   type Address,
   deckOf,
+  type Envelope,
   initialShowState,
+  LEAD_MS,
   Link,
   nextPos,
   type Payload,
@@ -10,7 +12,9 @@ import {
   PresentationStore,
   posKey,
   presentationId,
+  receiveLimit,
   resetSession,
+  restoreLimit,
   ShowSession,
   type ShowState,
   savedSession,
@@ -463,6 +467,105 @@ describe('who may move the show', () => {
     browser.advance(10);
     a.run(() => one.s.dispatch({ type: 'gotoScene', number: 6 }));
     expect(posKey(deck, two.s.state.pos)).toBe(after(6, 0));
+  });
+});
+
+describe('a window that goes on to another page', () => {
+  it('leaves that page nothing to move the show with, and still finds the show when it comes back', () => {
+    const TOKEN = '0123456789abcdef0123456789abcdef';
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    const consoleWin = browser.window(null, 'null');
+    const presenter = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+    const audienceWin = browser.window(consoleWin, 'null');
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(10);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'gotoScene', number: 2 }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+
+    // The audience window goes on to another file (a link followed, an address typed), not closed: the
+    // console still holds it, and posts to whatever page it holds now.
+    audienceWin.run(() => audience.link.stop());
+    const heard: Envelope[] = [];
+    audienceWin.host('*').listen((data) => heard.push(data as Envelope));
+    browser.advance(1100);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+    expect(heard.some((e) => e.msg.t === 'ping')).toBe(true);
+    expect(heard.some((e) => e.msg.t === 'state')).toBe(true);
+    // What reaches it has a proof in it, never the token.
+    expect(JSON.stringify(heard)).not.toContain(TOKEN);
+    expect(heard.every((e) => typeof e.mac === 'string' && e.mac.length === 64)).toBe(true);
+
+    // From what it heard it makes messages of its own, as another window would send them: a step under an
+    // old proof, the console's own messages under another sender, a ping. None moves the console, and the
+    // console counts no window there (the audience window said goodbye when it left).
+    const ping = heard.find((e) => e.msg.t === 'ping') as Envelope;
+    const state = heard.find((e) => e.msg.t === 'state') as Envelope;
+    const step = (state.msg as { state: ShowState }).state;
+    const moved: Payload = {
+      t: 'state',
+      state: { ...step, pos: { s: 9, b: 0 }, updatedAt: browser.now + 9 },
+      reason: 'update',
+    };
+    const other = { from: 'audience' as const, id: 'audience-other' };
+    const forged: Envelope[] = [
+      { ...state, ...other, seq: 1, msg: moved },
+      { ...state, ...other, seq: 2 },
+      { ...ping, ...other, seq: 3 },
+      ...heard.map((e, i) => ({ ...e, ...other, seq: 10 + i })),
+    ];
+    for (const e of forged) audienceWin.run(() => consoleWin.postMessage(e, '*'));
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2));
+    expect(presenter.link.count('audience')).toBe(0);
+
+    // The audience window comes back to the show (its address keeps the token): it finds the console again.
+    const back = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(1100);
+    expect(posKey(deck, back.s.state.pos)).toBe(after(2));
+    audienceWin.run(() => back.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2, 2));
+  });
+});
+
+describe('a state stamped far ahead of the clock', () => {
+  it('lets the change after it arrive, whether a window took it back from storage or from another window', () => {
+    // Every window's clock stands still: nothing that follows can lean on time passing.
+    const browser = new FakeBrowser();
+    const now = browser.now;
+    // A saved place stamped as far ahead as a window takes back (the clock was set back since).
+    const storage = new MemoryStorage();
+    new PresentationStore(SHOW, storage).save('show', initialShowState(restoreLimit(now), { s: 3, b: 0 }));
+    const a = browser.window();
+    const one = session(browser, a, 'presenter', storage);
+    expect(one.s.state.updatedAt).toBe(now + LEAD_MS);
+    const b = browser.window(a);
+    one.link.addWindow(b);
+    const two = session(browser, b, 'audience');
+    expect(posKey(deck, two.s.state.pos)).toBe('S03.1');
+    a.run(() => one.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, two.s.state.pos)).toBe(after(3));
+    b.run(() => two.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, one.s.state.pos)).toBe(after(3, 2));
+
+    // A change from a third window stamped as far ahead as the two take in: both take it, and each
+    // one's next change reaches the other. A millisecond more is refused.
+    const c = browser.window();
+    const third = new Link('presenter', SHOW, c.host());
+    c.run(() => third.start());
+    const edge = receiveLimit(now, one.s.state);
+    const ahead = (updatedAt: number, s: number): ShowState => ({
+      ...initialShowState(updatedAt, { s, b: 0 }),
+      writer: third.id,
+    });
+    c.run(() => third.send({ t: 'state', state: ahead(edge + 1, 7), reason: 'update' }));
+    expect(posKey(deck, one.s.state.pos)).toBe(after(3, 2));
+    c.run(() => third.send({ t: 'state', state: ahead(edge, 5), reason: 'update' }));
+    expect([posKey(deck, one.s.state.pos), posKey(deck, two.s.state.pos)]).toEqual(['S05.1', 'S05.1']);
+    a.run(() => one.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, two.s.state.pos)).toBe(after(5));
+    b.run(() => two.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, one.s.state.pos)).toBe(after(5, 2));
   });
 });
 

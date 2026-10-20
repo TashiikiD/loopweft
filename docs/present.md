@@ -142,15 +142,17 @@ two audience windows follow either of them.
 
 Only the presentation's own windows can move it. A message from the channel comes from the same site or
 folder. A message posted straight to a window is let in only from the same site, or, for a file opened from
-disk (which has no site of its own), only when it carries the presentation's **join token**. The console makes
-this random token for its browser tab and gives it to the audience window it opens, in that window's address
-(`&join=…`). The token lasts as long as the tab, so a reloaded console or audience window still has it. It is
-never written into a file.
+disk (which has no site of its own), only when it carries proof of the presentation's **join token**. The
+console makes this random token for its browser tab and gives it to the audience window it opens, in that
+window's address (`&join=…`). The token lasts as long as the tab, so a reloaded console or audience window
+still has it. It is never written into a file.
 
-Every message carries the token, so on a file opened from disk a window sends nothing straight to the page
-that opened it until that page has shown the token: any page can open a file. Each window tells the others
-it is there once a second, so a reloaded audience window or console finds the other within a second, and
-then asks where the show is.
+The token itself never travels between the windows. Each message carries instead a proof made with it (an
+HMAC-SHA256 of everything the message says), so a page that comes to hold one of the windows, such as a page
+the audience window went on to, can neither learn the token nor make a message of its own. On a file opened
+from disk, a window also sends nothing straight to the page that opened it until that page has shown the
+proof: any page can open a file. Each window tells the others it is there once a second, so a reloaded
+audience window or console finds the other within a second, and then asks where the show is.
 
 ### Browsers
 

@@ -9,15 +9,17 @@
 // Who may move the show: a BroadcastChannel only carries messages between pages of one origin, so those are
 // trusted. A message posted straight to this window could come from any page holding it, so it is let in only
 // from this window's own origin, or, where the page has no origin of its own (a file opened from disk), when
-// it carries the presentation's join token: a random value the console hands the audience window it opens (in
-// its address), kept for the tab's life, never written into a file. The presentation's id says which windows
-// belong together; anyone can work it out from the project, so it is not a key.
+// it carries proof of the presentation's join token: a random value the console hands the audience window it
+// opens (in its address), kept for the tab's life, never written into a file. The presentation's id says which
+// windows belong together; anyone can work it out from the project, so it is not a key.
 //
-// Every message a window sends carries its token, so on a file opened from disk, where a message posted
-// straight to a window reaches any page, a window posts to another only once that window has shown the token
-// (or it opened that window itself, handing it the token). The page that opened it is not trusted until then:
-// any page could have opened the file. Every window pings every second, so a reloaded window hears from the
-// other within a second, and then asks it where the show is.
+// The token itself never travels. On a file opened from disk a message posted straight to a window reaches
+// whatever page that window holds now (one the audience window went on to, say), so each message carries
+// instead an HMAC of what it says, made with the token: a page that reads it can neither learn the token nor
+// make another message. A window posts nothing straight to the page that opened it until that page has shown
+// the proof (any page could have opened the file). Every window pings every second, so a reloaded window
+// hears from the other within a second, and then asks it where the show is.
+import { hmacSha256, sameText } from './hmac.ts';
 import type { ShowState } from './show.ts';
 
 export type LinkRole = 'presenter' | 'audience';
@@ -40,8 +42,8 @@ export interface Envelope {
   id: string;
   seq: number;
   msg: Payload;
-  /** The join token, where the sender has one. */
-  key?: string;
+  /** On a file opened from disk: the HMAC of the rest, made with the presentation's join token (`proof`). */
+  mac?: string;
 }
 
 /** A window that can be posted to: another window's WindowProxy. */
@@ -89,7 +91,7 @@ export function isEnvelope(data: unknown): data is Envelope {
     (e.from === 'presenter' || e.from === 'audience') &&
     typeof e.id === 'string' &&
     typeof e.seq === 'number' &&
-    (e.key === undefined || typeof e.key === 'string') &&
+    (e.mac === undefined || typeof e.mac === 'string') &&
     !!e.msg &&
     typeof e.msg === 'object' &&
     typeof (e.msg as { t?: unknown }).t === 'string'
@@ -127,6 +129,8 @@ export class Link {
   readonly #listeners = new Set<(msg: Payload, from: { id: string; role: LinkRole }) => void>();
   readonly #peerListeners = new Set<() => void>();
   readonly #token: string;
+  /** This window has no origin of its own (a file opened from disk): direct messages need the proof. */
+  readonly #opaque: boolean;
   #stops: Array<() => void> = [];
   #seq = 0;
   #started = false;
@@ -136,6 +140,7 @@ export class Link {
     this.show = show;
     this.#host = host;
     this.#token = options.token ?? '';
+    this.#opaque = isOpaqueOrigin(host.origin);
     this.id = `${role}-${host.newId()}`;
   }
 
@@ -158,9 +163,9 @@ export class Link {
     if (this.#channel) this.#channel.onmessage = (e) => this.#receive(e.data, null, null);
     this.#stops.push(this.#host.listen((data, source, origin) => this.#receive(data, source, origin)));
     // The window that opened this one hears it from the start where its origin is checked; on a file from
-    // disk, only once it has shown the token (see the top of this file).
+    // disk, only once it has shown the proof (see the top of this file).
     const opener = this.#host.opener();
-    if (opener && !isOpaqueOrigin(this.#host.origin)) this.#windows.add(opener);
+    if (opener && !this.#opaque) this.#windows.add(opener);
     this.send({ t: 'hello' });
     this.#stops.push(this.#host.every(PING_MS, () => this.send({ t: 'ping' })));
     this.#stops.push(this.#host.every(PING_MS, () => this.#sweep()));
@@ -184,15 +189,14 @@ export class Link {
   }
 
   send(msg: Payload): void {
-    const envelope: Envelope = {
+    const envelope: Envelope = this.#signed({
       lw: 'loopweft-present',
       show: this.show,
       from: this.role,
       id: this.id,
       seq: ++this.#seq,
       msg,
-      ...(this.#token ? { key: this.#token } : {}),
-    };
+    });
     try {
       this.#channel?.postMessage(envelope);
     } catch {
@@ -235,11 +239,17 @@ export class Link {
     return this.#seen.size;
   }
 
+  /** An envelope with this window's proof, on a file opened from disk; elsewhere, as it is. */
+  #signed(envelope: Envelope): Envelope {
+    const { mac: _, ...rest } = envelope;
+    return this.#opaque && this.#token ? { ...rest, mac: proof(this.#token, rest) } : rest;
+  }
+
   /** Whether a message may reach this window: see the top of this file. `origin` is null for the channel's. */
   #admits(data: Envelope, origin: string | null): boolean {
     if (origin === null) return true;
-    if (!isOpaqueOrigin(this.#host.origin)) return origin === this.#host.origin;
-    return this.#token !== '' && data.key === this.#token;
+    if (!this.#opaque) return origin === this.#host.origin;
+    return this.#token !== '' && typeof data.mac === 'string' && sameText(data.mac, proof(this.#token, data));
   }
 
   #receive(data: unknown, source: unknown, origin: string | null): void {
@@ -265,8 +275,8 @@ export class Link {
     }
     // Pass a change on, as it is (its id and number let every window drop it the second time), to the other
     // windows this one knows: without a BroadcastChannel they may know only this one. This window vouches
-    // for it with its own token.
-    if (data.msg.t === 'state') this.#post(this.#token ? { ...data, key: this.#token } : data, source);
+    // for it with its own proof.
+    if (data.msg.t === 'state') this.#post(this.#signed(data), source);
     const known = this.#peers.has(data.id);
     this.#peers.set(data.id, { role: data.from, seen: this.#host.now() });
     if (!known) this.#peersChanged();
@@ -328,6 +338,15 @@ export function browserHost(win: Window = window): LinkHost {
       return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
     },
   };
+}
+
+/**
+ * The proof a message carries on a file opened from disk: the HMAC-SHA256, under the join token, of everything
+ * it says (its presentation, sender, number and payload), so that none of it can be changed or made up.
+ */
+export function proof(token: string, envelope: Omit<Envelope, 'mac'>): string {
+  const { show, from, id, seq, msg } = envelope;
+  return hmacSha256(token, JSON.stringify([show, from, id, seq, msg]));
 }
 
 /** The address parameter that hands an opened audience window its presentation's join token. */

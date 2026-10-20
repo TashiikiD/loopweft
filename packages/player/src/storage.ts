@@ -3,7 +3,7 @@
 // storage), so each presentation keeps its place, clock and preferences under its own id.
 import { elapsedMs, sanitizeClock } from './clock.ts';
 import { type Deck, firstPos, posKey, samePos } from './deck.ts';
-import { sanitizeShowState } from './show.ts';
+import { restoreLimit, sanitizeShowState } from './show.ts';
 
 /** The part of the browser's storage the player uses; it may be missing or throw (private windows, blocked site data). */
 export interface KeyValue {
@@ -92,7 +92,7 @@ export interface SavedSession {
 
 /** What an earlier run (a rehearsal) left in this browser. */
 export function savedSession(deck: Deck, store: PresentationStore, now: number): SavedSession {
-  const show = sanitizeShowState(deck, store.load('show'), now);
+  const show = sanitizeShowState(deck, store.load('show'), restoreLimit(now));
   const clock = sanitizeClock(store.load('clock'));
   const pos = show?.pos ?? firstPos();
   const clockMs = clock ? elapsedMs(clock, now) : 0;

@@ -120,7 +120,9 @@ export {
   isNewer,
   LEAD_MS,
   type NavKind,
+  receiveLimit,
   reduce,
+  restoreLimit,
   type ShowState,
   sanitizeShowState,
 } from './show.ts';

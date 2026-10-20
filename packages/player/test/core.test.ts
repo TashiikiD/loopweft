@@ -20,7 +20,9 @@ import {
   parseKey,
   posKey,
   prevPos,
+  receiveLimit,
   reduce,
+  restoreLimit,
   type ShowState,
   sanitizeClock,
   sanitizeShowState,
@@ -32,8 +34,9 @@ import { example, MemoryStorage } from './helpers.ts';
 
 const project = example();
 const deck = deckOf(project);
-/** This window's clock, for reading saved and received states. */
+/** This window's clock, for reading saved and received states, and the latest stamp it takes back from storage. */
 const NOW = 1_800_000_000_000;
+const LATEST = restoreLimit(NOW);
 
 const run = (state: ShowState, ...cmds: Command[]): ShowState =>
   cmds.reduce((s, cmd, i) => reduce(deck, s, cmd, 2000 + i), state);
@@ -125,52 +128,52 @@ describe('the show', () => {
 
   it('takes back a saved state only if it fits the deck, and shows it at once', () => {
     const saved = run(start, { type: 'gotoScene', number: 5 }, { type: 'toggleCategoryWords' });
-    const read = sanitizeShowState(deck, JSON.parse(JSON.stringify(saved)), NOW);
+    const read = sanitizeShowState(deck, JSON.parse(JSON.stringify(saved)), LATEST);
     expect(read?.pos).toEqual(saved.pos);
     expect(read?.categoryWords).toBe(true);
     expect(read?.nav.kind).toBe('sync');
-    expect(sanitizeShowState(deck, { pos: { s: 40, b: 0 }, updatedAt: 9 }, NOW)).toBeNull();
-    expect(sanitizeShowState(deck, { pos: { s: '1', b: 0 }, updatedAt: 9 }, NOW)).toBeNull();
-    expect(sanitizeShowState(deck, 'nonsense', NOW)).toBeNull();
+    expect(sanitizeShowState(deck, { pos: { s: 40, b: 0 }, updatedAt: 9 }, LATEST)).toBeNull();
+    expect(sanitizeShowState(deck, { pos: { s: '1', b: 0 }, updatedAt: 9 }, LATEST)).toBeNull();
+    expect(sanitizeShowState(deck, 'nonsense', LATEST)).toBeNull();
   });
 
   it('refuses a state whose time is not a whole number of milliseconds, and starts bad counters from 0', () => {
     const good = { pos: { s: 1, b: 0 }, updatedAt: 5, nav: { kind: 'forward', seq: 3 }, skipToken: 2 };
-    expect(sanitizeShowState(deck, good, NOW)).toMatchObject({
+    expect(sanitizeShowState(deck, good, LATEST)).toMatchObject({
       updatedAt: 5,
       skipToken: 2,
       nav: { kind: 'sync', seq: 3 },
       writer: '',
     });
     for (const updatedAt of [Number.POSITIVE_INFINITY, Number.NaN, -1, 1.5, '5', undefined, 2 ** 60])
-      expect(sanitizeShowState(deck, { ...good, updatedAt }, NOW)).toBeNull();
+      expect(sanitizeShowState(deck, { ...good, updatedAt }, LATEST)).toBeNull();
     // JSON reads 1e309 as Infinity.
-    expect(sanitizeShowState(deck, JSON.parse('{"pos":{"s":1,"b":0},"updatedAt":1e309}'), NOW)).toBeNull();
+    expect(sanitizeShowState(deck, JSON.parse('{"pos":{"s":1,"b":0},"updatedAt":1e309}'), LATEST)).toBeNull();
     for (const bad of [Number.POSITIVE_INFINITY, Number.NaN, -1, 0.5, '2'])
       expect(
-        sanitizeShowState(deck, { ...good, skipToken: bad, nav: { kind: 'jump', seq: bad } }, NOW),
+        sanitizeShowState(deck, { ...good, skipToken: bad, nav: { kind: 'jump', seq: bad } }, LATEST),
       ).toMatchObject({ skipToken: 0, nav: { seq: 0 } });
-    expect(sanitizeShowState(deck, { ...good, pos: { s: 1.5, b: 0 } }, NOW)).toBeNull();
-    expect(sanitizeShowState(deck, { ...good, writer: 'x'.repeat(65) }, NOW)?.writer).toBe('');
+    expect(sanitizeShowState(deck, { ...good, pos: { s: 1.5, b: 0 } }, LATEST)).toBeNull();
+    expect(sanitizeShowState(deck, { ...good, writer: 'x'.repeat(65) }, LATEST)?.writer).toBe('');
   });
 
   it('takes in no number that a change could not add one to, so every later change still arrives', () => {
     const good = { pos: { s: 1, b: 0 }, updatedAt: NOW, nav: { kind: 'forward', seq: 3 }, skipToken: 2 };
     // A time more than a year ahead of this window's clock is refused: the windows share one clock.
-    expect(sanitizeShowState(deck, { ...good, updatedAt: NOW + LEAD_MS }, NOW)?.updatedAt).toBe(
+    expect(sanitizeShowState(deck, { ...good, updatedAt: NOW + LEAD_MS }, LATEST)?.updatedAt).toBe(
       NOW + LEAD_MS,
     );
     for (const updatedAt of [NOW + LEAD_MS + 1, Number.MAX_SAFE_INTEGER, COUNT_LIMIT])
-      expect(sanitizeShowState(deck, { ...good, updatedAt }, NOW)).toBeNull();
+      expect(sanitizeShowState(deck, { ...good, updatedAt }, LATEST)).toBeNull();
     // A counter at the limit, or past it, starts again from 0; one below it is kept.
     for (const bad of [COUNT_LIMIT, Number.MAX_SAFE_INTEGER])
       expect(
-        sanitizeShowState(deck, { ...good, skipToken: bad, nav: { kind: 'jump', seq: bad } }, NOW),
+        sanitizeShowState(deck, { ...good, skipToken: bad, nav: { kind: 'jump', seq: bad } }, LATEST),
       ).toMatchObject({ skipToken: 0, nav: { seq: 0 } });
     const top = sanitizeShowState(
       deck,
       { ...good, skipToken: COUNT_LIMIT - 1, nav: { kind: 'jump', seq: COUNT_LIMIT - 1 } },
-      NOW,
+      LATEST,
     );
     expect(top).toMatchObject({ skipToken: COUNT_LIMIT - 1, nav: { seq: COUNT_LIMIT - 1 } });
     if (!top) return;
@@ -181,7 +184,9 @@ describe('the show', () => {
     const skipped = reduce(deck, top, { type: 'skip' }, NOW + 1);
     expect([moved.nav.seq, replayed.nav.seq, skipped.skipToken]).toEqual([0, 0, 0]);
     for (const state of [moved, replayed, skipped])
-      expect(sanitizeShowState(deck, JSON.parse(JSON.stringify(state)), NOW + 1)).not.toBeNull();
+      expect(
+        sanitizeShowState(deck, JSON.parse(JSON.stringify(state)), receiveLimit(NOW, top)),
+      ).not.toBeNull();
   });
 
   it('does nothing for a story without steps', () => {
