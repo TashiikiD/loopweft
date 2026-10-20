@@ -294,3 +294,13 @@
   font-size: 14px;
   color: var(--lp-muted);
 }
+
+/* The Studio's audience window, before the console answers. */
+.lp-waiting {
+  max-width: 640px;
+  margin: 30vh auto 0;
+  padding: 0 24px;
+  color: var(--lp-muted);
+  font: 18px / 1.5 var(--lp-sans);
+  text-align: center;
+}

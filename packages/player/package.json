@@ -15,6 +15,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./build": "./build/template.ts",
+    "./build/plugin": "./build/plugin.ts",
     "./player.css": "./src/player.css"
   }
 }

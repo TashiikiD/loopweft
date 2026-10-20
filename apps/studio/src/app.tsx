@@ -1,6 +1,6 @@
-// The Loopweft Studio: one window with five workspaces (Map, Sources and Story so far). It holds one map
-// at a time, saved to a .loopweft file; while it has unsaved changes a copy is kept in the browser, so a
-// crash or a closed tab loses nothing.
+// The Loopweft Studio: one window with five workspaces (Map, Sources, Story, Present and Export). It holds
+// one map at a time, saved to a .loopweft file; while it has unsaved changes a copy is kept in the browser,
+// so a crash or a closed tab loses nothing.
 import { createProject, type Project, serializeProject } from '@loopweft/model';
 import { AppShell, Button, Group, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
@@ -8,8 +8,10 @@ import { notifications } from '@mantine/notifications';
 import { useEffect, useState } from 'react';
 import { exampleProject, mayDiscard, openFile, openText, saveFile } from './actions.ts';
 import { StudioContext, useStudio, useStudioStore } from './context.tsx';
+import { ExportWorkspace } from './export/workspace.tsx';
 import { ImportWizard } from './import/wizard.tsx';
 import { MapWorkspace } from './map/workspace.tsx';
+import { PresentWorkspace } from './present/workspace.tsx';
 import { Providers } from './providers.tsx';
 import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
@@ -30,11 +32,13 @@ export interface AppProps {
   lookup?: Lookup;
 }
 
-/** The workspace shown: Map, Sources or Story (Present and Export arrive in later phases). */
+/** The workspace shown: Map, Sources, Story, Present or Export. */
 function Workspace() {
   const workspace = useStudio((s) => s.workspace);
   if (workspace === 'sources') return <SourcesWorkspace />;
   if (workspace === 'story') return <StoryWorkspace />;
+  if (workspace === 'present') return <PresentWorkspace />;
+  if (workspace === 'export') return <ExportWorkspace />;
   return <MapWorkspace />;
 }
 

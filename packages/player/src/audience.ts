@@ -27,6 +27,8 @@ export interface AudienceOptions {
   capture?: boolean;
   /** Writes the step on show into the page address (default: yes). */
   address?: boolean;
+  /** Paints the page behind the stage in the theme's colour (default: yes; not over the Studio). */
+  paintPage?: boolean;
   win?: Window;
   storage?: KeyValue | null;
   /** The animation clock (tests step one by hand); by default the display's frames. */
@@ -54,7 +56,7 @@ export function startAudience(o: AudienceOptions): Audience {
   const stops: Array<() => void> = [() => story.dispose(), () => motion.dispose()];
   // Label sizes depend on the web fonts; place them again once the fonts are in.
   void doc.fonts?.ready.then(() => story.relayout());
-  doc.body.style.background = themeTokens(o.project).bgDeep;
+  if (o.paintPage !== false) doc.body.style.background = themeTokens(o.project).bgDeep;
 
   if (o.capture) {
     const show = () => {

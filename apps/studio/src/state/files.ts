@@ -99,6 +99,41 @@ export function download(name: string, text: string, type = 'application/json'):
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+/** A file name for a map's one-file HTML: its title, as letters, digits and dashes. */
+export const htmlNameFor = (title: string): string =>
+  `${slugify(title).replace(/_/g, '-') || 'presentation'}.html`;
+
+/**
+ * Saves an exported page: where the person chooses (Chrome, Edge), else as a download. Null when they cancel;
+ * otherwise how it was saved and under which name.
+ */
+export async function saveHtml(
+  name: string,
+  html: string,
+): Promise<{ how: 'file' | 'download'; name: string } | null> {
+  const { showSaveFilePicker } = pickers();
+  if (showSaveFilePicker) {
+    let handle: FileSystemFileHandle;
+    try {
+      handle = await showSaveFilePicker({
+        types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }],
+        suggestedName: name,
+      });
+    } catch (error) {
+      if (cancelled(error)) return null;
+      throw error;
+    }
+    const writable = (await (
+      handle as unknown as { createWritable(): Promise<Writable> }
+    ).createWritable()) as Writable;
+    await writable.write(html);
+    await writable.close();
+    return { how: 'file', name: handle.name };
+  }
+  download(name, html, 'text/html');
+  return { how: 'download', name };
+}
+
 export interface Saved {
   /** The project as written: its `modified` date is today's. */
   project: Project;

@@ -11,7 +11,8 @@ server. It holds the slides, the console (unless the notes are left out) and the
 
 ## The one-file HTML
 
-Make it from the command line (the Studio's Export tab comes next):
+Make it in the Studio's **Export** workspace (One-file HTML, with a tick box for the notes), or from the
+command line:
 
 ```bash
 loopweft export talk.loopweft --html
@@ -46,7 +47,8 @@ it the one embedded figure).
 
 ## Presenting
 
-1. Open the file (or, later, the Studio's Present tab).
+1. Open the file, or the Studio's **Present** workspace. In the Studio, the presentation is the map as it is
+   when the console opens, and the audience window gets the map from the console, so keep the Studio open.
 2. If the start page shows **a saved place** from a rehearsal, click **Start again from the first step**.
    Never do this mid-talk: it sends the show back to the start.
 3. Connect the projector and extend the desktop onto it: Windows key + P, then **Extend** (on a Mac: System
@@ -102,7 +104,8 @@ F5, which some clickers send, is ignored, and holding a key never races through 
 
 ### Rehearsing in one window
 
-Open **Full-screen slides** from the start page. N shows notes over the slides:
+Open **Full-screen slides** from the file's start page, or **Rehearse** in the Studio's Present workspace (Esc
+comes back). N shows notes over the slides:
 - the step's cue, what comes next, and the scene's speaker notes;
 - the presenter's clock and pace (T starts it).
 

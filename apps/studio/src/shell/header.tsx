@@ -33,8 +33,8 @@ export const WORKSPACES = [
   { id: 'map', label: 'Map', ready: true, note: '' },
   { id: 'sources', label: 'Sources', ready: true, note: '' },
   { id: 'story', label: 'Story', ready: true, note: '' },
-  { id: 'present', label: 'Present', ready: false, note: 'The presenter arrives in Phase 5.' },
-  { id: 'export', label: 'Export', ready: false, note: 'Exports arrive in Phase 6.' },
+  { id: 'present', label: 'Present', ready: true, note: '' },
+  { id: 'export', label: 'Export', ready: true, note: '' },
 ] as const;
 
 function Mark() {

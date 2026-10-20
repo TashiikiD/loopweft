@@ -4,6 +4,7 @@ import '@fontsource-variable/inter/opsz.css';
 import '@fontsource-variable/fraunces/opsz.css';
 import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@loopweft/render/render.css';
+import '@loopweft/player/player.css';
 import 'react-data-grid/lib/styles.css';
 import './studio.css';
 import { StrictMode } from 'react';

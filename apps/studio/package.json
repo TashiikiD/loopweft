@@ -11,6 +11,7 @@
     "@loopweft/layout": "*",
     "@loopweft/model": "*",
     "@loopweft/motion": "*",
+    "@loopweft/player": "*",
     "@loopweft/render": "*",
     "@mantine/core": "9.6.2",
     "@mantine/hooks": "9.6.2",
