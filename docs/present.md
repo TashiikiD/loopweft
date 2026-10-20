@@ -136,6 +136,10 @@ connected, so they never reach a projector.
 
 The file runs in Chrome and Edge, which the tests open it in from disk on Windows, macOS and Linux.
 - **Send to projector** needs Chrome or Edge. Elsewhere, drag the window.
-- **Safari:** see the notes from its test (Phase 5, slice G).
+- **Safari** (tested on GitHub's Mac, Safari 26, by `tools/safari.ts`):
+  - Opened from disk, as a double-click opens it, it draws the start page, the slides and the console.
+  - On the file served from a computer, its keys and the two windows kept in step were checked too.
+  - Driven by a test, Safari refuses files on disk, so the keys and two windows *from disk* have not been
+    checked there yet. A person with a Mac trying it is the next check.
 - **Phones and tablets:** a tap on the right two thirds, or a swipe left, goes on; the left third, or a swipe
   right, goes back. This is not tested; Loopweft is made for laptops.
