@@ -10,7 +10,8 @@ The pure part, which runs in Node as well as the browser:
   from their role.
 - **`namedLoops`**: the project's loops, each R or B from its links' signs, with the short name shown beside
   its badge.
-- **`resolveMap`**: a step's map state as concrete levels, labels and camera.
+- **`resolveMap`**: a step's map state as concrete levels, labels and camera; with `categoryWords`, also the
+  category to name beneath each label (decision 22 of the format).
 - **`schedule`**: the choreography of a forward step: which new links trace in and when, when variables and
   loop badges arrive, when pulses leave and land, and in which tone.
 - **`ambientWalker`**: the soft pulses that wander a held step, true to the link signs.
@@ -29,7 +30,8 @@ The browser part, animated with `@loopweft/motion`:
 - **`MapView`**: the map itself. A forward step traces new links in, pops loop badges, sends pulses and lands
   trend badges; a held step can keep soft pulses wandering. Labels are HTML, placed against the step's final
   camera to keep clear of lit links, other labels and reserved text. Each view's SVG ids are its own, so
-  several maps can share a page.
+  several maps can share a page. `setCategoryWords` (also on `StoryView`) names each shown variable's
+  category in words beneath its label, without playing the step again.
 - **Overlays**: the scene caption, title page, statements, card columns, the legend (built from the project's
   roles) and images, stacked in the order a step lists them.
 - **`render.css`** (`@loopweft/render/render.css`): the styles, scoped to the stage, coloured from the theme's

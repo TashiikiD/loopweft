@@ -29,6 +29,7 @@ const help = document.createElement('div');
 help.className = 'help';
 help.innerHTML =
   '<b>→</b> next · <b>←</b> back · <b>R</b> replay · <b>P</b> pause · <b>S</b> skip · <b>L</b> low power · ' +
+  '<b>C</b> categories in words · ' +
   '<b>F</b> full screen · <b>?</b> this help<br>Drop a <code>.loopweft</code> file here to open it.';
 const problems = document.createElement('pre');
 problems.className = 'problems';
@@ -40,6 +41,7 @@ let positions: StoryPosition[] = [];
 let index = 0;
 let paused = false;
 let lowPower = false;
+let categoryWords = false;
 
 function show(i: number, transition: Transition): void {
   if (!story || positions.length === 0) return;
@@ -57,6 +59,7 @@ function open(project: Project): void {
   motion.landAll();
   story = new StoryView(host, { project, motion });
   story.setLowPower(lowPower);
+  story.setCategoryWords(categoryWords);
   positions = storyPositions(project);
   document.title = project.meta.title;
   document.body.style.background = themeTokens(project).bgDeep;
@@ -128,6 +131,10 @@ document.addEventListener('keydown', (e) => {
     case 'lowPower':
       lowPower = !lowPower;
       story?.setLowPower(lowPower);
+      return;
+    case 'categoryWords':
+      categoryWords = !categoryWords;
+      story?.setCategoryWords(categoryWords);
       return;
     case 'fullscreen':
       if (document.fullscreenElement) void document.exitFullscreen();

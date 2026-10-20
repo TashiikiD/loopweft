@@ -11,6 +11,7 @@ describe('viewer keys', () => {
     for (const k of ['ArrowLeft', 'PageUp', 'Backspace']) expect(key(k)).toEqual({ kind: 'previous' });
     expect(key('Home')).toEqual({ kind: 'first' });
     expect(key('p')).toEqual({ kind: 'pause' });
+    expect(key('C')).toEqual({ kind: 'categoryWords' });
     expect(key('x')).toBeNull();
   });
 

@@ -11,6 +11,7 @@ export type Action =
   | { kind: 'pause' }
   | { kind: 'skip' }
   | { kind: 'lowPower' }
+  | { kind: 'categoryWords' }
   | { kind: 'fullscreen' }
   | { kind: 'help' };
 
@@ -45,6 +46,9 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 
     case 'l':
     case 'L':
       return { kind: 'lowPower' };
+    case 'c':
+    case 'C':
+      return { kind: 'categoryWords' };
     case 'f':
     case 'F':
       return { kind: 'fullscreen' };

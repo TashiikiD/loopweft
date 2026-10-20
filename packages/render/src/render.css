@@ -345,6 +345,41 @@
   text-align: right;
 }
 
+/*
+ * The category-in-words mode (decision 22): the category's name beneath the label, in the stage's text colour
+ * (some category colours are too faint to read on the stage), after a dot of the category's colour.
+ */
+.lw-stage .map-label-text {
+  display: block;
+}
+
+.lw-stage .map-label-category {
+  display: block;
+  margin-top: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--lw-text);
+  opacity: 0.86;
+}
+
+.lw-stage .map-label-category[hidden] {
+  display: none;
+}
+
+.lw-stage .map-label-category::before {
+  content: "";
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.45em;
+  border-radius: 50%;
+  background: var(--c);
+  vertical-align: 0.04em;
+}
+
 /* Label text set for one step (single words). */
 .lw-stage .map-label.word {
   font-size: 34px;

@@ -74,6 +74,8 @@ const DURATIONS: Record<Transition, { fade: number; camera: number }> = {
   quick: { fade: 0.4, camera: 0.6 },
   smooth: { fade: 0.8, camera: 1.25 },
 };
+/** Seconds the labels take to change when the category-in-words mode is switched. */
+const WORDS_FADE = 0.3;
 
 interface NodeEls {
   g: SVGGElement;
@@ -138,6 +140,11 @@ export class MapView {
   readonly #nodes = new Map<string, NodeEls>();
   readonly #edges = new Map<string, EdgeEls>();
   readonly #labels = new Map<string, HTMLElement>();
+  /** Each label's two lines: its text, and its category's name in the category-in-words mode. */
+  readonly #labelLines = new Map<string, { text: HTMLElement; category: HTMLElement }>();
+  /** The map state last applied, so the category-in-words mode can be switched without replaying it. */
+  #state: MapState | undefined = undefined;
+  #categoryWords = false;
   readonly #loopNames = new Map<string, HTMLElement>();
   readonly #groupLabels = new Map<string, { el: HTMLElement; group: GraphGroup }>();
   readonly #labelLayer: HTMLElement;
@@ -248,10 +255,17 @@ export class MapView {
 
       const label = hidden(document.createElement('div'));
       label.className = `map-label pos-${n.labelSide}`;
-      label.textContent = n.label;
+      const text = document.createElement('span');
+      text.className = 'map-label-text';
+      text.textContent = n.label;
+      const category = document.createElement('span');
+      category.className = 'map-label-category';
+      category.hidden = true;
+      label.append(text, category);
       label.style.setProperty('--c', n.colour);
       this.#labelLayer.appendChild(label);
       this.#labels.set(n.id, label);
+      this.#labelLines.set(n.id, { text, category });
     }
 
     for (const group of this.graph.groups) {
@@ -344,7 +358,8 @@ export class MapView {
 
   /** Moves to a step's map state. */
   apply(state: MapState | undefined, transition: Transition): ResolvedMap {
-    const r = resolveMap(this.#project, this.graph, state);
+    const r = resolveMap(this.#project, this.graph, state, { categoryWords: this.#categoryWords });
+    this.#state = state;
     const { fade, camera } = DURATIONS[transition];
     const prev = this.current;
     this.current = r;
@@ -697,7 +712,13 @@ export class MapView {
       const node = this.graph.nodes.get(id);
       if (!node) continue;
       const text = r.labelText[id] ?? node.label;
-      if (el.textContent !== text) el.textContent = text;
+      const lines = this.#labelLines.get(id);
+      if (lines && lines.text.textContent !== text) lines.text.textContent = text;
+      const category = r.categoryWords[id];
+      if (lines) {
+        lines.category.hidden = category === undefined;
+        if (lines.category.textContent !== (category ?? '')) lines.category.textContent = category ?? '';
+      }
       el.classList.toggle('word', id in r.labelText);
       if (!r.labels.has(id)) continue;
       requests.push({
@@ -819,6 +840,27 @@ export class MapView {
       els.head.setAttribute('d', e.geom.head);
     }
     this.#setCamera(this.#cam);
+  }
+
+  /**
+   * Names each shown variable's category in words, or stops (decision 22 of the format). The step is not
+   * played again: only the labels change, with a short fade.
+   */
+  setCategoryWords(on: boolean): void {
+    if (this.#categoryWords === on) return;
+    this.#categoryWords = on;
+    if (!this.current) return;
+    const r = resolveMap(this.#project, this.graph, this.#state, { categoryWords: on });
+    this.current = r;
+    const hiddenGroups = this.#layoutLabels(r);
+    for (const [id, el] of this.#labels) this.#tween(el, { opacity: r.labels.has(id) ? 1 : 0 }, WORDS_FADE);
+    for (const [id, { el }] of this.#groupLabels) {
+      this.#tween(el, { opacity: r.categoryLabels && !hiddenGroups.has(id) ? 1 : 0 }, WORDS_FADE);
+    }
+  }
+
+  get categoryWords(): boolean {
+    return this.#categoryWords;
   }
 
   /** Re-places labels for the current state (e.g. once web fonts have loaded). */

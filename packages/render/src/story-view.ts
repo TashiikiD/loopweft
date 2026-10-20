@@ -78,6 +78,12 @@ export class StoryView {
     this.map.apply(step.map, transition);
   }
 
+  /** Names each shown variable's category in words, or stops (decision 22 of the format). */
+  setCategoryWords(on: boolean): void {
+    this.stage.root.classList.toggle('category-words', on);
+    this.map.setCategoryWords(on);
+  }
+
   /** Low power: no blurred glows, and at most 30 frames a second. */
   setLowPower(on: boolean): void {
     this.stage.root.classList.toggle('low-power', on);

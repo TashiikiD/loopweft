@@ -63,7 +63,7 @@ export { OverlayStage } from './overlays/index.ts';
 export { LEGEND_LINKS, type LegendState, LegendView } from './overlays/legend.ts';
 export { type StatementState, StatementView } from './overlays/statement.ts';
 export { type TitleState, TitleView } from './overlays/title.ts';
-export { HIDDEN_MAP, type ResolvedMap, rank, resolveMap } from './resolve.ts';
+export { HIDDEN_MAP, type ResolvedMap, type ResolveOptions, rank, resolveMap } from './resolve.ts';
 export { Stage, type StageLayers } from './stage.ts';
 export { FADE, Step, type StepTweenOptions, type Transition } from './step.ts';
 export { type StoryPosition, StoryView, storyPositions } from './story-view.ts';

@@ -578,8 +578,11 @@ item says when it was added and confirmed. Each can still change before version 
     categories in only two of its steps). Each of the example's categories has a colour of its own, which wins
     over the palette, so choosing another palette changes none of them; only new category colours would. On a
     map whose categories take the palette's colours, a palette that passes more of the checks does help.
-    Before v1.0, the viewer gets a mode that names each shown variable's category in words, so membership
-    never rests on colour alone (Phase 5, with the presenter).
+    So the viewer has a mode that names each shown variable's category in words, so membership never rests on
+    colour alone (built in Phase 5, as recommended in its questions): the C key, in the audience window or the
+    presenter's console, writes each category's name beneath the labels of the variables in view at dim or
+    stronger (also where a step hides labels; not on ghosts, nor on variables without a category). It is a way
+    of viewing, not part of the file.
 23. **The example shows the Richards et al. (2021) figure as an image** (added in Phase 4, confirmed at the
     Phase 4 review). The presentation set Fig. 5 of that study beside the map in scene 5 (step 6b). The example
     embeds the presentation's own file, as an image overlay with its caption, its credit and a citation of the

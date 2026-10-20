@@ -17,6 +17,8 @@ export interface ResolvedMap {
   /** Variables whose labels show. */
   labels: Set<string>;
   labelText: Record<string, string>;
+  /** In the category-in-words mode: the category's name, by variable id, for the variables it names. */
+  categoryWords: Record<string, string>;
   categoryLabels: boolean;
   trends: Record<string, Trend>;
   /** Named loops whose R/B badges show. */
@@ -33,7 +35,22 @@ export const rank = (level: Level | undefined): number => (level ? LEVELS.indexO
 /** The map state of a step that shows no map. */
 export const HIDDEN_MAP: MapState = { show: false };
 
-export function resolveMap(project: Project, graph: Graph, state: MapState | undefined): ResolvedMap {
+export interface ResolveOptions {
+  /**
+   * Names each shown variable's category in words (decision 22 of the format), so membership never rests on
+   * colour alone: every variable in view at dim or stronger that has a category shows its label with its
+   * category's name beneath, even where the step hides labels. Faded ghosts, and variables without a
+   * category, get none.
+   */
+  categoryWords?: boolean;
+}
+
+export function resolveMap(
+  project: Project,
+  graph: Graph,
+  state: MapState | undefined,
+  options: ResolveOptions = {},
+): ResolvedMap {
   const s = state ?? HIDDEN_MAP;
   const levels = resolveLevels(project, s);
   const nodeLevel = new Map<string, Level>();
@@ -56,6 +73,18 @@ export function resolveMap(project: Project, graph: Graph, state: MapState | und
   // Label text set for the step always shows (the deck's single words).
   for (const id of Object.keys(s.labelText ?? {})) if (rank(nodeLevel.get(id)) > 0) labels.add(id);
 
+  const categoryWords: Record<string, string> = {};
+  if (options.categoryWords && s.show !== false) {
+    const names = new Map(project.types.categories.map((c) => [c.id, c.name]));
+    for (const v of project.variables) {
+      const n = graph.nodes.get(v.id);
+      const name = v.category ? names.get(v.category) : undefined;
+      if (!n || !name || rank(nodeLevel.get(v.id)) < rank('dim') || !inView(camera, n.x, n.y)) continue;
+      categoryWords[v.id] = name;
+      labels.add(v.id);
+    }
+  }
+
   return {
     show: s.show !== false,
     opacity: s.opacity ?? 1,
@@ -64,6 +93,7 @@ export function resolveMap(project: Project, graph: Graph, state: MapState | und
     edgeLevel,
     labels,
     labelText: s.labelText ?? {},
+    categoryWords,
     categoryLabels: s.categoryLabels ?? false,
     trends: s.trends ?? {},
     loops: s.loops ?? [],

@@ -115,6 +115,44 @@ describe('map states', () => {
     expect(resolveMap(project, graph, { labels: 'none' }).labels.size).toBe(0);
   });
 
+  it('names the category of every variable in view at dim or stronger, in the category-in-words mode', () => {
+    const words = { categoryWords: true };
+    // The title page hides labels and dims the whole map: every variable is named all the same.
+    const title = resolveMap(project, graph, stepAt(project, 'S00.1').map, words);
+    expect(title.labels.size).toBe(41);
+    expect(title.categoryWords.climate_heating).toBe('Earth systems');
+    expect(Object.keys(title.categoryWords)).toHaveLength(41);
+    expect(resolveMap(project, graph, stepAt(project, 'S00.1').map).categoryWords).toEqual({});
+    // Ghosts and hidden variables get none; nor does a map that is not shown.
+    const ghost = resolveMap(
+      project,
+      graph,
+      { variables: { base: 'ghost', focus: ['food_insecurity'] }, links: { base: 'hidden' }, labels: 'none' },
+      words,
+    );
+    expect(Object.keys(ghost.categoryWords)).toEqual(['food_insecurity']);
+    expect([...ghost.labels]).toEqual(['food_insecurity']);
+    expect(resolveMap(project, graph, { show: false }, words).categoryWords).toEqual({});
+    // Only what is in view.
+    const framed = {
+      camera: { fit: ['geopolitical_conflict', 'energy_price_shocks'] },
+      labels: 'none' as const,
+    };
+    const near = resolveMap(project, graph, framed, words);
+    expect(near.categoryWords.geopolitical_conflict).toBe('Geopolitics and governance');
+    expect(Object.keys(near.categoryWords).length).toBeLessThan(41);
+    // A variable without a category is not named.
+    const uncategorised = {
+      ...project,
+      variables: project.variables.map((v) =>
+        v.id === 'food_insecurity' ? { ...v, category: undefined } : v,
+      ),
+    };
+    const u = resolveMap(uncategorised, buildGraph(uncategorised), { labels: 'none' }, words);
+    expect(u.categoryWords.food_insecurity).toBeUndefined();
+    expect(u.labels.has('food_insecurity')).toBe(false);
+  });
+
   it("frames the whole map with the project's home view, and fits the map when it has none", () => {
     // The example's home view is the deck's whole-map camera.
     expect(resolveMap(project, graph, {}).camera).toEqual({ cx: 960, cy: 478, zoom: 0.9 });

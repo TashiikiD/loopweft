@@ -82,6 +82,34 @@ describe('the map view', () => {
     expect(q(host, '.map-camera')?.getAttribute('transform')).toMatch(/^translate\(.+\) scale\(.+\)$/);
   });
 
+  it('names categories in words beneath the labels, and stops, without playing the step again', () => {
+    const { clock, host, view } = mapView();
+    view.apply(stepAt(project, 'S00.1').map, 'instant');
+    const label = q(host, '.map-label:nth-child(1)') as HTMLElement;
+    const lines = () =>
+      [...label.children].map((c) => [c.className, (c as HTMLElement).hidden, c.textContent]);
+    const first = [...view.graph.nodes.values()][0];
+    const category = project.types.categories.find(
+      (c) => c.id === project.variables.find((v) => v.id === first?.id)?.category,
+    );
+    expect(opacity(label)).toBe(0);
+    view.setCategoryWords(true);
+    expect(view.categoryWords).toBe(true);
+    clock.advance(1);
+    expect(opacity(label)).toBe(1);
+    expect(lines()).toEqual([
+      ['map-label-text', false, first?.label],
+      ['map-label-category', false, category?.name],
+    ]);
+    // A new step keeps the mode.
+    view.apply(stepAt(project, 'S01.1').map, 'instant');
+    expect(host.querySelectorAll('.map-label-category:not([hidden])').length).toBeGreaterThan(0);
+    view.setCategoryWords(false);
+    clock.advance(1);
+    expect(host.querySelectorAll('.map-label-category:not([hidden])')).toHaveLength(0);
+    expect(label.querySelector('.map-label-category')?.textContent).toBe('');
+  });
+
   it('plays a forward step: the new link traces, a pulse travels it, the trend lands with it', () => {
     const { clock, host, view } = mapView();
     view.apply(stepAt(project, 'S04.1').map, 'instant');
