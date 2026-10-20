@@ -31,7 +31,8 @@ function small(): Project {
         {
           id: '2',
           label: 'The link',
-          at: 0.2,
+          // Due a second in: long enough that a click on a busy computer still finds the scene at its first step.
+          at: 1,
           // Births rise, so population should rise too: this ▼ contradicts the + link.
           map: { links: { active: ['L1'] }, trends: { births: 'up', population: 'down' } },
           overlays: [],
@@ -172,7 +173,7 @@ describe('the preview', () => {
     expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
     // The record tools step aside while it plays.
     expect(screen.queryByRole('radiogroup', { name: 'Record tool' })).toBeNull();
-    await waitFor(() => expect(store.getState().story).toBe('S1.2'), { timeout: 3000 });
+    await waitFor(() => expect(store.getState().story).toBe('S1.2'), { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Stop playing' }));
     expect(screen.queryByText(/^Playing/)).toBeNull();
   });
