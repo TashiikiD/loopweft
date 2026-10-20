@@ -169,14 +169,17 @@ describe('the preview', () => {
     expect(store.getState().story).toBe('S1.1');
     await user.click(screen.getByRole('button', { name: 'Play into this step' }));
 
-    await user.click(screen.getByRole('button', { name: 'Play the scene from here' }));
-    // Playing, from the first step; on a busy computer the click may take long enough that the second, due a
-    // second in, has already come up.
-    expect(screen.getByText(/^Playing · S1\.[12]/)).toBeTruthy();
+    // The scene plays on a clock the test moves, so a busy computer cannot skip a step.
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Play the scene from here' }));
+    expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
     // The record tools step aside while it plays.
     expect(screen.queryByRole('radiogroup', { name: 'Record tool' })).toBeNull();
-    await waitFor(() => expect(store.getState().story).toBe('S1.2'), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: 'Stop playing' }));
+    act(() => vi.advanceTimersByTime(999));
+    expect(store.getState().story).toBe('S1.1');
+    act(() => vi.advanceTimersByTime(1));
+    expect(store.getState().story).toBe('S1.2');
+    fireEvent.click(screen.getByRole('button', { name: 'Stop playing' }));
     expect(screen.queryByText(/^Playing/)).toBeNull();
   });
 

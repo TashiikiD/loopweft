@@ -105,6 +105,16 @@ for (const name of ['chrome', 'edge'] as const) {
       await page.keyboard.press('PageDown');
       await expect.poll(() => hashOf(audience)).toBe('#S04.2b');
 
+      // A link to the old viewer's step (demo/#S04.2a) opens the slides at that step.
+      const old = await context.newPage();
+      await old.goto(`${pathToFileURL(file).href}#S04.2a`);
+      await expect(old).toHaveURL(/\?view=audience#S04\.2a$/);
+      await expect(old.locator('.lw-stage')).toHaveCount(1);
+      await expect(
+        old.locator('.lw-stage .caption-kicker', { hasText: '04 · How crises cascade' }),
+      ).toBeVisible();
+      await old.close();
+
       // The slides alone, in a tab the console did not open: it has no join token, so it stays apart from the
       // show (the channel the file's tabs share carries nothing it can prove), and its rehearsal notes open.
       const slides = await context.newPage();
