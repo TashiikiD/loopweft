@@ -61,12 +61,15 @@ describe('the Present workspace', () => {
     const { user } = await open('Present');
     await user.click(screen.getByRole('button', { name: 'Open the console' }));
     const console_ = screen.getByRole('dialog', { name: 'Presenter console' });
+    // The keys go to the console, not to the button that opened it (Space would press it again).
+    expect(document.activeElement).toBe(console_);
     expect(within(console_).getByText('Growth')).toBeTruthy();
     expect(console_.querySelector('.lp-scene-sub')?.textContent).toBe('Step 1 of 2 · S1.1 · The map');
     await user.keyboard('{PageDown}');
     expect(console_.querySelector('.lp-scene-sub')?.textContent).toBe('Step 2 of 2 · S1.2 · The link');
     await user.click(within(console_).getByRole('button', { name: 'Back to the Studio' }));
     expect(screen.queryByRole('dialog', { name: 'Presenter console' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open the console' }));
     // The place it reached stays saved, with a way back to the start.
     expect(screen.getByText('This browser saved a place from an earlier run')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Start again from the first step' }));

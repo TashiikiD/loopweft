@@ -46,6 +46,14 @@ function Overlay({
   onClose(): void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // Keys go to the presentation: focus moves into it, off the button that opened it (Space would press that
+  // button again), and goes back to that button when the presentation closes.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    root.current?.focus();
+    return () => opener?.focus();
+  }, []);
   useEffect(() => {
     const el = host.current;
     if (!el) return;
@@ -78,6 +86,8 @@ function Overlay({
   }, [presentation, mode, onClose]);
   return createPortal(
     <div
+      ref={root}
+      tabIndex={-1}
       className="lp-overlay"
       data-mode={mode}
       role="dialog"

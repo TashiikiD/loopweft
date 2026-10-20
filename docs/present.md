@@ -60,6 +60,18 @@ it the one embedded figure).
 6. Click the audience window once and press **F** for full screen.
 7. Press **T** in the console when you start speaking. → or a clicker moves on.
 
+### Before the day
+
+- Rehearse once with the console's **Script** tab (F) if the story has a script: it marks every key press and
+  lights the next one. The clock and pace show how each scene goes against its target.
+- Plug the laptop in, and try the projector, the clicker (PageDown and PageUp) and full screen in the room
+  if you can. If the animation stutters on that laptop or projector, press L for low-power mode.
+- The first time you click **Send to projector**, Chrome or Edge asks whether the page may place windows:
+  answer it during a rehearsal, not in front of the room.
+- On the day, turn on Windows' **Do not disturb** (Focus) and close chat apps, so nothing pops up on the
+  projector.
+- Keep a copy of the one-file HTML on a USB stick: it runs on any computer with Chrome or Edge, offline.
+
 ### Keys
 
 | Key | Does |

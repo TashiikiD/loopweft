@@ -928,3 +928,8 @@ body {
 .lp-hide-cursor .lw-present-back {
   opacity: 0;
 }
+
+/* The presentation takes the keyboard's focus when it opens; it needs no ring of its own. */
+.lp-overlay:focus {
+  outline: none;
+}
