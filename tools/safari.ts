@@ -4,11 +4,13 @@
 //
 //   node tools/safari.ts [--out <folder>]
 //
-// It exports the polycrisis example, opens it from disk (or, if Safari refuses a file under automation, from
-// a server on this machine, and says so), and checks the start page, the slides (keys, categories in words),
-// the presenter console, and the audience window the console opens. Screens and a report (report.md,
-// report.json) go to the out folder. It fails when a check marked required fails; the others are reported.
-import { type ChildProcess, spawn } from 'node:child_process';
+// It exports the polycrisis example and drives Safari through the start page, the slides (keys, categories in
+// words), the rehearsal notes, the presenter console and the audience window the console opens. WebDriver's
+// Safari refuses files on disk ("outside the sandbox"), so those checks run on the file served from this
+// machine; then the file is opened from disk as a person opens it (open -a Safari) and checked through
+// AppleScript and screens. Screens and a report (report.md, report.json) go to the out folder. It fails when
+// a check marked required fails; the others are reported.
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -41,6 +43,66 @@ interface Result {
 const results: Result[] = [];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function check(name: string, required: boolean, fn: () => Promise<string>): Promise<void> {
+  try {
+    results.push({ check: name, ok: true, required, detail: await fn() });
+  } catch (error) {
+    results.push({ check: name, ok: false, required, detail: (error as Error).message });
+  }
+}
+
+/**
+ * The file opened as a person opens it: `open -a Safari`, as a double-click does, which lets the file into
+ * Safari's sandbox (WebDriver cannot). Without WebDriver there is no page to read, so the checks read Safari's
+ * address through AppleScript and take screens of the whole display; a key is sent through System Events,
+ * which a machine may not allow (then it says so).
+ */
+async function byDoubleClick(file: string): Promise<void> {
+  const osa = (script: string): string => {
+    const r = spawnSync('osascript', ['-e', script], { encoding: 'utf8' });
+    if (r.status !== 0) throw new Error((r.stderr || `osascript failed (${r.status})`).trim());
+    return r.stdout.trim();
+  };
+  const address = () => osa('tell application "Safari" to get URL of front document');
+  const screen = (name: string) => spawnSync('screencapture', ['-x', join(out, `${name}.png`)]);
+  const url = pathToFileURL(file).href;
+  await check('opened from disk as a person opens it (open -a Safari)', false, async () => {
+    const opened = spawnSync('open', ['-a', 'Safari', file], { encoding: 'utf8' });
+    if (opened.status !== 0) throw new Error(opened.stderr.trim() || 'open failed');
+    await sleep(8000);
+    screen('6-from-disk-start');
+    const at = address();
+    if (!at.startsWith('file:')) throw new Error(`Safari shows ${at}`);
+    return `Safari shows ${at}; screen 6-from-disk-start shows what it drew (the start page is drawn by the script)`;
+  });
+  await check(
+    'from disk: the slides, and a key moving them (AppleScript, System Events)',
+    false,
+    async () => {
+      osa(`tell application "Safari" to set URL of front document to "${url}?view=audience&rehearse#S04.1"`);
+      await sleep(6000);
+      const before = address();
+      osa('tell application "Safari" to activate');
+      // Key code 121: Page Down.
+      osa('tell application "System Events" to key code 121');
+      await sleep(2500);
+      const after = address();
+      screen('7-from-disk-slides');
+      const step = (u: string) => decodeURIComponent(u.split('#')[1] ?? '(none)');
+      if (after === before)
+        throw new Error(
+          `the address stayed at ${step(after)}: the key did not arrive or did not move the slides`,
+        );
+      return `${step(before)} → ${step(after)}`;
+    },
+  );
+  try {
+    osa('tell application "Safari" to quit');
+  } catch {
+    // Safari had already gone.
+  }
+}
 
 async function wd(method: string, path: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`${base}${path}`, {
@@ -126,13 +188,6 @@ async function main(): Promise<void> {
       writeFileSync(join(out, `${file}.png`), Buffer.from(png, 'base64'));
     };
     const hash = () => run<string>('return decodeURIComponent(location.hash)');
-    const check = async (name: string, required: boolean, fn: () => Promise<string>) => {
-      try {
-        results.push({ check: name, ok: true, required, detail: await fn() });
-      } catch (error) {
-        results.push({ check: name, ok: false, required, detail: (error as Error).message });
-      }
-    };
 
     // From disk, if Safari opens a file under automation, trying folders in turn: Safari's sandbox decides
     // which it may read (a file a person double-clicks is let in by macOS; one opened by WebDriver is not).
@@ -249,6 +304,8 @@ async function main(): Promise<void> {
     if (session) await wd('DELETE', `/session/${session}`).catch(() => {});
     driver.kill();
     await served?.close();
+    const home = folders.find((f) => f.key === 'home');
+    if (home) await byDoubleClick(join(home.path, name));
     for (const dir of folders) rmSync(dir.path, { recursive: true, force: true });
   }
 }
