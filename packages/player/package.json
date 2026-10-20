@@ -4,5 +4,11 @@
   "private": true,
   "description": "The presentation runtime: deck, session, sync, keys, clocks, presenter console, audience view, notes and the viewer page.",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@loopweft/model": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }

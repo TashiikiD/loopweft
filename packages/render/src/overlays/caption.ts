@@ -5,8 +5,8 @@ import { h, typeset } from '../dom.ts';
 import type { Transition } from '../step.ts';
 
 export interface CaptionState {
-  /** The scene's position in the story (00, 01…). */
-  number: number;
+  /** The scene's number (`sceneNumbers` in @loopweft/model: captioned scenes from 1), shown as 01, 02…; none: the title alone. */
+  number: number | undefined;
   title: string;
   headline?: string;
 }
@@ -63,7 +63,13 @@ export class CaptionView {
     const card = h(
       'div',
       { class: 'caption', 'data-reserve': true },
-      h('div', { class: 'caption-kicker' }, `${String(state.number).padStart(2, '0')} · ${state.title}`),
+      h(
+        'div',
+        { class: 'caption-kicker' },
+        state.number === undefined
+          ? state.title
+          : `${String(state.number).padStart(2, '0')} · ${state.title}`,
+      ),
       state.headline ? h('h1', { class: 'caption-headline' }, typeset(state.headline)) : null,
     );
     const old = this.#card;

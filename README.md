@@ -74,7 +74,7 @@ text, in the custom field "DataViz sources".
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
 | `apps/studio` | The Studio, where maps are drawn and edited ([try it](https://tashiikid.github.io/loopweft/studio/)) |
 | `apps/viewer` | The viewer that plays a project's story ([the example](https://tashiikid.github.io/loopweft/demo/)) |
-| `packages/player` | A placeholder for Phase 5 |
+| `packages/player` | The presentation runtime (Phase 5, being built): the deck, show state, keys, clock and pace, and the link between a presentation's windows |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
 | `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |

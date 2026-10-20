@@ -207,6 +207,26 @@ describe('the story view', () => {
     expect(host.querySelectorAll('.statement, .cards, .legend')).toHaveLength(0);
   });
 
+  it('numbers captions by the scenes that show one, from 1', () => {
+    const motion = new Motion(new ManualClock());
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    // Without the uncaptioned title scene, the first scene is still 01 (its place in the story would say 00).
+    const story = new StoryView(host, {
+      project: { ...project, story: { scenes: project.story.scenes.slice(1) } },
+      motion,
+    });
+    story.show(0, 0, 'instant');
+    expect(host.querySelector('.caption-kicker')?.textContent).toBe(`01 · ${project.story.scenes[1]?.title}`);
+    // A scene without a number shows its title alone.
+    const step = stepAt(project, 'S01.1');
+    story.showStep({ title: 'Untitled draft' }, undefined, step, 'instant');
+    expect(host.querySelector('.caption-kicker')?.textContent).toBe('Untitled draft');
+    story.dispose();
+    motion.dispose();
+    host.remove();
+  });
+
   it('shows the scene caption, statements, cards and the legend where a step lists them', () => {
     const motion = new Motion(new ManualClock());
     const host = document.createElement('div');

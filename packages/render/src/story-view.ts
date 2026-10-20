@@ -1,7 +1,7 @@
 // The stage for a project's story: the map with its overlays, moved step by step. It follows the deck's
 // audience view (PolycrisisPresentation src/audience/audience.ts @ 539bc8e, private): text first, so the map
 // can place its labels around it, then the map.
-import type { Project, Scene, Step as StoryStep } from '@loopweft/model';
+import { type Project, type Scene, type Step as StoryStep, sceneNumbers } from '@loopweft/model';
 import type { Motion } from '@loopweft/motion';
 import { MapView } from './map-view.ts';
 import { OverlayStage } from './overlays/index.ts';
@@ -55,21 +55,22 @@ export class StoryView {
     if (!scene || !step)
       throw new Error(`The story has no step ${stepIndex + 1} in scene ${sceneIndex + 1}.`);
     this.#at = { scene: sceneIndex, step: stepIndex };
-    this.showStep(scene, sceneIndex, step, transition);
+    this.showStep(scene, sceneNumbers(this.project.story.scenes)[sceneIndex], step, transition);
   }
 
   /**
    * Shows a step given whole, e.g. one being edited in the Studio, whose story is newer than the project
    * the view was built from. Only the map (variables, links, layout, types, theme) must be the view's own.
+   * `number` is the scene's number in that story (`sceneNumbers`), if it has one.
    */
   showStep(
     scene: Pick<Scene, 'title' | 'headline'>,
-    sceneIndex: number,
+    number: number | undefined,
     step: StoryStep,
     transition: Transition,
   ): void {
     const caption = {
-      number: sceneIndex,
+      number,
       title: scene.title,
       ...(scene.headline ? { headline: scene.headline } : {}),
     };

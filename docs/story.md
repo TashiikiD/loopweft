@@ -47,7 +47,9 @@ On top of the levels a step can mark:
 
 Overlays draw over the map in list order, later ones on top: the scene's caption band, a title page,
 statements, cards, the legend and images. Each step lists its own, so every step is complete on its own;
-an unchanged overlay stays put from one step to the next. A step shows the caption at most once. An image
+an unchanged overlay stays put from one step to the next. A step shows the caption at most once. The caption
+numbers its scene: the scenes that show a caption are counted from 1, so a title scene without one takes no
+number and the first captioned scene is 01; the presenter's console uses the same numbers. An image
 overlay shows an image embedded in the project (PNG, JPEG, GIF, WebP or SVG, read from the file's bytes,
 never its name; a cut-off or incomplete file is refused) and needs a description (`alt`) for people who
 cannot see it. Removing an image that steps

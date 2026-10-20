@@ -86,6 +86,17 @@ export function sceneSources(project: Project, scene: Scene): string[] {
   return [...new Set([...scene.sources, ...scene.steps.flatMap((step) => stepSources(project, step))])];
 }
 
+/**
+ * Scene numbers as captions show them: the scenes that show a caption (a step lists one) are counted from 1,
+ * in story order. Other scenes, such as a title page, have no number.
+ */
+export function sceneNumbers(scenes: readonly Pick<Scene, 'steps'>[]): (number | undefined)[] {
+  let n = 0;
+  return scenes.map((scene) =>
+    scene.steps.some((step) => step.overlays.some((o) => o.type === 'caption')) ? ++n : undefined,
+  );
+}
+
 // Source: PolycrisisPresentation src/core/text.ts (KEY_MARK, scriptSegments, countKeyMarks) and
 // src/core/integrity.ts (the key-mark rule) @ 539bc8e (private).
 

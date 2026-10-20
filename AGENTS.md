@@ -88,7 +88,7 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 | `motion` | The animation engine: timelines, eases, and a clock that steps exact frames |
 | `layout` | Automatic layouts (constellation, force, flow), link curves, label placement, camera maths, and `applyAutoLayout` (the edit both front ends use to lay a map out) |
 | `render` | The drawable graph, themes, palettes and colour-vision checks, and the SVG map view and story view |
-| `player` | Phase 5: the presentation runtime (placeholder) |
+| `player` | The presentation runtime, in plain DOM: the deck a story makes, the show state and its keys, the presenter's clock and pace, and the link that keeps a presentation's windows in step (Phase 5, being built) |
 | `cli` | The `loopweft` command line (`new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `ripple`, `paths`, `connected`, `layout`, `import`, the evidence: `source`, `cite`, `references`, and the story: `story`); see its README |
 
 Apps live in `apps/*`: `viewer` plays a project's story (published at `/demo/`), and `studio` is the editor,

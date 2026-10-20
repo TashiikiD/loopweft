@@ -9,7 +9,8 @@ import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, use
 
 export interface Shown {
   scene: Pick<Scene, 'title' | 'headline'>;
-  sceneIndex: number;
+  /** The scene's number in the story (`sceneNumbers`), if it shows a caption. */
+  number: number | undefined;
   /** Null: the whole map, plainly, with no overlays. */
   step: Step | null;
 }
@@ -26,9 +27,9 @@ export interface StageHandle {
 }
 
 function present(view: StoryView, shown: Shown, transition: Transition) {
-  if (shown.step) view.showStep(shown.scene, shown.sceneIndex, shown.step, transition);
+  if (shown.step) view.showStep(shown.scene, shown.number, shown.step, transition);
   else {
-    view.overlays.apply([], { number: shown.sceneIndex, title: shown.scene.title }, transition);
+    view.overlays.apply([], { number: shown.number, title: shown.scene.title }, transition);
     view.map.apply({}, transition);
   }
 }
@@ -86,7 +87,7 @@ export const StoryStage = forwardRef<
   useEffect(() => {
     if (!view || !motion) return;
     motion.landAll();
-    present(view, shown ?? { scene: { title: '' }, sceneIndex: 0, step: null }, upcoming.current);
+    present(view, shown ?? { scene: { title: '' }, number: undefined, step: null }, upcoming.current);
     upcoming.current = 'instant';
   }, [view, shown, motion]);
 

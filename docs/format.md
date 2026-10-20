@@ -396,7 +396,7 @@ Overlays are drawn over the map in list order, later ones on top. Each has a `ty
 
 | Type | Fields | Shows |
 |---|---|---|
-| `caption` | none | The scene's caption band: its title and headline. A step lists it at most once. |
+| `caption` | none | The scene's caption band: its number, title and headline. A step lists it at most once. Scenes that show a caption are numbered from 1 in story order (01, 02…); other scenes, such as a title page, have no number. |
 | `title` | `title` (required), `subtitle`, `lines` | A title page over the map. |
 | `statement` | `lines` (required), `kicker`, `style`, `place`, `citations` | Large type: a question, a closing line, a short title or a caveat. `style`: `hero`, `question`, `closing`, `title` or `note`. `kicker`: a small line above, e.g. "INTERVENTION A". |
 | `cards` | `items` (required: each a `title`, an optional `sub` and an optional `icon`), `title`, `active`, `place`, `citations` | Cards: a column beside the map (`left`, the default, or `right`), or a compact grid in the top or bottom band. `active`: the highlighted cards, counted from 0; the rest recede. A card shows its `icon` in place of its number. |
@@ -588,3 +588,9 @@ item says when it was added and confirmed. Each can still change before version 
     their steps keep their map and caption: the timeline, the "why now" panel, the stability landscape, the
     conditional-transmission schematic, the loop counter and the ring of traps. They are drawings and
     animations made for the one talk, which no overlay type reproduces.
+24. **Captions number only the scenes that show one, from 1** (added in Phase 5: asked at the Phase 4
+    checkpoint, confirmed before Phase 5). A scene's number was its place in the story counted from 0, which
+    matched the presentation only because it opens with an uncaptioned title scene; a story without one opened
+    with "00". Now a title scene takes no number and the first captioned scene is 01. The example's captions
+    are unchanged (S01 is 01, S10 is 10). The numbers are worked out, never stored (item 9), and the
+    presenter's console shows the same ones and jumps to them.

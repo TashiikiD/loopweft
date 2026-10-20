@@ -126,6 +126,7 @@ export {
   keyMarksNeeded,
   type ResolvedLevels,
   resolveLevels,
+  sceneNumbers,
   sceneSources,
   scriptSegments,
   stepSources,

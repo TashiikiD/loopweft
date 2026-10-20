@@ -4,7 +4,7 @@
 // it. With the stage focused, the arrow keys move through the story as a presenter would (forward with the
 // full motion, back with a quick fade).
 
-import type { Project, Step } from '@loopweft/model';
+import { type Project, type Step, sceneNumbers } from '@loopweft/model';
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import {
   IconChevronLeft,
@@ -54,12 +54,13 @@ export function StoryWorkspace() {
   const playedIn = useRef<Project | null>(null);
   const title = current?.scene.title;
   const headline = current?.scene.headline;
-  const sceneIndex = current?.sceneIndex ?? 0;
+  const numbers = useMemo(() => sceneNumbers(project.story.scenes), [project.story.scenes]);
+  const number = numbers[current?.sceneIndex ?? 0];
   const step = current?.step ?? null;
   const shown = useMemo<Shown | null>(
     () =>
-      title === undefined ? null : { scene: { title, ...(headline ? { headline } : {}) }, sceneIndex, step },
-    [title, headline, sceneIndex, step],
+      title === undefined ? null : { scene: { title, ...(headline ? { headline } : {}) }, number, step },
+    [title, headline, number, step],
   );
   const keys = stepKeys(project);
   const at = current?.step ? keys.indexOf(current.key) : -1;
@@ -98,7 +99,7 @@ export function StoryWorkspace() {
       handle.show(
         {
           scene: { title: t, ...(h ? { headline: h } : {}) },
-          sceneIndex: previous.sceneIndex,
+          number: numbers[previous.sceneIndex],
           step: previous.step,
         },
         'instant',
