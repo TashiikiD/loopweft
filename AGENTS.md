@@ -70,6 +70,7 @@ reviews before the next one starts. The file format is specified in [docs/format
 | `npm run verify` | The full merge gate, with a Markdown summary |
 | `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
 | `npm run studio` | Serves the Studio on this machine (`?example` opens the polycrisis example) |
+| `npm run player` | Serves the presentation player on this machine with the polycrisis example |
 | `npm run loopweft -- <command>` | Runs the `loopweft` command line (`npx loopweft` works too) |
 | `npm run convert:polycrisis -- --deck <folder>` | Rebuilds `examples/polycrisis.loopweft` from the private polycrisis deck |
 | `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |

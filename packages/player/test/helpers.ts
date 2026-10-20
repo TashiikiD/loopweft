@@ -1,9 +1,15 @@
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { type Project, readProject } from '@loopweft/model';
 import type { ChannelLike, LinkHost, PostTarget } from '../src/index.ts';
 
+// A path, not a URL: under jsdom the global URL is jsdom's, which Node's file functions refuse.
 export const exampleText = (): string =>
-  readFileSync(new URL('../../../examples/polycrisis.loopweft', import.meta.url), 'utf8');
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../../../examples/polycrisis.loopweft'),
+    'utf8',
+  );
 
 export function example(): Project {
   const result = readProject(exampleText());

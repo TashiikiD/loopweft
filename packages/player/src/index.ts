@@ -2,6 +2,9 @@
 // Studio and in a one-file HTML export.
 // - Pure (Node-safe): the deck a story makes, the show state and its commands, keys, the clock and pace.
 // - Browser: the link between windows, the session each window keeps, and the saved state.
+
+export { type Audience, type AudienceOptions, startAudience, toggleFullscreen } from './audience.ts';
+export { keepAwake, ProgressBar, type RenderMode, renderMode } from './chrome.ts';
 export {
   type ClockState,
   elapsedMs,
@@ -66,6 +69,8 @@ export {
   PING_MS,
   type PostTarget,
 } from './link.ts';
+export { type MdElement, type MdNode, type MdTag, markdownToDom, parseMarkdown } from './markdown.ts';
+export { nextLine, RehearsalNotes, sceneName } from './rehearsal.ts';
 export {
   type Address,
   browserAddress,
@@ -91,3 +96,4 @@ export {
   type StoreKey,
   savedSession,
 } from './storage.ts';
+export { PresenterClock, paceText, type Timing } from './timing.ts';

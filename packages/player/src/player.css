@@ -1,0 +1,293 @@
+/*
+ * Source: PolycrisisPresentation src/styles/tokens.css, base.css and stage.css @ 3e5da10 (private), adapted for
+ * Loopweft: the presenter's own surfaces (hints, rehearsal notes, the console) keep the deck's dark palette
+ * whatever the stage's theme, and every class is prefixed "lp-" so the player can sit inside the Studio.
+ */
+.lp-page,
+.lp-overlay {
+  --lp-bg: #071b16;
+  --lp-bg-deep: #04110d;
+  --lp-surface: #0e2a22;
+  --lp-surface-2: #13352b;
+  --lp-surface-3: #1a4236;
+  --lp-line: rgba(168, 189, 178, 0.16);
+  --lp-line-strong: rgba(168, 189, 178, 0.32);
+  --lp-text: #f1f5ef;
+  --lp-muted: #a8bdb2;
+  --lp-faint: #6f8a7e;
+  --lp-glow: #70e2c5;
+  --lp-ok: #7fd8a8;
+  --lp-warn: #f2c46b;
+  --lp-bad: #f08a7c;
+  --lp-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --lp-serif: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --lp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+  color: var(--lp-text);
+  font-family: var(--lp-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+.lp-page,
+.lp-page body {
+  margin: 0;
+  height: 100%;
+  background: var(--lp-bg-deep);
+}
+
+.lp-page *,
+.lp-page *::before,
+.lp-page *::after,
+.lp-overlay *,
+.lp-overlay *::before,
+.lp-overlay *::after {
+  box-sizing: border-box;
+}
+
+.lp-page [hidden],
+.lp-overlay [hidden] {
+  display: none;
+}
+
+/* An element covering the whole window: the audience view in the Studio, or the console. */
+.lp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--lp-bg-deep);
+  overflow: hidden;
+}
+
+.lp-audience {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lp-hide-cursor,
+.lp-hide-cursor * {
+  cursor: none;
+}
+
+/* Blackout covers everything, the letterbox included. */
+.lp-blackout {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms var(--lp-ease-out);
+  z-index: 50;
+}
+
+.lp-blackout.on {
+  opacity: 1;
+}
+
+/* ----- A whisper-thin progress bar along the bottom of the stage ----- */
+.lw-stage .lp-progress {
+  position: absolute;
+  left: 64px;
+  right: 64px;
+  bottom: 26px;
+  height: 3px;
+  display: flex;
+  gap: 6px;
+  opacity: 0.4;
+  transition: opacity 400ms;
+}
+
+.lw-stage .lp-progress.hidden,
+.lw-stage .lp-progress.untimed {
+  opacity: 0;
+}
+
+.lw-stage .lp-progress-seg {
+  position: relative;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--lw-text) 22%, transparent);
+  overflow: hidden;
+}
+
+.lw-stage .lp-progress-seg.done {
+  background: color-mix(in srgb, var(--lw-glow) 45%, transparent);
+}
+
+.lw-stage .lp-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--lw-glow);
+  transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ----- The hint at the start (it fades away; never during the talk) ----- */
+.lp-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(14, 42, 34, 0.9);
+  border: 1px solid var(--lp-line-strong);
+  color: var(--lp-muted);
+  font: 15px / 1.4 var(--lp-sans);
+  z-index: 40;
+  transition: opacity 800ms;
+  white-space: nowrap;
+}
+
+.lp-hint.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ----- Rehearsal notes over the slides (N) ----- */
+.lp-rehearsal {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: min(520px, 42vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(7, 27, 22, 0.95);
+  border: 1px solid var(--lp-line-strong);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  z-index: 45;
+  overflow: auto;
+  font: 18px / 1.5 var(--lp-sans);
+  color: var(--lp-text);
+}
+
+.lp-rehearsal h2 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-glow);
+}
+
+.lp-ro-clock {
+  margin: 0;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-ro-cue {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lp-surface);
+}
+
+.lp-ro-empty {
+  margin: 0;
+  color: var(--lp-muted);
+}
+
+.lp-ro-foot {
+  margin: auto 0 0;
+  font-size: 14px;
+  color: var(--lp-faint);
+}
+
+/* How the presenter is doing: the deck's pace colours. */
+[data-status="idle"] {
+  color: var(--lp-muted);
+}
+
+[data-status="ahead"],
+[data-status="on"] {
+  color: var(--lp-ok);
+}
+
+[data-status="late"] {
+  color: var(--lp-warn);
+}
+
+[data-status="very-late"] {
+  color: var(--lp-bad);
+}
+
+/* ----- Speaker notes (Markdown) ----- */
+.lp-markdown > :first-child {
+  margin-top: 0;
+}
+
+.lp-markdown p,
+.lp-markdown ul,
+.lp-markdown ol,
+.lp-markdown blockquote,
+.lp-markdown pre {
+  margin: 0 0 10px;
+}
+
+.lp-markdown ul,
+.lp-markdown ol {
+  padding-left: 1.15em;
+}
+
+.lp-markdown li {
+  margin-bottom: 5px;
+}
+
+.lp-markdown h3,
+.lp-markdown h4,
+.lp-markdown h5 {
+  margin: 14px 0 6px;
+  font-size: 0.72em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+}
+
+.lp-markdown blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--lp-glow);
+  color: var(--lp-muted);
+}
+
+.lp-markdown code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--lp-surface-2);
+  font-size: 0.9em;
+}
+
+.lp-markdown pre code {
+  display: block;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+}
+
+.lp-markdown a {
+  color: var(--lp-glow);
+}
+
+.lp-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--lp-line-strong);
+}
+
+/* ----- A page that could not start ----- */
+.lp-problem {
+  max-width: 900px;
+  margin: 10vh auto;
+  padding: 24px 28px;
+  border-radius: 14px;
+  border: 1px solid var(--lp-bad);
+  background: var(--lp-bg);
+  font: 18px / 1.5 var(--lp-sans);
+}
+
+.lp-problem pre {
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: var(--lp-muted);
+}

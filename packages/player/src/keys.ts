@@ -112,6 +112,9 @@ export function mapKey(e: KeyInput, role: Role): KeyAction | null {
       return local('notesOverlay');
     case 'h':
       return local('chrome');
+    // The presenter's clock, in a window rehearsing alone (only while its notes are open).
+    case 't':
+      return local(e.shiftKey ? 'clockReset' : 'clockToggle');
   }
   return null;
 }

@@ -87,6 +87,12 @@ with the polycrisis example. The published copy is at <https://tashiikid.github.
 `.loopweft` file on the page to play that instead. The published copy is at
 <https://tashiikid.github.io/loopweft/demo/>.
 
+## Presenting the example
+
+`npm run player` serves the presentation player (`packages/player/page`) on this machine with the polycrisis
+example: on its own it rehearses in one window (N shows the notes, T starts the clock); add `?view=audience`
+for the slides that follow other windows of the same presentation.
+
 ## Reporting problems
 
 Open an issue with what you did, what you expected and what happened instead. For a `.loopweft` file that

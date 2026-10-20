@@ -22,4 +22,15 @@ Built so far (Phase 5, in slices):
 - `PresentationStore`: where each window remembers its place, clock and preferences, per presentation, and
   works without storage.
 
-Still to come in Phase 5: the audience window, the presenter console, rehearsal notes and the one-file HTML.
+- `startAudience`: the audience window. The story on the stage and nothing else: a thin progress bar sized by
+  the scenes' targets (H hides it), blackout, the pointer hidden while still, a hint at the start, full
+  screen on F or a double-click, the screen kept awake, a tap or swipe to step on touch screens. Opened to
+  rehearse alone, it shows rehearsal notes on N (the step's cue, what comes next, the scene's speaker notes
+  and the presenter's clock, started on T); they never open while a presenter console is connected.
+- `parseMarkdown`, `markdownToDom`: speaker notes read safely (nothing in them is ever read as HTML).
+- `PresenterClock`: the presenter's clock, kept in the presentation's storage, so the console and a
+  rehearsal share it.
+- The page (`page/`): `npm run player` serves it on this machine with the polycrisis example
+  (`?view=audience` for the slides kept in step with other windows; with nothing else, rehearsal).
+
+Still to come in Phase 5: the presenter console, the start page and the one-file HTML.
