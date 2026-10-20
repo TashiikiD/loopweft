@@ -762,9 +762,14 @@
   z-index: 30;
 }
 
+/* The dialog scrolls a card taller than the window. The card is centred by its margins rather than the grid's
+   alignment, so that one taller than the window starts at its top in every browser. */
 .lp-help[open] {
   display: grid;
-  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .lp-help::backdrop {
@@ -780,6 +785,7 @@
 }
 
 .lp-help-card {
+  margin: auto;
   width: min(620px, 92vw);
   padding: 22px 26px;
   border-radius: 16px;

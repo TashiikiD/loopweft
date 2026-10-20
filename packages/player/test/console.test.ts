@@ -117,6 +117,31 @@ describe('the presenter console', () => {
     expect(help.hasAttribute('open')).toBe(false);
   });
 
+  it('moves nothing behind the open keyboard help: its keys are its own, and Esc, ? or H close it', () => {
+    open();
+    const help = document.querySelector('.lp-help') as HTMLDialogElement;
+    for (const close of ['Escape', '?', 'h', 'H']) {
+      key('?');
+      expect(help.hasAttribute('open')).toBe(true);
+      for (const k of ['PageDown', 'ArrowRight', ' ', 'End', '4', 'Enter', 'b', 'c', 'p', 't']) {
+        const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+        (document.activeElement ?? document).dispatchEvent(e);
+        // Left to the dialog: to scroll it, or to work its Close button.
+        expect(e.defaultPrevented).toBe(false);
+      }
+      expect(text('.lp-scene-sub')).toMatch(/· S00\.1/);
+      const chips = [...document.querySelectorAll('.lp-status .lp-chip:not([hidden])')].map(
+        (c) => c.textContent,
+      );
+      expect(chips).toEqual(['No audience window']);
+      key(close, { shiftKey: close === 'H' });
+      expect(help.hasAttribute('open')).toBe(false);
+    }
+    // Closed, the keys move the show again.
+    key('PageDown');
+    expect(text('.lp-scene-sub')).toMatch(/· S01\.1 ·/);
+  });
+
   it('keeps the keyboard’s focus on a button worked from the keyboard, and gives it back to the show after a mouse click', () => {
     open();
     const next = [...document.querySelectorAll<HTMLButtonElement>('.lp-controls button')].find(

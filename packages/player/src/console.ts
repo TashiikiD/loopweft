@@ -895,6 +895,19 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
 
   // ----- Keys -----
   const onKey = (e: KeyboardEvent) => {
+    // While the shortcuts are open, the keys are theirs (the arrows, PgUp and PgDn scroll them; Tab reaches
+    // Close): nothing moves the show behind them. Esc, ? and H close them.
+    if (ui.help.hasAttribute('open')) {
+      const action = mapKey(e, 'presenter');
+      if (action?.kind === 'local' && (action.action === 'help' || action.action === 'cancel')) {
+        e.preventDefault();
+        setHelp(false);
+      } else if (action?.kind === 'swallow' && e.key === 'F5') {
+        // A clicker's "start", never a reload.
+        e.preventDefault();
+      }
+      return;
+    }
     if (isTypingTarget(e.target)) return;
     if (isControlTarget(e.target, e.key)) return;
     const action = mapKey(e, 'presenter');

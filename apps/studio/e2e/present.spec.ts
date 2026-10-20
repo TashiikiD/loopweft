@@ -128,3 +128,36 @@ test('the console scrolls in a narrow window (or zoomed in), so every control an
   await expect(console_.getByRole('button', { name: 'Open audience window' })).toBeInViewport();
   await shot(page, 'present-5-console-narrow');
 });
+
+test('the keyboard shortcuts on a short window: the keys scroll them, and move nothing behind them', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 420 });
+  await page.goto('/?example');
+  await page.getByRole('tab', { name: 'Present' }).click();
+  await page.getByRole('button', { name: 'Open the console' }).click();
+  const console_ = page.getByRole('dialog', { name: 'Presenter console' });
+  const sub = console_.locator('.lp-scene-sub');
+  await expect(sub).toHaveText(/^Step 1 of 1 · S00\.1/);
+  await page.keyboard.press('?');
+  const help = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(help.getByRole('button', { name: 'Close' })).toBeFocused();
+  // Taller than the window, the card starts at its top, and the keys scroll it.
+  expect(await help.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await expect(help.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInViewport();
+  const scrolled = () => help.evaluate((el) => el.scrollTop);
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(scrolled).toBeGreaterThan(0);
+  const down = await scrolled();
+  await page.keyboard.press('PageDown');
+  await expect.poll(scrolled).toBeGreaterThan(down);
+  await page.keyboard.press('End');
+  await expect(help.getByText('Esc or ? closes this')).toBeInViewport();
+  await shot(page, 'present-6-help-short');
+  // Behind it, the show has not moved.
+  await expect(sub).toHaveText(/^Step 1 of 1 · S00\.1/);
+  await page.keyboard.press('Escape');
+  await expect(help).toBeHidden();
+  await page.keyboard.press('PageDown');
+  await expect(sub).toHaveText(/S01\.1/);
+});
