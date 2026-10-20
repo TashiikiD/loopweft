@@ -10,7 +10,7 @@
 // report.json) go to the out folder. It fails when a check marked required fails; the others are reported.
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readProject } from '../packages/model/src/index.ts';
@@ -60,9 +60,21 @@ async function main(): Promise<void> {
   const read = readProject(readFileSync(join(root, 'examples/polycrisis.loopweft'), 'utf8'));
   if (!read.ok) throw new Error('The example does not open.');
   const made = exportHtml(read.project, await playerTemplate(), { notes: true });
-  const folder = mkdtempSync(join(tmpdir(), 'loopweft-safari-html-'));
   const name = 'Global Polycrisis.html';
-  writeFileSync(join(folder, name), made.html);
+  // The file, in a temporary folder and where a person keeps files (each removed again at the end).
+  const folders = [
+    {
+      key: 'temporary',
+      label: 'a temporary folder',
+      path: mkdtempSync(join(tmpdir(), 'loopweft-safari-html-')),
+    },
+    { key: 'downloads', label: 'Downloads', path: join(homedir(), 'Downloads', 'loopweft-safari-html') },
+    { key: 'home', label: 'the home folder', path: join(homedir(), 'loopweft-safari-html') },
+  ];
+  for (const dir of folders) {
+    mkdirSync(dir.path, { recursive: true });
+    writeFileSync(join(dir.path, name), made.html);
+  }
 
   const driver: ChildProcess = spawn('safaridriver', ['--port', String(PORT)], { stdio: 'inherit' });
   let served: Awaited<ReturnType<typeof serve>> | null = null;
@@ -122,31 +134,36 @@ async function main(): Promise<void> {
       }
     };
 
-    // From disk, if Safari opens a file under automation; else from a server on this machine.
-    let page = pathToFileURL(join(folder, name)).href;
-    await check(`Safari ${version} opens the file from disk`, false, async () => {
-      await go(page);
+    // From disk, if Safari opens a file under automation, trying folders in turn: Safari's sandbox decides
+    // which it may read (a file a person double-clicks is let in by macOS; one opened by WebDriver is not).
+    // Else from a server on this machine.
+    let page = '';
+    const tried: string[] = [];
+    for (const dir of folders) {
+      const url = pathToFileURL(join(dir.path, name)).href;
+      await go(url);
       try {
-        await until('return !!document.querySelector("h1")', 'the start page');
-      } catch (error) {
-        // What Safari shows instead: the address, the page's text, and the player's own problem notice.
-        const seen = await run<Record<string, unknown>>(
-          `return {
-            href: location.href,
-            state: document.readyState,
-            slot: !!document.getElementById('loopweft-project'),
-            problem: document.querySelector('.lp-problem')?.textContent ?? null,
-            text: (document.body?.innerText ?? '').slice(0, 300),
-            html: document.documentElement.outerHTML.length,
-          }`,
-        ).catch((e: Error) => ({ unreadable: e.message }));
-        await shot('0-from-disk').catch(() => {});
-        throw new Error(`${(error as Error).message}; the page: ${JSON.stringify(seen)}`);
+        await until('return !!document.querySelector("h1")', 'the start page', 6000);
+        page = url;
+        tried.push(`${dir.label}: opens`);
+        break;
+      } catch {
+        // What Safari shows instead: its error page's text, or the player's own problem notice.
+        const seen = await run<string>(
+          `return (document.querySelector('.lp-problem')?.textContent ?? document.body?.innerText ?? '').replace(/\\s+/g, ' ').slice(0, 200)`,
+        ).catch((e: Error) => e.message);
+        tried.push(`${dir.label}: refused (${seen})`);
+        await shot(`0-from-disk-${dir.key}`).catch(() => {});
       }
-      return page;
+    }
+    results.push({
+      check: `Safari ${version} opens the file from disk`,
+      ok: page !== '',
+      required: false,
+      detail: tried.join('; '),
     });
-    if (!results.at(-1)?.ok) {
-      served = await serve(folder);
+    if (!page) {
+      served = await serve(folders[0]?.path as string);
       page = `${served.url}/${encodeURIComponent(name)}`;
       await go(page);
     }
@@ -232,7 +249,7 @@ async function main(): Promise<void> {
     if (session) await wd('DELETE', `/session/${session}`).catch(() => {});
     driver.kill();
     await served?.close();
-    rmSync(folder, { recursive: true, force: true });
+    for (const dir of folders) rmSync(dir.path, { recursive: true, force: true });
   }
 }
 
