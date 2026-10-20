@@ -13,7 +13,7 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readProject } from '../packages/model/src/index.ts';
 import { playerTemplate } from '../packages/player/build/template.ts';
@@ -55,25 +55,39 @@ async function check(name: string, required: boolean, fn: () => Promise<string>)
 /**
  * The file opened as a person opens it: `open -a Safari`, as a double-click does, which lets the file into
  * Safari's sandbox (WebDriver cannot). Without WebDriver there is no page to read, and on GitHub's Mac
- * AppleScript cannot reach Safari (its permission prompt times out), so these checks open each view by its
- * address and keep a screen of the whole display for a person to look at: the start page, the slides at a
- * step, and the console. (The keys and the two windows are checked above, on the file served.)
+ * AppleScript cannot reach Safari (its permission prompt times out), so these checks keep a screen of the
+ * whole display for a person to look at: nothing on it is read automatically. `open` drops a file address's
+ * query, so each view is reached through a small file beside the page that sends Safari on to it (the way a
+ * click on the start page's buttons does).
  */
 async function byDoubleClick(file: string): Promise<void> {
-  const url = pathToFileURL(file).href;
+  const folder = dirname(file);
+  const page = encodeURIComponent(basename(file));
   const views: Array<[string, string, string]> = [
-    ['6-from-disk-start', file, 'the start page'],
-    ['7-from-disk-slides', `${url}?view=audience#S05.6b`, 'the slides at S05.6b'],
-    ['8-from-disk-console', `${url}?view=presenter#S04.2a`, 'the console at S04.2a'],
+    ['6-from-disk-start', '', 'the start page'],
+    ['7-from-disk-slides', '?view=audience#S05.6b', 'the slides at S05.6b'],
+    ['8-from-disk-console', '?view=presenter#S04.2a', 'the console at S04.2a'],
   ];
-  for (const [screen, address, what] of views) {
-    await check(`from disk, opened as a person opens it: ${what} (see screen ${screen})`, false, async () => {
-      const opened = spawnSync('open', ['-a', 'Safari', address], { encoding: 'utf8' });
-      if (opened.status !== 0) throw new Error(opened.stderr.trim() || `open failed (${opened.status})`);
-      await sleep(8000);
-      spawnSync('screencapture', ['-x', join(out, `${screen}.png`)]);
-      return `opened ${address.replace(/^.*\//, '')}`;
-    });
+  for (const [screen, view, what] of views) {
+    await check(
+      `from disk, opened as a person opens it: ${what} (screen ${screen}, to look at)`,
+      false,
+      async () => {
+        let target = file;
+        if (view) {
+          target = join(folder, `${screen}.html`);
+          writeFileSync(
+            target,
+            `<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(`${page}${view}`)})</script>`,
+          );
+        }
+        const opened = spawnSync('open', ['-a', 'Safari', target], { encoding: 'utf8' });
+        if (opened.status !== 0) throw new Error(opened.stderr.trim() || `open failed (${opened.status})`);
+        await sleep(8000);
+        spawnSync('screencapture', ['-x', join(out, `${screen}.png`)]);
+        return `opened ${basename(target)}${view ? `, which goes on to ${view}` : ''}; the screen shows what Safari drew`;
+      },
+    );
   }
   spawnSync('pkill', ['-x', 'Safari']);
 }
