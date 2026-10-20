@@ -14,6 +14,8 @@ const show = new URLSearchParams(location.search).get('show') ?? '';
 
 const waiting = document.createElement('p');
 waiting.className = 'lp-waiting';
+// A status: a screen reader says each change of it (still waiting, or what went wrong).
+waiting.setAttribute('role', 'status');
 waiting.textContent = 'Waiting for the presenter console in the Studio…';
 host.append(waiting);
 

@@ -103,35 +103,48 @@ export function download(name: string, text: string, type = 'application/json'):
 export const htmlNameFor = (title: string): string =>
   `${slugify(title).replace(/_/g, '-') || 'presentation'}.html`;
 
+/** Where an exported page goes: a file the person chose (Chrome, Edge), or a download. */
+export interface HtmlTarget {
+  how: 'file' | 'download';
+  name: string;
+  write(html: string): Promise<void>;
+}
+
 /**
- * Saves an exported page: where the person chooses (Chrome, Edge), else as a download. Null when they cancel;
- * otherwise how it was saved and under which name.
+ * Asks where to save an exported page: the browser's save dialog (Chrome, Edge), else a download. Call it
+ * straight from the click, before anything slow: the browser shows the dialog only while the click still
+ * counts (a few seconds), so the page is made after the place is chosen. Null when the person cancels.
  */
-export async function saveHtml(
-  name: string,
-  html: string,
-): Promise<{ how: 'file' | 'download'; name: string } | null> {
+export function chooseHtmlTarget(name: string): Promise<HtmlTarget | null> {
   const { showSaveFilePicker } = pickers();
-  if (showSaveFilePicker) {
-    let handle: FileSystemFileHandle;
-    try {
-      handle = await showSaveFilePicker({
-        types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }],
-        suggestedName: name,
-      });
-    } catch (error) {
+  if (!showSaveFilePicker)
+    return Promise.resolve({
+      how: 'download',
+      name,
+      write: async (html) => download(name, html, 'text/html'),
+    });
+  // Called now, in the click; only its answer is awaited.
+  const asking = showSaveFilePicker({
+    types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }],
+    suggestedName: name,
+  });
+  return asking.then(
+    (handle): HtmlTarget => ({
+      how: 'file',
+      name: handle.name,
+      async write(html) {
+        const writable = (await (
+          handle as unknown as { createWritable(): Promise<Writable> }
+        ).createWritable()) as Writable;
+        await writable.write(html);
+        await writable.close();
+      },
+    }),
+    (error: unknown) => {
       if (cancelled(error)) return null;
       throw error;
-    }
-    const writable = (await (
-      handle as unknown as { createWritable(): Promise<Writable> }
-    ).createWritable()) as Writable;
-    await writable.write(html);
-    await writable.close();
-    return { how: 'file', name: handle.name };
-  }
-  download(name, html, 'text/html');
-  return { how: 'download', name };
+    },
+  );
 }
 
 export interface Saved {

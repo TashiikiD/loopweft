@@ -76,6 +76,29 @@ describe('the Present workspace', () => {
     expect(screen.queryByText('This browser saved a place from an earlier run')).toBeNull();
   });
 
+  it('is a modal: the Studio behind is out of reach, Tab stays inside, and all comes back on closing', async () => {
+    const { user } = await open('Present');
+    const opener = screen.getByRole('button', { name: 'Open the console' });
+    await user.click(opener);
+    const console_ = screen.getByRole('dialog', { name: 'Presenter console' });
+    const behind = [...document.body.children].filter((el) => !el.contains(console_));
+    expect(behind.length).toBeGreaterThan(0);
+    expect(behind.every((el) => el.hasAttribute('inert'))).toBe(true);
+    // Shift+Tab from the console itself goes to its last control, and Tab from there back to its first.
+    const controls = [...console_.querySelectorAll<HTMLElement>('button, a[href]')].filter(
+      (el) => !el.closest('[hidden], dialog:not([open])'),
+    );
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(controls.at(-1));
+    await user.tab();
+    expect(document.activeElement).toBe(controls[0]);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(controls.at(-1));
+    await user.click(within(console_).getByRole('button', { name: 'Back to the Studio' }));
+    expect(behind.some((el) => el.hasAttribute('inert'))).toBe(false);
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('rehearses in one window, and Esc comes back', async () => {
     const { user } = await open('Present');
     await user.click(screen.getByRole('button', { name: 'Rehearse' }));
@@ -97,6 +120,55 @@ describe('the Present workspace', () => {
 });
 
 describe('the Export workspace', () => {
+  it('asks where to save in the click itself, before the page is made, and writes it there', async () => {
+    const store = createStudioStore(small(), { name: 'small.loopweft' });
+    let loaded = false;
+    let release = () => {};
+    const template = () =>
+      new Promise<string>((resolve) => {
+        release = () => {
+          loaded = true;
+          resolve(`<title>t</title>${SLOT}`);
+        };
+      });
+    const written: string[] = [];
+    const asked: boolean[] = [];
+    const picker = vi.fn(async () => {
+      asked.push(loaded);
+      return {
+        name: 'chosen.html',
+        createWritable: async () => ({
+          write: async (text: string) => {
+            written.push(text);
+          },
+          close: async () => {},
+        }),
+      };
+    });
+    const w = window as unknown as Record<string, unknown>;
+    w.showSaveFilePicker = picker;
+    try {
+      render(
+        <Providers env="test">
+          <StudioContext.Provider value={store}>
+            <ExportWorkspace template={template} />
+          </StudioContext.Provider>
+        </Providers>,
+      );
+      const user = userEvent.setup();
+      await act(() => user.click(screen.getByRole('button', { name: 'Export HTML…' })));
+      // The dialog was asked for while the page was still loading.
+      expect(asked).toEqual([false]);
+      expect(written).toEqual([]);
+      await act(async () => release());
+      expect(await screen.findByText(/^Last export: 0\.0 MB, speaker notes included\./)).toBeTruthy();
+      expect(written).toHaveLength(1);
+      expect(written[0]).toContain('data-notes="included"');
+    } finally {
+      delete w.showSaveFilePicker;
+    }
+  });
+
   it('says which of the presenter’s words the copy holds, and exports the page with or without them', async () => {
     const store = createStudioStore(small(), { name: 'small.loopweft' });
     const saved: string[] = [];

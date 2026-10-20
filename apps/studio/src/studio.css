@@ -929,6 +929,11 @@ body {
   opacity: 0;
 }
 
+/* With the keyboard on it, the way back shows even while the pointer is hidden. */
+.lp-hide-cursor .lw-present-back:focus-visible {
+  opacity: 1;
+}
+
 /* The presentation takes the keyboard's focus when it opens; it needs no ring of its own. */
 .lp-overlay:focus {
   outline: none;

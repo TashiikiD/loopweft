@@ -8,7 +8,7 @@ import { Alert, Button, Card, Checkbox, Group, List, Stack, Text, Title } from '
 import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
-import { htmlNameFor, saveHtml } from '../state/files.ts';
+import { chooseHtmlTarget, htmlNameFor } from '../state/files.ts';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
@@ -26,11 +26,15 @@ export function ExportWorkspace({ template = loadTemplate }: { template?: () => 
   const steps = project.story.scenes.reduce((n, s) => n + s.steps.length, 0);
 
   const run = async () => {
+    // Where to save is asked first, in the click itself: the player's page may take a while to load the first
+    // time, and the browser shows its save dialog only while the click still counts.
+    const target = chooseHtmlTarget(htmlNameFor(project.meta.title));
     setBusy(true);
     try {
-      const result = exportHtml(store.getState().project, await template(), { notes });
-      const saved = await saveHtml(htmlNameFor(project.meta.title), result.html);
+      const saved = await target;
       if (!saved) return;
+      const result = exportHtml(store.getState().project, await template(), { notes });
+      await saved.write(result.html);
       setMade(result);
       notifications.show({
         title: saved.how === 'file' ? 'Exported' : 'Downloaded',

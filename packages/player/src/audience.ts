@@ -19,8 +19,13 @@ export interface AudienceOptions {
   /** Where the stage goes: the page's body, or an element covering the window. */
   host: HTMLElement;
   project: Project;
-  /** The presentation's id (`presentationId` of the project's text). */
+  /** The presentation's id (`presentationId` of the project's text): where its place and clock are kept. */
   show: string;
+  /**
+   * Which windows this one keeps in step with: by default the presentation's (`show`). The Studio's rehearsal
+   * gives one of its own, so that it never moves an audience window still open from the console.
+   */
+  link?: string;
   /** Opened to rehearse alone: rehearsal notes on N, and the presenter's clock on T while they show. */
   rehearse: boolean;
   /** For stills: the step the address names, at once, on a timer clock; no link, keys or chrome. */
@@ -112,7 +117,8 @@ export function startAudience(o: AudienceOptions): Audience {
     shown = next;
   };
 
-  const link = new Link('audience', o.show, browserHost(win), { token: joinToken(win, o.show) });
+  const linkName = o.link ?? o.show;
+  const link = new Link('audience', linkName, browserHost(win), { token: joinToken(win, linkName) });
   const session: ShowSession = new ShowSession({
     deck,
     link,

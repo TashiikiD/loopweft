@@ -35,6 +35,37 @@ function take(project: Project): Presentation | null {
   return read.ok ? { project: read.project, text, show: presentationId(text) } : null;
 }
 
+/** What the keyboard can reach in the presentation now: not in a hidden part, nor in a closed dialog. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const reachable = (root: HTMLElement): HTMLElement[] =>
+  [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (el) => !el.closest('[hidden], [inert], dialog:not([open])'),
+  );
+
+/**
+ * Keeps Tab inside the presentation: past its last control it comes back to the first, and Shift+Tab before
+ * its first goes to the last.
+ */
+function keepTabInside(e: KeyboardEvent, root: HTMLElement): void {
+  if (e.key !== 'Tab') return;
+  // A dialog open inside it (the console's keyboard help) keeps the keys among its own controls.
+  const scope = root.querySelector<HTMLElement>('dialog[open]') ?? root;
+  const items = reachable(scope);
+  const first = items[0];
+  const last = items.at(-1);
+  if (!first || !last) return;
+  const active = document.activeElement;
+  const outside = !(active instanceof HTMLElement) || !scope.contains(active) || active === root;
+  if (e.shiftKey && (outside || active === first)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && (outside || active === last)) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 /** Shows the console or the rehearsal over the whole Studio, until the presenter goes back. */
 function Overlay({
   presentation,
@@ -47,12 +78,25 @@ function Overlay({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  // Keys go to the presentation: focus moves into it, off the button that opened it (Space would press that
-  // button again), and goes back to that button when the presentation closes.
+  // A modal over the Studio. Keys go to the presentation: focus moves into it, off the button that opened it
+  // (Space would press that button again), and Tab stays inside it. The Studio behind is inert meanwhile, so
+  // neither the keyboard nor a screen reader reaches what is covered. On closing, all of it comes back, and
+  // the focus returns to the button that opened it.
   useEffect(() => {
+    const overlay = root.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    root.current?.focus();
-    return () => opener?.focus();
+    const behind = [...document.body.children].filter((el) => el !== overlay && !el.hasAttribute('inert'));
+    for (const el of behind) el.setAttribute('inert', '');
+    overlay?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (overlay) keepTabInside(e, overlay);
+    };
+    overlay?.addEventListener('keydown', onKey);
+    return () => {
+      overlay?.removeEventListener('keydown', onKey);
+      for (const el of behind) el.removeAttribute('inert');
+      opener?.focus();
+    };
   }, []);
   useEffect(() => {
     const el = host.current;
@@ -73,7 +117,17 @@ function Overlay({
       });
       return () => c.dispose();
     }
-    const a = startAudience({ host: el, project, show, rehearse: true, address: false, paintPage: false });
+    // A rehearsal keeps to itself: its own link, so it never moves an audience window still open from the
+    // console (its place and clock are the presentation's, as a rehearsal's should be).
+    const a = startAudience({
+      host: el,
+      project,
+      show,
+      link: `${show}-rehearsal`,
+      rehearse: true,
+      address: false,
+      paintPage: false,
+    });
     // Escape leaves the rehearsal (unless it leaves full screen first, which the browser does).
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !document.fullscreenElement) onClose();

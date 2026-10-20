@@ -1,9 +1,11 @@
 # @loopweft/studio
 
 The Loopweft Studio: one window with five workspaces. Phase 2 built the **Map** workspace, Phase 3 the
-**Sources** workspace (the references library, coverage and the APA list) and Phase 4 the **Story** workspace
+**Sources** workspace (the references library, coverage and the APA list), Phase 4 the **Story** workspace
 (scenes and steps set up by clicking on the stage, overlays, notes and script, preview and checks; see
-[telling a story](../../docs/story.md)); Present and Export follow in later phases.
+[telling a story](../../docs/story.md)) and Phase 5 the **Present** workspace (the presenter console and its
+audience window, a rehearsal in one window) and the **Export** workspace's one-file HTML (see [presenting and
+sharing](../../docs/present.md)). Phase 6 adds the other exports: PNG, SVG, PDF and video.
 
 - Draw and edit a causal map: the canvas draws it with the renderer's own geometry, glyphs and theme
   colours, so it looks as it will when presented. Every change is one of `@loopweft/model`'s operations (the
