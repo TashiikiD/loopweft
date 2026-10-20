@@ -1,11 +1,12 @@
-// Stills of every step of the example story, played by the viewer, and of the polycrisis deck's builds, for
+// Stills of every step of the example story, played by the exported example (the site's demo/), and of the polycrisis deck's builds, for
 // side-by-side review (tools/contact-sheet.ts). Follows the deck's tools/capture.ts.
 //
 //   node tools/capture.ts [--out review/phase1] [--only S04.2a,S05.2] [--budget 6000] [--site <built site>]
 //                         [--deck <folder> | --no-deck]
 //
-// - Loopweft: the site (with the viewer at demo/) is built into a temporary folder, unless --site names a
-//   built one, and served on this machine; each step is captured at demo/?capture=1#<step>.
+// - Loopweft: the site (with the example exported as one HTML file at demo/) is built into a temporary folder,
+//   unless --site names a built one, and served on this machine; each step is captured at
+//   demo/?view=audience&capture=1#<step>.
 // - The deck: its own built dist/ folder is served read-only and each build is captured at
 //   ?view=audience&capture=1#<build>, as the deck's own capture tool did. Nothing is written into the deck.
 //   The deck folder comes from --deck, LOOPWEFT_POLYCRISIS_DECK or .local.json; without one, only Loopweft is
@@ -120,7 +121,11 @@ try {
       served.url,
       pairs
         .filter((p) => wanted(p.loopweft))
-        .map((p) => ({ key: p.loopweft as string, url: `/demo/?capture=1#${p.loopweft}`, dir: 'loopweft' })),
+        .map((p) => ({
+          key: p.loopweft as string,
+          url: `/demo/?view=audience&capture=1#${p.loopweft}`,
+          dir: 'loopweft',
+        })),
     );
   } finally {
     await served.close();

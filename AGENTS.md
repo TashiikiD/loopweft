@@ -92,9 +92,10 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 | `player` | The presentation runtime, in plain DOM: the audience window, the presenter console, rehearsal notes, the start page, the link that keeps a presentation's windows in step, and the one-file HTML (`exportHtml`; `build/template.ts` builds the page it goes into) |
 | `cli` | The `loopweft` command line (`new`, `info`, `validate`, `add`, `var`, `link`, `type`, `loops`, `ripple`, `paths`, `connected`, `layout`, `import`, `export --html`, the evidence: `source`, `cite`, `references`, and the story: `story`); see its README |
 
-Apps live in `apps/*`: `viewer` plays a project's story (published at `/demo/`), and `studio` is the editor,
-in React and Mantine (published at `/studio/`; its tests run in jsdom, in the `studio` Vitest project, and
-its end-to-end tests in `apps/studio/e2e`, with Playwright).
+Apps live in `apps/*`: `studio` is the editor, in React and Mantine (published at `/studio/`, with its
+audience window at `/studio/audience.html`; its tests run in jsdom, in the `studio` Vitest project, and its
+end-to-end tests in `apps/studio/e2e`, with Playwright). The site's `/demo/` is the polycrisis example
+exported as one HTML file (`packages/player`). `tools/safari.ts` opens that file in Safari on CI's Mac.
 
 Every edit to a project is an operation in `@loopweft/model` (`src/ops/`): a project goes in, and
 `{ project, result, summary }` comes out, with the input untouched; an expected failure is an `OpError`

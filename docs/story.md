@@ -90,7 +90,7 @@ Every edit is one of `@loopweft/model`'s operations, the same in the Studio and 
 ## In the Studio
 
 The Story workspace has the outline of scenes and steps on the left, the stage in the middle (the story as
-the audience will see it, drawn by the same renderer as the viewer) and a panel on the right.
+the audience will see it, drawn by the same renderer as the audience window) and a panel on the right.
 
 - **Outline:** choose a step to show and edit it. Add a scene; add a step to a scene (a copy of the chosen
   step, so a story builds up step by step, or the whole map); copy, move and remove steps and scenes. A dot

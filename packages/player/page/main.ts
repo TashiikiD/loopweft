@@ -10,7 +10,15 @@ import '@loopweft/render/render.css';
 import '../src/player.css';
 import { issueLines, readProject } from '@loopweft/model';
 import { h } from '@loopweft/render';
-import { embeddedProject, presentationId, startAudience, startConsole, startPage } from '../src/index.ts';
+import {
+  deckOf,
+  embeddedProject,
+  parseKey,
+  presentationId,
+  startAudience,
+  startConsole,
+  startPage,
+} from '../src/index.ts';
 
 /** True on the page served on this machine (npm run player), false in a built page: see vite.config.ts. */
 declare const __PLAYER_SERVED__: boolean;
@@ -64,6 +72,11 @@ async function start(): Promise<void> {
   if (params.get('view') === 'audience') {
     host.className = 'lp-audience';
     startAudience({ host, project, show, rehearse: params.has('rehearse'), capture: params.has('capture') });
+    return;
+  }
+  // An address naming a step (a link to the old viewer, demo/#S04.2a) opens the slides at that step.
+  if (location.hash && parseKey(deckOf(project), location.hash)) {
+    location.replace(`?view=audience${location.hash}`);
     return;
   }
   document.body.classList.add('lp-start-body');

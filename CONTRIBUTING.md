@@ -67,7 +67,8 @@ valid JSON), it stops the push.
 
 ### Comparing renders with the presentation
 
-`npm run review:capture` takes a still of every step of the example, played by the viewer, and, where the
+`npm run review:capture` takes a still of every step of the example, played by its exported HTML (the site's
+`demo/`), and, where the
 presentation is available, of every build of the presentation from its own built `dist/` folder (served
 read-only; nothing is written into it). `npm run review:diff` measures where each pair differs (a share of
 the picture, and an image: teal where only Loopweft draws, magenta where only the presentation does).
@@ -81,17 +82,17 @@ page, so `review/` is git-ignored: keep them out of the repository.
 `npm run studio` serves the Studio (`apps/studio`) on this machine; add `?example` to the address to start
 with the polycrisis example. The published copy is at <https://tashiikid.github.io/loopweft/studio/>.
 
-## Viewing the example
-
-`npm run viewer` serves the viewer (`apps/viewer`) on this machine. It plays the example story; drop any
-`.loopweft` file on the page to play that instead. The published copy is at
-<https://tashiikid.github.io/loopweft/demo/>.
-
 ## Presenting the example
 
 `npm run player` serves the presentation player (`packages/player/page`) on this machine with the polycrisis
-example: on its own it rehearses in one window (N shows the notes, T starts the clock); add `?view=audience`
-for the slides that follow other windows of the same presentation.
+example:
+- on its own, the start page;
+- `?view=presenter`, the console;
+- `?view=audience`, the slides that follow other windows of the same presentation (`&rehearse` for the
+  slides alone, with notes on N).
+
+The published copy is the example exported as one HTML file, at
+<https://tashiikid.github.io/loopweft/demo/>.
 
 ## Reporting problems
 

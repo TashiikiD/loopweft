@@ -23,7 +23,6 @@
     "verify:fast": "node scripts/verify.mjs --fast",
     "prepare": "node scripts/install-hooks.mjs",
     "site": "node scripts/build-site.mjs",
-    "viewer": "vite apps/viewer",
     "player": "vite packages/player/page",
     "studio": "vite apps/studio",
     "loopweft": "node packages/cli/bin/loopweft.mjs",

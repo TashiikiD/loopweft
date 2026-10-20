@@ -12,7 +12,7 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 4: Story**, at its checkpoint; Phase 5 (Present and HTML) starts after its review.
+**Phase 5: Present and HTML**, at its checkpoint; Phase 6 (exports) starts after its review.
 [The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
@@ -28,13 +28,18 @@ no server, no telemetry.
   loop badges, pulses, the camera), with overlays (title pages, statements, cards, images, the legend), speaker
   notes and a script with key marks, a preview of the transitions, and checks that flag mistakes such as a
   pulse on a hidden link or a trend the signs contradict;
+- presenting: a presenter console (notes, script with key marks, clocks and pace, the evidence for what is
+  on screen) and an audience window for the projector that follows it, a rehearsal in one window, and a
+  mode that names each variable's category in words (C);
+- one HTML file to share or present from: it opens by double-click, offline, with a start page listing
+  every source;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
   CSV or Excel tables, Kumu or DataViz;
 - open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes.
 
-The `loopweft` command line does the same edits ([its commands](packages/cli/README.md)), and the engine
-that draws and animates a map's story plays [the example](https://tashiikid.github.io/loopweft/demo/). The
-presenter and the exports come in the next phases.
+The `loopweft` command line does the same edits and exports the HTML ([its commands](packages/cli/README.md)).
+[The example story](https://tashiikid.github.io/loopweft/demo/) is the polycrisis map exported as one HTML
+file. Images, PDFs and video come in the next phase.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
 - [Importing maps](docs/import.md), [templates](docs/templates.md), [loops, ripples and paths](docs/analysis.md),
@@ -74,8 +79,7 @@ text, in the custom field "DataViz sources".
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
 | `apps/studio` | The Studio, where maps are drawn and edited ([try it](https://tashiikid.github.io/loopweft/studio/)) |
-| `apps/viewer` | The viewer that plays a project's story ([the example](https://tashiikid.github.io/loopweft/demo/)) |
-| `packages/player` | The presentation runtime (Phase 5, being built): the audience window, the presenter console, rehearsal notes, the start page and the one-file HTML export |
+| `packages/player` | The presentation runtime: the audience window, the presenter console, rehearsal notes, the start page and the one-file HTML export ([the example](https://tashiikid.github.io/loopweft/demo/), exported) |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
 | `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |

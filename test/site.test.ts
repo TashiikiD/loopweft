@@ -4,14 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
+import { readProject } from '../packages/model/src/index.ts';
+import { playerTemplate } from '../packages/player/build/template.ts';
+import { exportHtml } from '../packages/player/src/export.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = mkdtempSync(join(tmpdir(), 'loopweft-site-'));
 afterAll(() => rmSync(out, { recursive: true, force: true }));
 
 describe('the GitHub Pages site', () => {
-  // Production builds of the viewer, the Studio and the player's page (for the Studio's Export): about 15 s,
-  // but three minutes or more on a busy laptop on battery while the other tests run beside them.
+  // A production build of the Studio and of the player's page (once, for the Studio's Export and for demo/):
+  // about 15 s, but three minutes or more on a busy laptop on battery while the other tests run beside them.
   it('builds the landing page', { timeout: 300_000 }, () => {
     const run = spawnSync(process.execPath, ['scripts/build-site.mjs', out], { cwd: root, encoding: 'utf8' });
     expect(run.status, run.stderr).toBe(0);
@@ -33,19 +36,21 @@ describe('the GitHub Pages site', () => {
     );
   });
 
-  it('publishes the viewer at demo/, with its fonts and the example built in', () => {
+  it('publishes the example at demo/ as one HTML file: the same bytes as its export', async () => {
     const page = readFileSync(join(out, 'demo/index.html'), 'utf8');
-    // Relative paths, so it runs from /loopweft/demo/ on Pages and from any local folder.
-    const assets = [...page.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1] as string);
-    expect(assets.some((a) => a.endsWith('.js'))).toBe(true);
-    expect(assets.some((a) => a.endsWith('.css'))).toBe(true);
-    for (const asset of assets) expect(existsSync(join(out, 'demo', asset)), asset).toBe(true);
-    expect(page).not.toMatch(/<script[^>]+src="https?:|<link[^>]+href="https?:/i);
-    const files = readdirSync(join(out, 'demo/assets'));
-    expect(files.some((f) => /^inter-latin-opsz-normal-.*\.woff2$/.test(f))).toBe(true);
-    expect(files.some((f) => /^fraunces-latin-opsz-italic-.*\.woff2$/.test(f))).toBe(true);
-    const script = readFileSync(join(out, 'demo', assets.find((a) => a.endsWith('.js')) as string), 'utf8');
-    expect(script).toContain('"format": "loopweft"');
+    // One file: nothing beside it, nothing from other sites.
+    expect(readdirSync(join(out, 'demo'))).toEqual(['index.html']);
+    expect(page).not.toMatch(/(?:src|href)=["']\.?\/?assets\//);
+    expect(page).not.toMatch(/<script[^>]+src=|<link[^>]+href="https?:/i);
+    const read = readProject(readFileSync(join(root, 'examples/polycrisis.loopweft'), 'utf8'));
+    if (!read.ok) throw new Error('The example does not open.');
+    expect(page).toBe(exportHtml(read.project, await playerTemplate(), { notes: true }).html);
+  });
+
+  it('offers the example from the landing page, to open and to download', () => {
+    const landing = readFileSync(join(root, 'site/index.html'), 'utf8');
+    expect(landing).toContain('href="demo/"');
+    expect(landing).toMatch(/href="demo\/index\.html" download="[^"]+\.html"/);
   });
 });
 
@@ -64,6 +69,13 @@ describe('the Studio on the site', () => {
       .filter((f) => f.endsWith('.css'))
       .map((f) => readFileSync(join(out, 'studio/assets', f), 'utf8'));
     expect(css.join('')).not.toMatch(/url\(\s*["']?https?:/);
+  });
+
+  it('has the audience window its presenter console opens, at studio/audience.html', () => {
+    const page = readFileSync(join(out, 'studio/audience.html'), 'utf8');
+    const assets = [...page.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1] as string);
+    expect(assets.some((a) => a.endsWith('.js'))).toBe(true);
+    for (const asset of assets) expect(existsSync(join(out, 'studio', asset)), asset).toBe(true);
   });
 
   it('is linked from the landing page', () => {
