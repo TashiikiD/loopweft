@@ -1,8 +1,10 @@
 /// <reference types="vite/client" />
 // The player's page. One page, several views, chosen by the address: none (the start page), ?view=presenter
 // (the presenter console), ?view=audience (the slides, kept in step with the console), ?view=audience&rehearse
-// (the slides alone, with rehearsal notes on N), ?view=audience&capture (stills, at the step the address names). The project is embedded in the page (the one-file export); served on
-// this machine, the page has none and plays the polycrisis example.
+// (the slides alone, with rehearsal notes on N), ?view=audience&capture (stills, at the step the address
+// names). A copy made without the notes (for the audience) has no console and no rehearsal notes, whatever
+// the address asks for. The project is embedded in the page (the one-file export); served on this machine,
+// the page has none and plays the polycrisis example.
 import '@fontsource-variable/inter/opsz.css';
 import '@fontsource-variable/fraunces/opsz.css';
 import '@fontsource-variable/fraunces/opsz-italic.css';
@@ -58,7 +60,12 @@ async function start(): Promise<void> {
   const project = result.project;
   const show = presentationId(text);
   document.title = project.meta.title;
-  if (params.get('view') === 'presenter') {
+  const view = params.get('view');
+  if (view === 'presenter' && !notes) {
+    location.replace(`?view=audience${location.hash}`);
+    return;
+  }
+  if (view === 'presenter') {
     document.title = `Presenter · ${project.meta.title}`;
     startConsole({
       host,
@@ -69,9 +76,15 @@ async function start(): Promise<void> {
     });
     return;
   }
-  if (params.get('view') === 'audience') {
+  if (view === 'audience') {
     host.className = 'lp-audience';
-    startAudience({ host, project, show, rehearse: params.has('rehearse'), capture: params.has('capture') });
+    startAudience({
+      host,
+      project,
+      show,
+      rehearse: notes && params.has('rehearse'),
+      capture: params.has('capture'),
+    });
     return;
   }
   // An address naming a step (a link to the old viewer, demo/#S04.2a) opens the slides at that step.

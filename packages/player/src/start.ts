@@ -17,7 +17,8 @@ export interface StartOptions {
   storage?: KeyValue | null;
 }
 
-const KEYS: Array<[string, string]> = [
+/** The keys, and whether a key needs the speaker notes (a copy for the audience has neither console nor notes). */
+const KEYS: Array<[string, string, boolean?]> = [
   ['→ · Space · PgDn', 'Next step'],
   ['← · PgUp', 'The step before'],
   ['Shift+→ / Shift+←', 'Next scene / start of the scene'],
@@ -26,8 +27,8 @@ const KEYS: Array<[string, string]> = [
   ['R / S', 'Replay a step’s animation / skip to its end'],
   ['C', 'Name each variable’s category in words'],
   ['F (slides)', 'Full screen'],
-  ['N (slides)', 'Rehearsal notes over the slides'],
-  ['G / F (console)', 'Notes / script'],
+  ['N (slides)', 'Rehearsal notes over the slides', true],
+  ['G / F (console)', 'Notes / script', true],
   ['L', 'Low-power mode, if the animation stutters'],
 ];
 
@@ -62,19 +63,16 @@ export function startPage(o: StartOptions): { dispose(): void } {
   const win = o.win ?? window;
   const deck = deckOf(o.project);
   const store = new PresentationStore(o.show, o.storage === undefined ? browserStorage() : o.storage);
-  const go = (search: string) => win.location.assign(search);
 
-  const card = (title: string, body: string, action: string, search: string, primary = false) => {
-    const b = h(
-      'button',
-      { type: 'button', class: `lp-start-card${primary ? ' primary' : ''}` },
+  /** A way in: its heading and what it holds, and a link that opens it (the whole card takes the click). */
+  const card = (title: string, body: string, action: string, search: string, primary = false) =>
+    h(
+      'article',
+      { class: `lp-start-card${primary ? ' primary' : ''}` },
       h('h2', null, title),
       h('p', null, body),
-      h('span', { class: 'lp-start-go' }, action),
+      h('a', { class: 'lp-start-go', href: search }, action),
     );
-    b.addEventListener('click', () => go(search));
-    return b;
-  };
 
   // A rehearsal (or a viewer who stopped part-way) leaves its place in this browser: say so, and offer the start.
   const status = h('div', { class: 'lp-start-status', role: 'status' });
@@ -169,8 +167,9 @@ export function startPage(o: StartOptions): { dispose(): void } {
   };
   const references = referenceList(o.project);
 
+  // A division, not a second main: the page around it is the main landmark.
   const page = h(
-    'main',
+    'div',
     { class: 'lp-start' },
     h(
       'header',
@@ -219,7 +218,10 @@ export function startPage(o: StartOptions): { dispose(): void } {
       h(
         'dl',
         { class: 'lp-start-keys' },
-        ...KEYS.flatMap(([k, what]) => [h('dt', null, k), h('dd', null, what)]),
+        ...KEYS.filter(([, , needsNotes]) => o.notes || !needsNotes).flatMap(([k, what]) => [
+          h('dt', null, k),
+          h('dd', null, what),
+        ]),
       ),
     ),
     references.length > 0

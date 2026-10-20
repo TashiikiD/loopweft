@@ -80,7 +80,13 @@
 .lp-start-reset:hover,
 .lp-start-reset:focus-visible {
   background: rgba(255, 210, 122, 0.26);
-  outline: none;
+}
+
+/* Keyboard focus: a ring in the page's accent colour, never hidden. */
+.lp-start-reset:focus-visible,
+.lp-start-go:focus-visible {
+  outline: 2px solid var(--lp-glow);
+  outline-offset: 3px;
 }
 
 .lp-start-cards {
@@ -91,6 +97,7 @@
 }
 
 .lp-start-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -108,10 +115,9 @@
 }
 
 .lp-start-card:hover,
-.lp-start-card:focus-visible {
+.lp-start-card:focus-within {
   border-color: rgba(112, 226, 197, 0.7);
   transform: translateY(-2px);
-  outline: none;
 }
 
 .lp-start-card.primary {
@@ -131,9 +137,20 @@
 }
 
 .lp-start-go {
+  align-self: flex-start;
   margin-top: 8px;
+  border-radius: 6px;
   color: var(--lp-glow);
   font-weight: 600;
+  text-decoration: none;
+}
+
+/* The whole card takes the click; the link is what is read and focused. */
+.lp-start-go::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
 }
 
 .lp-start-steps {

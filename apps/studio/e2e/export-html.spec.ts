@@ -25,6 +25,8 @@ const hashOf = (page: Page) => page.evaluate(() => decodeURIComponent(location.h
 
 let folder = '';
 let file = '';
+/** The same story exported without the notes: a copy for the audience. */
+let bare = '';
 /** The works the example cites, supplements aside (they sit under their work). */
 let works = 0;
 test.beforeAll(async () => {
@@ -35,6 +37,8 @@ test.beforeAll(async () => {
   folder = mkdtempSync(join(tmpdir(), 'loopweft-html-'));
   file = join(folder, 'Global Polycrisis.html');
   writeFileSync(file, made.html);
+  bare = join(folder, 'Global Polycrisis (audience).html');
+  writeFileSync(bare, exportHtml(read.project, await playerTemplate(), { notes: false }).html);
 });
 test.afterAll(() => rmSync(folder, { recursive: true, force: true }));
 
@@ -64,7 +68,8 @@ for (const name of ['chrome', 'edge'] as const) {
       await shot(page, `${name}-1-start`);
 
       // The console, and the audience window it opens.
-      await page.getByRole('button', { name: /Presenter console/ }).click();
+      await expect(page.getByRole('heading', { level: 2, name: 'Presenter console' })).toBeVisible();
+      await page.getByRole('link', { name: 'Open the console →' }).click();
       await expect(page).toHaveURL(/\?view=presenter/);
       await expect(page.locator('.lp-scene-sub')).toHaveText(/^Step 1 of 1 · S00\.1/);
       const [audience] = await Promise.all([
@@ -113,6 +118,21 @@ for (const name of ['chrome', 'edge'] as const) {
       await expect(page.locator('.lp-status .lp-chip.ok')).toHaveText('Audience connected');
       await slides.keyboard.press('n');
       await expect(slides.locator('.lp-rehearsal')).toBeVisible();
+
+      // A copy for the audience: no console and no rehearsal notes, whatever the address asks for.
+      const copy = await context.newPage();
+      copy.on('pageerror', (e) => errors.push(`copy: ${e.message}`));
+      await copy.goto(pathToFileURL(bare).href);
+      await expect(copy.getByRole('link', { name: 'Open the slides →' })).toBeVisible();
+      await expect(copy.getByRole('link', { name: 'Open the console →' })).toHaveCount(0);
+      await copy.goto(`${pathToFileURL(bare).href}?view=presenter#S04.1`);
+      await expect(copy).toHaveURL(/\?view=audience#S04\.1$/);
+      await expect(copy.locator('.lw-stage')).toHaveCount(1);
+      await expect(copy.locator('.lp-console')).toHaveCount(0);
+      await copy.goto(`${pathToFileURL(bare).href}?view=audience&rehearse`);
+      await expect(copy.locator('.lw-stage')).toHaveCount(1);
+      await copy.keyboard.press('n');
+      await expect(copy.locator('.lp-rehearsal')).toHaveCount(0);
       expect(errors).toEqual([]);
     } finally {
       await browser.close();

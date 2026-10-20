@@ -22,7 +22,7 @@ loopweft export talk.loopweft --html
 |---|---|
 | `-o, --out <file>` | The file to write (default: the project's name with `.html`) |
 | `--no-notes` | Leave out the speaker notes, the script and every step's cue: a copy for the audience |
-| `--force` | Replace the file if it exists |
+| `--force` | Replace the file if it exists (never the project itself, under any name) |
 | `--json` | Report as one JSON document: the size, the images and any warnings |
 
 What the file holds:
@@ -33,7 +33,9 @@ What the file holds:
   - the keys;
   - every source, as an APA list with the scenes that cite it and its licence.
 - **The slides** (`?view=audience`), with rehearsal notes on N when opened from the start page.
-- **The presenter console** (`?view=presenter`), when the notes are included.
+- **The presenter console** (`?view=presenter`), when the notes are included. A copy without them has neither
+  the console nor the rehearsal notes: those addresses open the slides, and its start page lists only the keys
+  it has.
 - **Its own fonts and images:**
   - Loopweft's two fonts (Inter and Fraunces) are inside the file.
   - A theme that names another font shows it only where that font is installed, and the export says so.

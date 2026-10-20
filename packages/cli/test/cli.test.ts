@@ -2,9 +2,19 @@
 // transcript (expected/session.txt) and the project it leaves (expected/session.loopweft); the other tests
 // check the contract agents rely on: one JSON document, exit codes, dry runs, atomic writes with a backup.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readProject } from '@loopweft/model';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -1208,5 +1218,41 @@ describe('export', () => {
     expect(again.code).toBe(2);
     expect(again.err).toContain('talk.html already exists; choose another name, or replace it with --force.');
     expect((await run('export', 'talk.loopweft', '--html', '--force')).code).toBe(0);
+  });
+
+  it('never writes over the project, under another spelling or through a link, even with --force', async () => {
+    const source = join(dir, 'talk.loopweft');
+    const before = readFileSync(source, 'utf8');
+    const direct = async (...args: string[]) => {
+      let err = '';
+      const code = await main(args, { out: () => {}, err: (t) => (err += t) }, env);
+      return { code, err };
+    };
+    const aliases = [`${dir}${sep}.${sep}talk.loopweft`, join(dir, 'hard-link.loopweft')];
+    linkSync(source, join(dir, 'hard-link.loopweft'));
+    try {
+      symlinkSync(source, join(dir, 'soft-link.loopweft'));
+      aliases.push(join(dir, 'soft-link.loopweft'));
+    } catch {
+      // Windows lets only some accounts make symbolic links.
+    }
+    for (const alias of aliases) {
+      const { code, err } = await direct('export', source, '--html', '--force', '-o', alias);
+      expect(code, alias).toBe(2);
+      expect(err).toContain('The HTML file would replace the project');
+    }
+    expect(readFileSync(source, 'utf8')).toBe(before);
+  });
+
+  it('lets only one of two exports at once make a new file, and keeps that file whole', async () => {
+    const both = await Promise.all([
+      run('export', 'talk.loopweft', '--html', '-o', 'race.html'),
+      run('export', 'talk.loopweft', '--html', '-o', 'race.html'),
+    ]);
+    expect(both.map((r) => r.code).sort()).toEqual([0, 2]);
+    expect(both.find((r) => r.code === 2)?.err).toContain('race.html already exists');
+    expect(readFileSync(join(dir, 'race.html'), 'utf8')).toBe(readFileSync(join(dir, 'talk.html'), 'utf8'));
+    // No temporary file is left behind.
+    expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toEqual([]);
   });
 });
