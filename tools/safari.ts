@@ -14,7 +14,8 @@
 //
 // On a Mac of your own it touches only what it makes: folders of its own (in the temporary folder, Downloads
 // and the home folder, each with a fresh name, removed at the end), a driver on a free port, and the Safari
-// tabs it opens (it never quits Safari).
+// tabs it opens (it never quits Safari). Only the temporary folder must take a copy: where Downloads or the
+// home folder refuses one (privacy settings, a read-only folder), that is reported and the run goes on.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -23,6 +24,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readProject, referenceList } from '../packages/model/src/index.ts';
 import { playerTemplate } from '../packages/player/build/template.ts';
+import { deckOf } from '../packages/player/src/deck.ts';
 import { exportHtml } from '../packages/player/src/export.ts';
 import { serve } from './serve.ts';
 
@@ -58,13 +60,33 @@ function freePort(): Promise<number> {
 
 interface Result {
   check: string;
-  ok: boolean;
+  /**
+   * What came of it: a check that read the page passes or fails; one that only made a screen, for a person to
+   * look at, says so (never "pass"); one that could not run says that.
+   */
+  result: 'pass' | 'fail' | 'screen made' | 'not run';
   required: boolean;
   detail: string;
-  /** Only a screen was made, for a person to look at: it reports "screen made", never "pass". */
-  screenOnly?: boolean;
 }
 const results: Result[] = [];
+
+/** Shown in the report: what came of a check, in a word or two. */
+const SAID: Record<Result['result'], string> = {
+  pass: 'pass',
+  fail: 'FAIL',
+  'screen made': 'screen made',
+  'not run': 'not run',
+};
+
+/**
+ * A page script's test that an element is on show: neither it nor anything around it hidden or transparent
+ * (a label whose map has faded out is not). Safari has had checkVisibility since 17.4; without it, the check
+ * fails rather than guess.
+ */
+const SHOWN = `(el) => {
+  if (typeof el.checkVisibility !== 'function') throw new Error('this Safari has no checkVisibility');
+  return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+}`;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,9 +97,10 @@ async function check(
   screenOnly = false,
 ): Promise<void> {
   try {
-    results.push({ check: name, ok: true, required, detail: await fn(), screenOnly });
+    const detail = await fn();
+    results.push({ check: name, result: screenOnly ? 'screen made' : 'pass', required, detail });
   } catch (error) {
-    results.push({ check: name, ok: false, required, detail: (error as Error).message, screenOnly });
+    results.push({ check: name, result: 'fail', required, detail: (error as Error).message });
   }
 }
 
@@ -148,6 +171,13 @@ async function main(): Promise<void> {
   const read = readProject(readFileSync(join(root, 'examples/polycrisis.loopweft'), 'utf8'));
   if (!read.ok) throw new Error('The example does not open.');
   const made = exportHtml(read.project, await playerTemplate(), { notes: true });
+  const deck = deckOf(read.project);
+  /** The caption a step's scene shows on the stage: "02 · From idea to institutions". */
+  const captionOf = (hash: string) => {
+    const scene = deck.scenes.find((sc) => hash.startsWith(`#${sc.id}.`));
+    if (!scene) throw new Error(`no scene for ${hash}`);
+    return `${String(scene.number).padStart(2, '0')} · ${scene.title}`;
+  };
   const name = 'Global Polycrisis.html';
   // The file, in a temporary folder and where a person keeps files: each a new folder of this run's own
   // (a fresh name, never one that was there), and only those are removed at the end.
@@ -156,16 +186,31 @@ async function main(): Promise<void> {
     { key: 'downloads', label: 'Downloads', parent: join(homedir(), 'Downloads') },
     { key: 'home', label: 'the home folder', parent: homedir() },
   ];
+  /** The folders this run made, to remove; and those that hold a copy of the file. */
   const folders: Array<{ key: string; label: string; path: string }> = [];
+  const copies: typeof folders = [];
   let driver: ChildProcess | null = null;
   let served: Awaited<ReturnType<typeof serve>> | null = null;
   let session = '';
   try {
     for (const place of places) {
       if (!existsSync(place.parent)) continue;
-      const path = mkdtempSync(join(place.parent, 'loopweft-safari-'));
-      folders.push({ key: place.key, label: place.label, path });
-      writeFileSync(join(path, name), made.html);
+      try {
+        const path = mkdtempSync(join(place.parent, 'loopweft-safari-'));
+        const folder = { key: place.key, label: place.label, path };
+        folders.push(folder);
+        writeFileSync(join(path, name), made.html);
+        copies.push(folder);
+      } catch (error) {
+        // The temporary folder must take one: the checks below need a copy somewhere.
+        if (place.key === 'temporary') throw error;
+        results.push({
+          check: `a copy of the file in ${place.label}`,
+          result: 'fail',
+          required: false,
+          detail: `${(error as Error).message}; the run goes on without it`,
+        });
+      }
     }
 
     // The driver, on a free port; if it stops, this run stops rather than talk to another one.
@@ -236,7 +281,7 @@ async function main(): Promise<void> {
     // Else from a server on this machine.
     let page = '';
     const tried: string[] = [];
-    for (const dir of folders) {
+    for (const dir of copies) {
       const url = pathToFileURL(join(dir.path, name)).href;
       await go(url);
       try {
@@ -255,12 +300,12 @@ async function main(): Promise<void> {
     }
     results.push({
       check: `Safari ${version} opens the file from disk`,
-      ok: page !== '',
+      result: page ? 'pass' : 'fail',
       required: false,
       detail: tried.join('; '),
     });
     if (!page) {
-      served = await serve(folders[0]?.path as string);
+      served = await serve(copies[0]?.path as string);
       page = `${served.url}/${encodeURIComponent(name)}`;
       await go(page);
     }
@@ -293,16 +338,25 @@ async function main(): Promise<void> {
       await until('return !!document.querySelector(".lw-stage.category-words")', 'categories in words');
       await sleep(1500);
       // The words themselves, under labels on show: the example's category names, not only the mode's switch.
+      // On show means all of it: the line, its label and the map around them (a faded map shows nothing).
       const names = read.project.types.categories.map((c) => c.name);
-      const shown = await run<string[]>(
-        `return [...document.querySelectorAll('.map-label-category:not([hidden])')]
-          .filter((el) => Number(getComputedStyle(el.parentElement).opacity) > 0 && Number(getComputedStyle(el).opacity) > 0 && el.getClientRects().length > 0)
-          .map((el) => el.textContent)`,
-      );
+      const categoriesShown = `[...document.querySelectorAll('.lw-stage .map-label-category:not([hidden])')]
+        .filter(${SHOWN}).map((el) => el.textContent)`;
+      const shown = await run<string[]>(`return ${categoriesShown}`);
       const named = [...new Set(shown.filter((t) => names.includes(t)))];
       if (named.length === 0)
         throw new Error(`no category named under a label on show (${shown.slice(0, 3).join(', ')})`);
-      return `#S01.1 → PageDown ${afterPageDown} → → ${afterArrow}; categories named: ${named.join(', ')}`;
+      // The same test with the map faded out finds none: it looks at everything around a label.
+      const underFadedMap = await run<string[]>(`
+        const map = document.querySelector('.lw-stage .map');
+        const before = map.style.opacity;
+        map.style.opacity = '0';
+        try { return ${categoriesShown}; } finally { map.style.opacity = before; }`);
+      if (underFadedMap.length > 0)
+        throw new Error(
+          `the test counts words under a faded map as shown (${underFadedMap.slice(0, 3).join(', ')})`,
+        );
+      return `#S01.1 → PageDown ${afterPageDown} → → ${afterArrow}; categories named: ${named.join(', ')}; none counted under a faded map`;
     });
     await shot('2-slides');
 
@@ -357,16 +411,31 @@ async function main(): Promise<void> {
           `the console went to ${console_}, the audience window stayed at ${await hash()} (it opened at ${there})`,
         );
       });
+      // Its address follows before it draws: the step itself must be on its stage, and on the console's.
+      const caption = captionOf(console_);
+      const captionShown = (stage: string) =>
+        `return [...document.querySelectorAll(${JSON.stringify(`${stage} .caption-kicker`)})]
+          .some((el) => el.textContent === ${JSON.stringify(caption)} && (${SHOWN})(el))`;
+      await until(captionShown('.lw-stage'), `the audience window to show "${caption}"`);
       await shot('5-audience-window');
-      return `opened at ${there}; the console moved to ${console_} and the audience window followed`;
+      await wd('POST', `${s}/window`, { handle: opener });
+      await until(captionShown('.lp-preview .lw-stage'), `the console's preview to show "${caption}"`);
+      return `opened at ${there}; the console moved to ${console_}, and both windows show "${caption}"`;
     });
   } finally {
     if (session) await wd('DELETE', `/session/${session}`).catch(() => {});
     driver?.kill();
     await served?.close();
     try {
-      const home = folders.find((f) => f.key === 'home');
+      const home = copies.find((f) => f.key === 'home');
       if (home) await byDoubleClick(join(home.path, name));
+      else
+        results.push({
+          check: 'from disk, opened as a person opens it',
+          result: 'not run',
+          required: false,
+          detail: 'there is no copy of the file in the home folder',
+        });
     } finally {
       // Only the folders this run made, with what it wrote in them.
       for (const dir of folders) rmSync(dir.path, { recursive: true, force: true });
@@ -387,7 +456,7 @@ const lines = [
   '|---|---|---|',
   ...results.map(
     (r) =>
-      `| ${r.check}${r.required ? '' : ' (reported)'} | ${r.ok ? (r.screenOnly ? 'screen made' : 'pass') : 'FAIL'} | ${r.detail.replace(/\|/g, '/')} |`,
+      `| ${r.check}${r.required ? '' : ' (reported)'} | ${SAID[r.result]} | ${r.detail.replace(/\|/g, '/')} |`,
   ),
   ...(crashed ? ['', `Stopped: ${crashed.message}`] : []),
 ];
@@ -399,4 +468,4 @@ writeFileSync(
 process.stdout.write(`${lines.join('\n')}\n`);
 if (process.env.GITHUB_STEP_SUMMARY)
   writeFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`, { flag: 'a' });
-process.exitCode = crashed || results.some((r) => r.required && !r.ok) ? 1 : 0;
+process.exitCode = crashed || results.some((r) => r.required && r.result === 'fail') ? 1 : 0;
