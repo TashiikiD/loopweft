@@ -113,6 +113,10 @@ for (const name of ['chrome', 'edge'] as const) {
       await expect(
         old.locator('.lw-stage .caption-kicker', { hasText: '04 · How crises cascade' }),
       ).toBeVisible();
+      // That step, not only its scene (every step of scene 04 has that caption): at S04.2a the link E022 is
+      // lit, and E025, lit from S04.2b on, is not yet.
+      await expect(old.locator('.lw-stage .edge[data-id="E022"]')).toHaveClass(/\bactive\b/);
+      await expect(old.locator('.lw-stage .edge[data-id="E025"]')).not.toHaveClass(/\bactive\b/);
       await old.close();
 
       // The slides alone, in a tab the console did not open: it has no join token, so it stays apart from the
