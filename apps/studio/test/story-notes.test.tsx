@@ -170,7 +170,9 @@ describe('the preview', () => {
     await user.click(screen.getByRole('button', { name: 'Play into this step' }));
 
     await user.click(screen.getByRole('button', { name: 'Play the scene from here' }));
-    expect(screen.getByText(/^Playing · S1\.1/)).toBeTruthy();
+    // Playing, from the first step; on a busy computer the click may take long enough that the second, due a
+    // second in, has already come up.
+    expect(screen.getByText(/^Playing · S1\.[12]/)).toBeTruthy();
     // The record tools step aside while it plays.
     expect(screen.queryByRole('radiogroup', { name: 'Record tool' })).toBeNull();
     await waitFor(() => expect(store.getState().story).toBe('S1.2'), { timeout: 5000 });

@@ -2,7 +2,7 @@
 // one-file page (template.ts), so the Studio's Export makes the same file as `loopweft export --html`. The
 // Studio imports it only when it exports, so the page (about 1.2 MB) loads only then.
 import type { Plugin } from 'vite';
-import { buildPlayerTemplate } from './template.ts';
+import { playerTemplate } from './template.ts';
 
 export const TEMPLATE_MODULE = 'virtual:loopweft-player-template';
 const RESOLVED = `\0${TEMPLATE_MODULE}`;
@@ -15,7 +15,8 @@ export function playerTemplatePlugin(): Plugin {
     },
     async load(id) {
       if (id !== RESOLVED) return null;
-      return `export default ${JSON.stringify(await buildPlayerTemplate())};`;
+      // Built once per process: a dev server loads the module once; the site build reuses it for demo/.
+      return `export default ${JSON.stringify(await playerTemplate())};`;
     },
   };
 }
