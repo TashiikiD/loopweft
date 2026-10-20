@@ -109,3 +109,22 @@ test('export the example as one HTML file, with the notes and without', async ({
   expect(bare).toContain('data-notes="left-out"');
   expect(bare.length).toBeLessThan(full.length);
 });
+
+test('the console scrolls in a narrow window (or zoomed in), so every control and scene stays in reach', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.goto('/?example');
+  await page.getByRole('tab', { name: 'Present' }).click();
+  await page.getByRole('button', { name: 'Open the console' }).click();
+  const console_ = page.getByRole('dialog', { name: 'Presenter console' });
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/S00\.1/);
+  const strip = console_.getByRole('navigation', { name: 'Scenes' });
+  await expect(strip).not.toBeInViewport();
+  // With the mouse wheel, as a person scrolls (a script could scroll even a box that hides its overflow).
+  await page.mouse.move(400, 300);
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 500);
+  await expect(strip).toBeInViewport();
+  await expect(console_.getByRole('button', { name: 'Open audience window' })).toBeInViewport();
+  await shot(page, 'present-5-console-narrow');
+});

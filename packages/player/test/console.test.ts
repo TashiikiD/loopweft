@@ -92,10 +92,81 @@ describe('the presenter console', () => {
       (c) => c.textContent,
     );
     expect(chips).toEqual(['Blackout on', 'Animation paused', 'Categories in words', 'No audience window']);
-    key('?');
-    expect((document.querySelector('.lp-help') as HTMLElement).hidden).toBe(false);
+  });
+
+  it('opens the keyboard help as a dialog, with the focus in it, and gives the focus back', () => {
+    open();
+    const trigger = [...document.querySelectorAll<HTMLButtonElement>('.lp-controls button')].find(
+      (b) => b.textContent === '?',
+    ) as HTMLButtonElement;
+    trigger.focus();
+    trigger.click();
+    const help = document.querySelector('.lp-help') as HTMLDialogElement;
+    expect(help.tagName).toBe('DIALOG');
+    expect(help.hasAttribute('open')).toBe(true);
+    expect(help.getAttribute('aria-label')).toBe('Keyboard shortcuts');
+    expect(document.activeElement?.textContent).toBe('Close');
+    expect(help.contains(document.activeElement)).toBe(true);
     key('Escape');
-    expect((document.querySelector('.lp-help') as HTMLElement).hidden).toBe(true);
+    expect(help.hasAttribute('open')).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+    // ? opens it and closes it too; so does its Close button.
+    key('?');
+    expect(help.hasAttribute('open')).toBe(true);
+    (document.activeElement as HTMLButtonElement).click();
+    expect(help.hasAttribute('open')).toBe(false);
+  });
+
+  it('keeps the keyboard’s focus on a button worked from the keyboard, and gives it back to the show after a mouse click', () => {
+    open();
+    const next = [...document.querySelectorAll<HTMLButtonElement>('.lp-controls button')].find(
+      (b) => b.textContent === 'Next ▶',
+    ) as HTMLButtonElement;
+    next.focus();
+    // Space or Enter on a focused button: a click with no mouse (detail 0).
+    next.click();
+    expect(text('.lp-scene-sub')).toMatch(/· S01\.1 ·/);
+    expect(document.activeElement).toBe(next);
+    next.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(text('.lp-scene-sub')).toMatch(/· S01\.2 ·/);
+    expect(document.activeElement).not.toBe(next);
+  });
+
+  it('keeps a focused step button through other changes, and moves the focus with the scene', () => {
+    open();
+    key('4');
+    key('Enter');
+    const steps = () => [...document.querySelectorAll<HTMLButtonElement>('.lp-step-list button')];
+    const second = steps()[1] as HTMLButtonElement;
+    second.focus();
+    second.click();
+    expect(text('.lp-scene-sub')).toMatch(/· S04\.2a ·/);
+    key('PageDown');
+    key('p');
+    key('b');
+    key('c');
+    // The same button, still in the list, still focused; the current step marked.
+    expect(steps()[1]).toBe(second);
+    expect(document.activeElement).toBe(second);
+    expect(steps()[2]?.getAttribute('aria-current')).toBe('true');
+    expect(steps()[2]?.closest('li')?.className).toBe('current');
+    // Another scene: a new list, the focus on its current step.
+    key('ArrowRight', { shiftKey: true });
+    expect(text('.lp-scene-sub')).toMatch(/· S05\.1 ·/);
+    expect(steps()).not.toContain(second);
+    expect(document.activeElement).toBe(steps()[0]);
+  });
+
+  it('says which of Notes and Script is chosen, as two pressed buttons', () => {
+    open();
+    const group = document.querySelector('.lp-tabs') as HTMLElement;
+    expect(group.getAttribute('role')).toBe('group');
+    const pressed = () =>
+      [...group.querySelectorAll('button')].map((b) => `${b.textContent} ${b.getAttribute('aria-pressed')}`);
+    expect(pressed()).toEqual(['Notes true', 'Script false']);
+    key('f');
+    expect(pressed()).toEqual(['Notes false', 'Script true']);
+    expect(group.querySelector('[aria-selected]')).toBeNull();
   });
 
   it('sends the project to an audience window that asks for it, and only if it was given', async () => {
@@ -138,6 +209,35 @@ describe('what the console reads from the project', () => {
     expect(rows[0]).toContain('conditional');
     expect(rows[0]).toContain(link?.rationale ?? '?');
     expect(rows[0]).toContain('Lawrence et al. (2024), p. 8');
+  });
+
+  it('gives a lit loop its own sources and caution', () => {
+    const r1 = project.loops.find((l) => l.id === 'R1');
+    const label = project.sources.find((s) => s.id === 'L')?.label;
+    const row = onScreenView(project, deck, { s: 5, b: 0 })
+      .map((r) => r.textContent ?? '')
+      .find((t) => t.startsWith('R1 ·'));
+    expect(row).toContain(`${label}, p. 8`);
+    expect(row).toContain(r1?.caution ?? '?');
+    // A loop that cites nothing says so.
+    const bare = structuredClone(project);
+    const loop = bare.loops.find((l) => l.id === 'R1');
+    if (!loop) throw new Error('no R1');
+    loop.citations = [];
+    const none = onScreenView(bare, deckOf(bare), { s: 5, b: 0 })
+      .map((r) => r.textContent ?? '')
+      .find((t) => t.startsWith('R1 ·'));
+    expect(none).toContain('No source cited');
+  });
+
+  it('shows what an overlay cites in full: pages, strength and note', () => {
+    const cited = structuredClone(project);
+    const overlay = cited.story.scenes[3]?.steps[0]?.overlays.find((o) => o.type === 'legend');
+    if (!overlay || !('citations' in overlay)) throw new Error('no legend');
+    overlay.citations = [{ source: 'L', pages: '7', strength: 'strong', note: 'Figure 2' }];
+    const label = project.sources.find((s) => s.id === 'L')?.label;
+    const rows = onScreenView(cited, deckOf(cited), { s: 3, b: 0 }).map((r) => r.textContent ?? '');
+    expect(rows.find((t) => t.startsWith('legend'))).toBe(`legend${label}, p. 7 · strong · Figure 2`);
   });
 
   it('says when a step has nothing cited on screen', () => {

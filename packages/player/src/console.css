@@ -745,13 +745,38 @@
   max-width: min(720px, 90vw);
 }
 
+/* A modal dialog over the whole window: the card in the middle, a click beside it closes it. */
 .lp-help {
   position: fixed;
   inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(4, 17, 13, 0.7);
+  color: var(--lp-text);
+  font-family: var(--lp-sans);
+  z-index: 30;
+}
+
+.lp-help[open] {
   display: grid;
   place-items: center;
-  background: rgba(4, 17, 13, 0.7);
-  z-index: 30;
+}
+
+.lp-help::backdrop {
+  background: transparent;
+}
+
+.lp-help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .lp-help-card {
@@ -763,7 +788,7 @@
 }
 
 .lp-help-card h2 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 18px;
 }
 
@@ -803,10 +828,12 @@
 }
 
 @media (max-width: 1000px), (max-height: 560px) {
+  /* Everything stacks, and the console scrolls within the window (over the Studio, nothing behind it can). */
   .lp-console {
-    height: auto;
-    min-height: 100vh;
-    grid-template-rows: auto;
+    height: 100vh;
+    overflow-y: auto;
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
   }
   .lp-main {
     grid-template-columns: minmax(0, 1fr);

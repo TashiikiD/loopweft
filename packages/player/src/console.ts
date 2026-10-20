@@ -4,7 +4,7 @@
 // rather than a frame, and C names categories in words on every window.
 import { KEY_MARK, type Project, referenceSpans, sceneSources, scriptSegments } from '@loopweft/model';
 import { type Clock, FrameClock, Motion } from '@loopweft/motion';
-import { buildGraph, citationLine, h, namedLoops, resolveMap, StoryView, typeset } from '@loopweft/render';
+import { buildGraph, h, namedLoops, resolveMap, StoryView, typeset } from '@loopweft/render';
 import { fmt } from './clock.ts';
 import { type Deck, type DeckScene, deckOf, nextPos, type Pos, sceneAt, sceneTag, stepAt } from './deck.ts';
 import { isControlTarget, isTypingTarget, JumpBuffer, jumpDigits, type LocalAction, mapKey } from './keys.ts';
@@ -182,23 +182,32 @@ export function onScreenView(
   const variables = new Map(project.variables.map((v) => [v.id, v]));
   const linkTypes = new Map(project.types.linkTypes.map((t) => [t.id, t]));
   const loops = namedLoops(project, graph);
+  const loopData = new Map(project.loops.map((l) => [l.id, l]));
   const name = (id: string) => (variables.get(id)?.label ?? id).replace(/\s*\n\s*/g, ' ');
   const cite = (c: { source: string; pages?: string; strength?: string; note?: string }) =>
     [`${sources.get(c.source)?.label ?? c.source}${c.pages ? `, p. ${c.pages}` : ''}`, c.strength, c.note]
       .filter(Boolean)
       .join(' · ');
+  /** Each citation with its pages, strength and note; or says that nothing is cited. */
+  const sourcesLine = (citations: ReadonlyArray<Parameters<typeof cite>[0]>) =>
+    citations.length > 0
+      ? h('div', { class: 'lp-ms-src' }, citations.map(cite).join('; '))
+      : h('div', { class: 'lp-ms-src none' }, 'No source cited');
   const rows: HTMLElement[] = [];
   if (r.show) {
     for (const id of r.loops) {
       const loop = loops.get(id);
       if (!loop) continue;
       const kind = loop.type === 'R' ? 'reinforcing' : loop.type === 'B' ? 'balancing' : 'polarity unknown';
+      const data = loopData.get(id);
       rows.push(
         h(
           'div',
           { class: 'lp-ms-loop' },
           h('span', { class: 'lp-ms-tag strong' }, `${id} · ${kind}`),
           h('span', { class: 'lp-ms-path' }, `${loop.name}${loop.archetype ? ` (${loop.archetype})` : ''}`),
+          data?.caution ? h('div', { class: 'lp-ms-why' }, typeset(data.caution)) : null,
+          sourcesLine(data?.citations ?? []),
         ),
       );
     }
@@ -238,9 +247,7 @@ export function onScreenView(
             link.confidence ? h('span', { class: 'lp-ms-tag' }, `${link.confidence} confidence`) : null,
           ),
           link.rationale ? h('div', { class: 'lp-ms-why' }, typeset(link.rationale)) : null,
-          link.citations.length > 0
-            ? h('div', { class: 'lp-ms-src' }, link.citations.map(cite).join('; '))
-            : h('div', { class: 'lp-ms-src none' }, 'No source cited'),
+          sourcesLine(link.citations),
         ),
       );
     }
@@ -264,7 +271,7 @@ export function onScreenView(
         'div',
         { class: 'lp-ms-loop' },
         h('span', { class: 'lp-ms-tag' }, overlay.type),
-        h('div', { class: 'lp-ms-src' }, citationLine(project, overlay.citations) ?? ''),
+        sourcesLine(overlay.citations),
       ),
     );
   }
@@ -322,12 +329,19 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   const jump = new JumpBuffer(2500, jumpDigits(deck));
   const stops: Array<() => void> = [];
 
+  /**
+   * After a click with the mouse, focus leaves the button, so Space keeps moving the show instead of pressing
+   * the button again. A button worked from the keyboard (Tab, then Space or Enter) keeps the focus, so the
+   * next Tab goes on from it.
+   */
+  const settle = (e: MouseEvent, el: HTMLElement) => {
+    if (e.detail > 0) el.blur();
+  };
   const button = (label: string, title: string, onClick: () => void, extra = ''): HTMLButtonElement => {
     const b = h('button', { type: 'button', class: `lp-btn ${extra}`.trim(), title }, label);
-    b.addEventListener('click', () => {
+    b.addEventListener('click', (e) => {
       onClick();
-      // Keyboard focus goes back to the show, so Space and the arrows keep moving it.
-      b.blur();
+      settle(e, b);
     });
     return b;
   };
@@ -373,13 +387,15 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     strip: h('nav', { class: 'lp-scene-strip', 'aria-label': 'Scenes' }),
     jump: h('div', { class: 'lp-jump', hidden: true, role: 'status' }),
     toast: h('div', { class: 'lp-toast', role: 'status', hidden: true }),
-    help: h('div', { class: 'lp-help', hidden: true, role: 'dialog', 'aria-label': 'Keyboard shortcuts' }),
+    help: h('dialog', { class: 'lp-help', 'aria-label': 'Keyboard shortcuts' }) as HTMLDialogElement,
   };
+  const helpClose = h('button', { type: 'button', class: 'lp-btn quiet' }, 'Close');
+  helpClose.addEventListener('click', () => setHelp(false));
   ui.help.append(
     h(
       'div',
       { class: 'lp-help-card' },
-      h('h2', null, 'Keyboard shortcuts'),
+      h('div', { class: 'lp-help-head' }, h('h2', null, 'Keyboard shortcuts'), helpClose),
       h(
         'table',
         null,
@@ -393,9 +409,32 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
       h('p', { class: 'lp-help-close' }, 'Esc or ? closes this'),
     ),
   );
+  // A click beside the card closes it, as do Esc and ?; the focus goes back where it was.
   ui.help.addEventListener('click', (e) => {
-    if (e.target === ui.help) ui.help.hidden = true;
+    if (e.target === ui.help) setHelp(false);
   });
+  let helpReturn: HTMLElement | null = null;
+  const giveFocusBack = () => {
+    const back = helpReturn;
+    helpReturn = null;
+    if (back?.isConnected) back.focus();
+  };
+  // Closed by the browser itself (Esc in a modal dialog): the focus goes back all the same.
+  ui.help.addEventListener('close', giveFocusBack);
+  function setHelp(open: boolean) {
+    if (open === ui.help.hasAttribute('open')) return;
+    if (open) {
+      const active = doc.activeElement;
+      helpReturn = active instanceof HTMLElement ? active : null;
+      if (typeof ui.help.showModal === 'function') ui.help.showModal();
+      else ui.help.setAttribute('open', '');
+      helpClose.focus();
+      return;
+    }
+    if (typeof ui.help.close === 'function') ui.help.close();
+    else ui.help.removeAttribute('open');
+    giveFocusBack();
+  }
 
   const controls = h(
     'div',
@@ -471,7 +510,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
           { class: 'lp-notes' },
           h(
             'div',
-            { class: 'lp-tabs', role: 'tablist' },
+            { class: 'lp-tabs', role: 'group', 'aria-label': 'Notes or script' },
             ui.tabNotes,
             ui.tabScript,
             h('span', { class: 'lp-tabs-hint' }, 'G / F · ↑ ↓ scroll'),
@@ -527,9 +566,9 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
       h('span', { class: 'lp-sc-num' }, sceneTag(scene) || '·'),
       h('span', { class: 'lp-sc-time' }, scene.targetSeconds > 0 ? fmt(scene.clockEnd) : ''),
     );
-    chip.addEventListener('click', () => {
+    chip.addEventListener('click', (e) => {
       dispatch({ type: 'goto', pos: { s, b: 0 } });
-      chip.blur();
+      settle(e, chip);
     });
     ui.strip.appendChild(chip);
     return chip;
@@ -686,9 +725,18 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     );
   }
 
+  /**
+   * The scene's steps. The list is made again only when the scene changes, so a step button keeps the
+   * keyboard's focus through every other change; when the scene changes under a focused button, the focus
+   * goes to the current step's button in the new list.
+   */
+  let stepsScene = -1;
+  let stepItems: HTMLElement[] = [];
   function renderSteps(pos: Pos, scene: DeckScene) {
-    ui.steps.replaceChildren(
-      ...scene.steps.map((step, b) => {
+    if (pos.s !== stepsScene) {
+      const hadFocus = ui.steps.contains(doc.activeElement);
+      stepsScene = pos.s;
+      stepItems = scene.steps.map((step, b) => {
         const go = h(
           'button',
           { type: 'button', title: step.step.cue ? typeset(step.step.cue) : step.step.label },
@@ -696,13 +744,19 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
           h('span', { class: 'lp-sl-label' }, step.step.label),
           h('span', { class: 'lp-sl-at' }, step.step.at !== undefined ? fmt(step.step.at) : ''),
         );
-        go.addEventListener('click', () => {
+        go.addEventListener('click', (e) => {
           dispatch({ type: 'goto', pos: { s: pos.s, b } });
-          go.blur();
+          settle(e, go);
         });
-        return h('li', { class: b === pos.b ? 'current' : b < pos.b ? 'done' : '' }, go);
-      }),
-    );
+        return h('li', null, go);
+      });
+      ui.steps.replaceChildren(...stepItems);
+      if (hadFocus) stepItems[pos.b]?.querySelector('button')?.focus();
+    }
+    stepItems.forEach((li, b) => {
+      li.className = b === pos.b ? 'current' : b < pos.b ? 'done' : '';
+      li.querySelector('button')?.setAttribute('aria-current', String(b === pos.b));
+    });
   }
 
   function renderNotes() {
@@ -710,8 +764,8 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     const pos = session.state.pos;
     ui.tabNotes.classList.toggle('active', prefs.notes === 'notes');
     ui.tabScript.classList.toggle('active', prefs.notes === 'script');
-    ui.tabNotes.setAttribute('aria-selected', String(prefs.notes === 'notes'));
-    ui.tabScript.setAttribute('aria-selected', String(prefs.notes === 'script'));
+    ui.tabNotes.setAttribute('aria-pressed', String(prefs.notes === 'notes'));
+    ui.tabScript.setAttribute('aria-pressed', String(prefs.notes === 'script'));
     ui.notes.replaceChildren(
       ...(prefs.notes === 'script' ? scriptView(doc, deck, pos) : notesView(sceneAt(deck, pos))),
     );
@@ -827,12 +881,12 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
         ui.notes.scrollBy?.({ top: 120, behavior: 'smooth' });
         return;
       case 'help':
-        ui.help.hidden = !ui.help.hidden;
+        setHelp(!ui.help.hasAttribute('open'));
         return;
       case 'cancel':
         jump.clear();
         ui.jump.hidden = true;
-        ui.help.hidden = true;
+        setHelp(false);
         return;
       default:
         return;
