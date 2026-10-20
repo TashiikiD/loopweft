@@ -36,10 +36,17 @@ export function presentationId(text: string): string {
 
 export type StoreKey = 'show' | 'clock' | 'sceneEntry' | 'presenter' | 'audience';
 
-/** One presentation's saved state. Every access is guarded: the show runs the same without storage. */
+/**
+ * One presentation's saved state. Every access is guarded: the show runs the same without storage. Where the
+ * browser's storage is missing, blocked or full, the store keeps what this window saved for as long as it is
+ * open, so reading it back (the clock, when the console leaves) finds it; where storage works, it is what
+ * counts, so a reset made in another window (which removes the saved place) is seen here.
+ */
 export class PresentationStore {
   readonly id: string;
   readonly #storage: KeyValue | null;
+  /** What this window saved that the browser's storage did not take, as JSON. */
+  readonly #kept = new Map<StoreKey, string>();
 
   constructor(id: string, storage: KeyValue | null = browserStorage()) {
     this.id = id;
@@ -57,7 +64,7 @@ export class PresentationStore {
 
   load(name: StoreKey): unknown {
     try {
-      const raw = this.#storage?.getItem(this.#key(name));
+      const raw = this.#kept.get(name) ?? this.#storage?.getItem(this.#key(name));
       return raw ? (JSON.parse(raw) as unknown) : null;
     } catch {
       return null;
@@ -65,14 +72,22 @@ export class PresentationStore {
   }
 
   save(name: StoreKey, value: unknown): void {
+    const text = JSON.stringify(value);
     try {
-      this.#storage?.setItem(this.#key(name), JSON.stringify(value));
+      if (this.#storage) {
+        this.#storage.setItem(this.#key(name), text);
+        this.#kept.delete(name);
+        return;
+      }
     } catch {
-      // Not needed to present: the show runs without it.
+      // Blocked or full: kept below.
     }
+    // Not needed to present (the show runs without it); this window keeps it while it is open.
+    this.#kept.set(name, text);
   }
 
   remove(name: StoreKey): void {
+    this.#kept.delete(name);
     try {
       this.#storage?.removeItem(this.#key(name));
     } catch {

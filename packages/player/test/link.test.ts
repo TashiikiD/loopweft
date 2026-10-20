@@ -220,7 +220,7 @@ describe('the saved place', () => {
     expect([...storage.items.keys()].every((k) => k.startsWith(`loopweft.present.${SHOW}.`))).toBe(true);
   });
 
-  it('runs without storage, and with a storage that throws', () => {
+  it('runs without storage, and with a storage that throws, keeping what the window saved while it is open', () => {
     const throwing = {
       getItem: () => {
         throw new Error('blocked');
@@ -232,10 +232,22 @@ describe('the saved place', () => {
         throw new Error('blocked');
       },
     };
-    const store = new PresentationStore(SHOW, throwing);
-    store.save('show', { a: 1 });
-    expect(store.load('show')).toBeNull();
-    expect(new PresentationStore(SHOW, null).load('clock')).toBeNull();
+    for (const storage of [throwing, null]) {
+      const store = new PresentationStore(SHOW, storage);
+      expect(store.load('clock')).toBeNull();
+      store.save('show', { a: 1 });
+      expect(store.load('show')).toEqual({ a: 1 });
+      store.remove('show');
+      expect(store.load('show')).toBeNull();
+      // Another window's store has nothing of it.
+      expect(new PresentationStore(SHOW, storage).load('show')).toBeNull();
+    }
+    // Where storage works, it counts: a reset made in another window is seen here.
+    const storage = new MemoryStorage();
+    const here = new PresentationStore(SHOW, storage);
+    here.save('clock', { running: false, startedAt: null, accumulatedMs: 60_000 });
+    resetSession(new PresentationStore(SHOW, storage));
+    expect(here.load('clock')).toBeNull();
   });
 });
 

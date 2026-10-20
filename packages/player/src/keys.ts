@@ -163,13 +163,21 @@ export class JumpBuffer {
   }
 }
 
+/** What Enter works, and what Space works: a link opens on Enter only (Space would scroll the page). */
+const CONTROLS: Readonly<Record<string, string>> = {
+  Enter: 'a[href], button, [role="button"], summary',
+  ' ': 'button, [role="button"], summary',
+};
+
 /**
- * True when Enter or Space on this element works it (a link in the notes, a button) rather than the show. A
- * panel focused only to scroll it (the rehearsal notes) is not one: the show keeps those keys there.
+ * True when this key on this element works it (Enter on a link in the notes, Enter or Space on a button)
+ * rather than the show. A panel focused only to scroll it (the rehearsal notes) is not one: the show keeps
+ * those keys there, and Space on a link still moves the show on.
  */
-export function isControlTarget(target: EventTarget | null): boolean {
-  if (!target || typeof (target as Element).closest !== 'function') return false;
-  return !!(target as Element).closest('a[href], button, [role="button"], summary');
+export function isControlTarget(target: EventTarget | null, key: string): boolean {
+  const controls = CONTROLS[key];
+  if (!controls || !target || typeof (target as Element).closest !== 'function') return false;
+  return !!(target as Element).closest(controls);
 }
 
 /** True when a key belongs to a text field, not to the show. */

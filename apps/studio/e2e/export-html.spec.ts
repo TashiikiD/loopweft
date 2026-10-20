@@ -1,7 +1,8 @@
 // The one-file HTML, opened from disk (file://) in this computer's Chrome and in its Edge: the start page and
 // its sources, the presenter console, the audience window it opens kept in step both ways (the file has no
-// server, so the windows talk directly), a reloaded audience window finding the show again, and the slides
-// alone. With LOOPWEFT_REVIEW set to a folder, screens are saved there for the review.
+// server, so the windows talk directly), a reloaded audience window finding the show again, the slides alone,
+// and the rehearsal notes with the keyboard. With LOOPWEFT_REVIEW set to a folder, screens are saved there for
+// the review.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -118,3 +119,51 @@ for (const name of ['chrome', 'edge'] as const) {
     }
   });
 }
+
+test('the rehearsal notes, from disk: the keyboard stays in them as the show moves', async ({ page }) => {
+  const read = readProject(readFileSync(resolve('examples/polycrisis.loopweft'), 'utf8'));
+  if (!read.ok) throw new Error('The example does not open.');
+  // The example's notes have no links: scene 01's gets one here.
+  const scenes = read.project.story.scenes.map((s, i) =>
+    i === 1 ? { ...s, notes: `${s.notes ?? ''}\n\nFrom [the report](https://example.org/report).` } : s,
+  );
+  const story = { ...read.project, story: { ...read.project.story, scenes } };
+  const linked = join(folder, 'Linked notes.html');
+  writeFileSync(linked, exportHtml(story, await playerTemplate(), { notes: true }).html);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${pathToFileURL(linked).href}?view=audience&rehearse#S01.1`);
+  await expect(page.locator('.lw-stage')).toHaveCount(1);
+
+  // A control of the page has the focus when the notes open (the test adds one: the slides have none).
+  await page.evaluate(() => {
+    const before = document.createElement('button');
+    before.id = 'before';
+    before.textContent = 'Before';
+    document.body.append(before);
+    before.focus();
+  });
+  await page.keyboard.press('n');
+  const notes = page.locator('.lp-rehearsal');
+  await expect(notes).toBeFocused();
+  await expect(notes.locator('h2')).toHaveText('Scene 01 · step 1 of 4');
+  const link = notes.getByRole('link', { name: 'the report' });
+  // From the link, the slide keys move the show (Space too: a link opens on Enter), and the notes, drawn
+  // again for the next step, keep the keyboard's focus.
+  for (const [key, step] of [
+    ['PageDown', 2],
+    ['ArrowRight', 3],
+    ['Space', 4],
+  ] as const) {
+    await page.keyboard.press('Tab');
+    await expect(link).toBeFocused();
+    await page.keyboard.press(key);
+    await expect(notes.locator('h2')).toHaveText(`Scene 01 · step ${step} of 4`);
+    await expect(notes).toBeFocused();
+  }
+  // N closes them and gives the focus back.
+  await page.keyboard.press('n');
+  await expect(notes).toBeHidden();
+  await expect(page.locator('#before')).toBeFocused();
+  expect(errors).toEqual([]);
+});

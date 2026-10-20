@@ -6,6 +6,7 @@ import {
   browserHost,
   deckOf,
   initialShowState,
+  type KeyValue,
   Link,
   PresentationStore,
   ProgressBar,
@@ -21,6 +22,17 @@ const SHOW = presentationId(exampleText());
 const key = (k: string, more: KeyboardEventInit = {}) =>
   document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, ...more }));
 
+/** The example, with a link in the notes of scene 01. */
+const withLinkedNotes: Project = {
+  ...project,
+  story: {
+    ...project.story,
+    scenes: project.story.scenes.map((s, i) =>
+      i === 1 ? { ...s, notes: 'From [the report](https://example.org/report).' } : s,
+    ),
+  },
+};
+
 let dispose: (() => void) | null = null;
 afterEach(() => {
   dispose?.();
@@ -29,7 +41,7 @@ afterEach(() => {
   history.replaceState(null, '', '/');
 });
 
-function open(rehearse: boolean, storage = new MemoryStorage(), story: Project = project) {
+function open(rehearse: boolean, storage: KeyValue | null = new MemoryStorage(), story: Project = project) {
   const host = document.createElement('main');
   document.body.appendChild(host);
   const clock = new ManualClock();
@@ -100,14 +112,9 @@ describe('the audience window', () => {
     expect(plain.host.querySelector('.lp-rehearsal')).toBeNull();
   });
 
-  it('lets Enter open a link in the rehearsal notes, without moving the show', () => {
-    const scenes = project.story.scenes.map((s, i) =>
-      i === 1 ? { ...s, notes: 'From [the report](https://example.org/report).' } : s,
-    );
-    const { host, audience } = open(true, new MemoryStorage(), {
-      ...project,
-      story: { ...project.story, scenes },
-    });
+  it('lets Enter open a link in the rehearsal notes, without moving the show; Space still moves it', () => {
+    const { host, audience } = open(true, new MemoryStorage(), withLinkedNotes);
+    const at = () => posKey(audience.deck, audience.session?.state.pos ?? { s: 0, b: 0 });
     key('ArrowRight');
     key('n');
     const link = host.querySelector('.lp-rehearsal a') as HTMLAnchorElement;
@@ -116,11 +123,36 @@ describe('the audience window', () => {
     const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
     link.dispatchEvent(enter);
     expect(enter.defaultPrevented).toBe(false);
-    expect(posKey(audience.deck, audience.session?.state.pos ?? { s: 0, b: 0 })).toBe('S01.1');
+    expect(at()).toBe('S01.1');
+    // A link opens on Enter only: Space on it moves the show on, as it does anywhere else.
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    link.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+    expect(at()).toBe('S01.2');
     // Enter elsewhere still goes on.
     (host.querySelector('.lp-rehearsal') as HTMLElement).focus();
     key('Enter');
-    expect(posKey(audience.deck, audience.session?.state.pos ?? { s: 0, b: 0 })).toBe('S01.2');
+    expect(at()).toBe('S01.3');
+  });
+
+  it('keeps the keyboard’s focus in the notes when they change with the show', () => {
+    const { host } = open(true, new MemoryStorage(), withLinkedNotes);
+    const before = document.createElement('button');
+    document.body.appendChild(before);
+    before.focus();
+    key('ArrowRight');
+    key('n');
+    const notes = host.querySelector('.lp-rehearsal') as HTMLElement;
+    (notes.querySelector('a') as HTMLAnchorElement).focus();
+    // The notes are drawn again for the next step, without the link that had the focus: the notes keep it.
+    for (const next of ['PageDown', 'ArrowRight']) {
+      notes.querySelector('a')?.focus();
+      notes.querySelector('a')?.dispatchEvent(new KeyboardEvent('keydown', { key: next, bubbles: true }));
+      expect(document.activeElement).toBe(notes);
+    }
+    expect(notes.querySelector('h2')?.textContent).toBe('Scene 01 · step 3 of 4');
+    key('n');
+    expect(document.activeElement).toBe(before);
   });
 
   it('opens the rehearsal notes with the keyboard’s focus in them, to scroll, and gives it back', () => {
@@ -164,6 +196,43 @@ describe('the audience window', () => {
     expect(store.load('sceneEntry')).toEqual({ sceneId: scene, atMs: 60_000 });
     key('n');
     expect(host.querySelector('.lp-ro-clock')?.textContent).toMatch(/^1:00 \(paused\) · this scene 0:00 /);
+  });
+
+  it('keeps its clock and the scene’s start without storage, or with a storage that refuses everything', () => {
+    const refuse = (): never => {
+      throw new Error('Storage is blocked.');
+    };
+    const refusing: KeyValue = { getItem: refuse, setItem: refuse, removeItem: refuse };
+    for (const storage of [null, refusing]) {
+      vi.useFakeTimers();
+      try {
+        const { host } = open(true, storage);
+        // T works with the notes open.
+        key('ArrowRight');
+        key('n');
+        key('t');
+        key('n');
+        vi.advanceTimersByTime(5000);
+        // A step on (the window reads the clock again before noting the scene), then the notes (again).
+        key('ArrowRight');
+        key('n');
+        const clock = () => host.querySelector('.lp-ro-clock')?.textContent;
+        expect(clock()).toMatch(/^0:05 · this scene 0:05 \/ 1:00 /);
+        key('n');
+        vi.advanceTimersByTime(5000);
+        key('ArrowRight', { shiftKey: true });
+        vi.advanceTimersByTime(3000);
+        key('n');
+        // Still running, and the new scene started at 0:10.
+        expect(clock()).toMatch(/^0:13 · this scene 0:03 \/ /);
+      } finally {
+        dispose?.();
+        dispose = null;
+        document.body.replaceChildren();
+        history.replaceState(null, '', '/');
+        vi.useRealTimers();
+      }
+    }
   });
 
   it('hides a still pointer after a moment, and leaves the page as it found it', () => {

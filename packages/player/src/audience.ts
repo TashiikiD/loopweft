@@ -143,8 +143,8 @@ export function startAudience(o: AudienceOptions): Audience {
   const jump = new JumpBuffer(2500, jumpDigits(deck));
   const onKey = (e: KeyboardEvent) => {
     if (isTypingTarget(e.target)) return;
-    // Enter on a source's link in the notes opens it; it does not move the show.
-    if ((e.key === 'Enter' || e.key === ' ') && isControlTarget(e.target)) return;
+    // Enter on a source's link in the notes opens it; it does not move the show (Space still does).
+    if (isControlTarget(e.target, e.key)) return;
     const action = mapKey(e, 'audience');
     if (!action) return;
     e.preventDefault();

@@ -63,9 +63,11 @@ export class RehearsalNotes {
   /** Opens the notes, taking the keyboard's focus, or closes them, giving it back. */
   setOpen(open: boolean): void {
     const was = this.#open;
+    const doc = this.el.ownerDocument;
+    // Read before hiding them: a browser takes the focus off hidden notes.
+    const focusInside = this.el.contains(doc.activeElement);
     this.#open = open;
     this.el.hidden = !open;
-    const doc = this.el.ownerDocument;
     if (open) {
       this.#render();
       if (!was) {
@@ -77,7 +79,7 @@ export class RehearsalNotes {
     }
     const back = this.#returnTo;
     this.#returnTo = null;
-    if (was && this.el.contains(doc.activeElement)) {
+    if (was && focusInside) {
       if (back?.isConnected) back.focus({ preventScroll: true });
       else this.el.blur();
     }
@@ -107,6 +109,9 @@ export class RehearsalNotes {
     const scene = sceneAt(this.#deck, this.#pos);
     const step = stepAt(this.#deck, this.#pos).step;
     const notes = scene.scene.notes?.trim();
+    // The keyboard's focus on something in the notes (a link) would go with it, out of the notes.
+    const doc = this.el.ownerDocument;
+    const focusInside = doc.activeElement !== this.el && this.el.contains(doc.activeElement);
     this.el.replaceChildren(
       h('h2', null, `${sceneName(scene)} · step ${this.#pos.b + 1} of ${scene.steps.length}`),
       this.#clockLine,
@@ -126,6 +131,7 @@ export class RehearsalNotes {
         'N hides these notes; T starts or pauses the clock. They close by themselves when a presenter console connects.',
       ),
     );
+    if (focusInside && !this.el.contains(doc.activeElement)) this.el.focus({ preventScroll: true });
     this.tick();
   }
 }

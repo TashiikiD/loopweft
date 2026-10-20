@@ -827,7 +827,7 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
   // ----- Keys -----
   const onKey = (e: KeyboardEvent) => {
     if (isTypingTarget(e.target)) return;
-    if ((e.key === ' ' || e.key === 'Enter') && isControlTarget(e.target)) return;
+    if (isControlTarget(e.target, e.key)) return;
     const action = mapKey(e, 'presenter');
     if (!action) return;
     e.preventDefault();
