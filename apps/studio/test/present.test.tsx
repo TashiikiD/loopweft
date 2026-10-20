@@ -105,10 +105,21 @@ describe('the Present workspace', () => {
     const rehearsal = screen.getByRole('dialog', { name: 'Rehearsal' });
     await user.keyboard('n');
     expect(rehearsal.querySelector('.lp-rehearsal h2')?.textContent).toBe('Scene 01 · step 1 of 2');
+    await user.keyboard('{PageDown}');
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Rehearsal' })).toBeNull();
     // The Studio's page keeps its own background.
     expect(document.body.style.background).toBe('');
+    // The rehearsal kept its own place: the talk has none, and the rehearsal picks up where it stopped.
+    expect(screen.queryByText('This browser saved a place from an earlier run')).toBeNull();
+    expect(screen.getByText(/^It picks up at S1\.2, where the last rehearsal stopped/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Rehearse' }));
+    await user.keyboard('n');
+    expect(
+      screen.getByRole('dialog', { name: 'Rehearsal' }).querySelector('.lp-rehearsal h2')?.textContent,
+    ).toBe('Scene 01 · step 2 of 2');
+    await user.keyboard('n');
+    await user.keyboard('{Escape}');
   });
 
   it('sends a story without steps to the Story workspace', async () => {

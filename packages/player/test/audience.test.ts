@@ -306,6 +306,43 @@ describe('the audience window', () => {
     }
   });
 
+  it('keeps a run of its own (the Studio’s rehearsal) apart: it starts where the talk is, and changes nothing of it', () => {
+    const storage = new MemoryStorage();
+    const talk = new PresentationStore(SHOW, storage);
+    talk.save('show', { ...initialShowState(5, { s: 1, b: 2 }), writer: 'presenter-x' });
+    const before = talk.load('show');
+    const rehearse = () => {
+      const host = document.createElement('main');
+      document.body.appendChild(host);
+      const audience = startAudience({
+        host,
+        project,
+        show: SHOW,
+        link: `${SHOW}-rehearsal`,
+        rehearse: true,
+        address: false,
+        storage,
+        clock: new ManualClock(),
+      });
+      dispose = audience.dispose;
+      return () => posKey(audience.deck, audience.session?.state.pos ?? { s: 0, b: 0 });
+    };
+    // Its first time, it starts where the talk is.
+    let at = rehearse();
+    expect(at()).toBe('S01.3');
+    key('PageDown');
+    key('n');
+    key('t');
+    expect(at()).toBe('S01.4');
+    dispose?.();
+    dispose = null;
+    // The talk's place and clock are as they were; the rehearsal picks up where it stopped.
+    expect(talk.load('show')).toEqual(before);
+    expect(talk.load('clock')).toBeNull();
+    at = rehearse();
+    expect(at()).toBe('S01.4');
+  });
+
   it('hides a still pointer after a moment, and leaves the page as it found it', () => {
     vi.useFakeTimers();
     try {

@@ -79,11 +79,30 @@ test('present the example from the Studio: the console, the audience window, a r
   await expect(rehearsal.locator('.lp-rehearsal h2')).toHaveText('Scene 01 · step 4 of 4');
   await page.waitForTimeout(1500);
   expect(await hashOf(audience)).toBe('#S01.3');
-  await audience.close();
   await page.keyboard.press('Escape');
   await expect(rehearsal).toHaveCount(0);
+  // The rehearsal kept a place of its own.
+  await expect(page.getByText(/^It picks up at S01\.4, where the last rehearsal stopped/)).toBeVisible();
+
+  // The console, opened again beside the audience window that stayed open, agrees with it, and the two
+  // move together from there: no step skipped on the projector.
+  await page.getByRole('button', { name: 'Open the console' }).click();
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/^Step 3 of 4 · S01\.3/);
+  await expect(console_.locator('.lp-status .lp-chip.ok')).toHaveText('Audience connected', {
+    timeout: 10_000,
+  });
+  expect(await hashOf(audience)).toBe('#S01.3');
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => hashOf(audience)).toBe('#S01.4');
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/^Step 4 of 4 · S01\.4/);
+  await audience.keyboard.press('PageDown');
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/· S02\.1/);
+  await expect.poll(() => hashOf(audience)).toBe('#S02.1');
+  await audience.close();
+  await console_.getByRole('button', { name: 'Back to the Studio' }).click();
   await page.getByRole('button', { name: 'Start again from the first step' }).click();
   await expect(page.getByText('This browser saved a place from an earlier run')).toHaveCount(0);
+  await expect(page.getByText(/^It picks up at/)).toHaveCount(0);
 });
 
 test('export the example as one HTML file, with the notes and without', async ({ page }) => {

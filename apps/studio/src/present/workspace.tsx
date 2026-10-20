@@ -22,6 +22,9 @@ import { useStoryWarnings } from '../story/checks.tsx';
 
 type Mode = 'console' | 'rehearse';
 
+/** The rehearsal's own run of a presentation: its link, place and clock (see `startAudience`'s `link`). */
+const rehearsalOf = (show: string): string => `${show}-rehearsal`;
+
 /** A presentation: the project as it was when it opened, its text and its id. */
 interface Presentation {
   project: Project;
@@ -117,13 +120,13 @@ function Overlay({
       });
       return () => c.dispose();
     }
-    // A rehearsal keeps to itself: its own link, so it never moves an audience window still open from the
-    // console (its place and clock are the presentation's, as a rehearsal's should be).
+    // A rehearsal keeps to itself: its own link, place and clock, so it never moves an audience window still
+    // open from the console, nor changes where the console opens. Its first time, it starts where the talk is.
     const a = startAudience({
       host: el,
       project,
       show,
-      link: `${show}-rehearsal`,
+      link: rehearsalOf(show),
       rehearse: true,
       address: false,
       paintPage: false,
@@ -169,6 +172,8 @@ export function PresentWorkspace() {
   const [, setTick] = useState(0);
 
   const saved = deck.scenes.length > 0 ? savedSession(deck, new PresentationStore(show), Date.now()) : null;
+  const rehearsed =
+    deck.scenes.length > 0 ? savedSession(deck, new PresentationStore(rehearsalOf(show)), Date.now()) : null;
   const start = (mode: Mode) => {
     const presentation = take(store.getState().project);
     if (presentation) setOpen({ mode, presentation });
@@ -234,12 +239,13 @@ export function PresentWorkspace() {
                   {saved.clockMs >= 1000
                     ? ` · clock ${fmt(saved.clockMs / 1000)}${saved.clockRunning ? ' (running)' : ''}`
                     : ''}
-                  . If that was a rehearsal, start again before the talk (never during it).
+                  . If that was a practice run, start again before the talk (never during it).
                 </Text>
                 <Button
                   size="compact-sm"
                   onClick={() => {
                     resetSession(new PresentationStore(show));
+                    resetSession(new PresentationStore(rehearsalOf(show)));
                     setTick((n) => n + 1);
                   }}
                 >
@@ -271,8 +277,15 @@ export function PresentWorkspace() {
                 </Title>
                 <Text size="sm" c="dimmed" style={{ flex: 1 }}>
                   The slides alone, as the room sees them. N shows rehearsal notes with the clock (T starts
-                  it); F is full screen; Esc comes back here.
+                  it); F is full screen; Esc comes back here. A rehearsal keeps its own place and clock.
                 </Text>
+                {rehearsed && !rehearsed.fresh && (
+                  <Text size="sm">
+                    It picks up at {rehearsed.key}
+                    {rehearsed.clockMs >= 1000 ? `, clock ${fmt(rehearsed.clockMs / 1000)}` : ''}, where the
+                    last rehearsal stopped (Home goes to the first step).
+                  </Text>
+                )}
                 <Group>
                   <Button variant="default" onClick={() => start('rehearse')}>
                     Rehearse
@@ -287,7 +300,7 @@ export function PresentWorkspace() {
               Presentation day
             </Title>
             <List type="ordered" size="sm" spacing={4}>
-              <List.Item>If a saved place from a rehearsal shows above, start again first.</List.Item>
+              <List.Item>If a saved place from a practice run shows above, start again first.</List.Item>
               <List.Item>
                 Connect the projector and extend the desktop onto it (Windows: the Windows key + P, then
                 Extend; Mac: System Settings, Displays).

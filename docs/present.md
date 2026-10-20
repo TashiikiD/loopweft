@@ -133,6 +133,12 @@ opens it.
 The notes stay in that window. They refuse to open, and close themselves, while a presenter console is
 connected, so they never reach a projector.
 
+The Studio's rehearsal keeps its own place and clock, apart from the talk's. It never moves an audience window
+that is still open, nor changes the step the console opens at. The first time, it starts where the talk is;
+after that, where the last rehearsal stopped (the Present workspace says where). **Start again from the first
+step** resets both. The file's **Full-screen slides** are the talk's audience window, so they share the
+talk's place: start again before the talk if you rehearsed with them.
+
 ### If something goes wrong
 
 - **A frozen or blank audience window:** click it and press Ctrl+R to reload it. It rejoins the console at the

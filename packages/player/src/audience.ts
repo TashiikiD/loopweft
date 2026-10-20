@@ -22,8 +22,10 @@ export interface AudienceOptions {
   /** The presentation's id (`presentationId` of the project's text): where its place and clock are kept. */
   show: string;
   /**
-   * Which windows this one keeps in step with: by default the presentation's (`show`). The Studio's rehearsal
-   * gives one of its own, so that it never moves an audience window still open from the console.
+   * A run of its own: the windows this one keeps in step with, and where it keeps its place and clock. By
+   * default the presentation's (`show`). The Studio's rehearsal names one of its own, so that it never moves
+   * an audience window still open from the console, nor changes the place the console opens at. Its first
+   * time, it starts from the presentation's place and clock.
    */
   link?: string;
   /** Opened to rehearse alone: rehearsal notes on N, and the presenter's clock on T while they show. */
@@ -87,7 +89,17 @@ export function startAudience(o: AudienceOptions): Audience {
     };
   }
 
-  const store = new PresentationStore(o.show, o.storage === undefined ? browserStorage() : o.storage);
+  const storage = o.storage === undefined ? browserStorage() : o.storage;
+  const linkName = o.link ?? o.show;
+  const store = new PresentationStore(linkName, storage);
+  if (linkName !== o.show && store.load('show') === null) {
+    // A run of its own with nothing saved yet starts where the presentation is; from then on, it is apart.
+    const shared = new PresentationStore(o.show, storage);
+    for (const key of ['show', 'clock', 'sceneEntry'] as const) {
+      const value = shared.load(key);
+      if (value !== null) store.save(key, value);
+    }
+  }
   const prefs: AudiencePrefs = {
     chrome: true,
     ...((store.load('audience') as Partial<AudiencePrefs>) ?? {}),
@@ -117,7 +129,6 @@ export function startAudience(o: AudienceOptions): Audience {
     shown = next;
   };
 
-  const linkName = o.link ?? o.show;
   const link = new Link('audience', linkName, browserHost(win), { token: joinToken(win, linkName) });
   const session: ShowSession = new ShowSession({
     deck,
