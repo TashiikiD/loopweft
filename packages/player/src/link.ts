@@ -12,6 +12,12 @@
 // it carries the presentation's join token: a random value the console hands the audience window it opens (in
 // its address), kept for the tab's life, never written into a file. The presentation's id says which windows
 // belong together; anyone can work it out from the project, so it is not a key.
+//
+// Every message a window sends carries its token, so on a file opened from disk, where a message posted
+// straight to a window reaches any page, a window posts to another only once that window has shown the token
+// (or it opened that window itself, handing it the token). The page that opened it is not trusted until then:
+// any page could have opened the file. Every window pings every second, so a reloaded window hears from the
+// other within a second, and then asks it where the show is.
 import type { ShowState } from './show.ts';
 
 export type LinkRole = 'presenter' | 'audience';
@@ -151,8 +157,10 @@ export class Link {
     this.#channel = this.#host.channel(`loopweft-present-${this.show}`);
     if (this.#channel) this.#channel.onmessage = (e) => this.#receive(e.data, null, null);
     this.#stops.push(this.#host.listen((data, source, origin) => this.#receive(data, source, origin)));
+    // The window that opened this one hears it from the start where its origin is checked; on a file from
+    // disk, only once it has shown the token (see the top of this file).
     const opener = this.#host.opener();
-    if (opener) this.#windows.add(opener);
+    if (opener && !isOpaqueOrigin(this.#host.origin)) this.#windows.add(opener);
     this.send({ t: 'hello' });
     this.#stops.push(this.#host.every(PING_MS, () => this.send({ t: 'ping' })));
     this.#stops.push(this.#host.every(PING_MS, () => this.#sweep()));
@@ -237,8 +245,12 @@ export class Link {
   #receive(data: unknown, source: unknown, origin: string | null): void {
     if (!isEnvelope(data) || data.show !== this.show || data.id === this.id) return;
     if (!this.#admits(data, origin)) return;
-    // A window let in hears this one's messages from now on (a reloaded console finds its audience window).
-    if (origin !== null && isTarget(source)) this.#windows.add(source);
+    // A window let in hears this one's messages from now on (a reloaded console finds its audience window),
+    // and, new to this one, is asked where the show is: until now, this window's hello did not reach it.
+    if (origin !== null && isTarget(source) && !this.#windows.has(source)) {
+      this.#windows.add(source);
+      if (data.msg.t !== 'bye') this.send({ t: 'hello' });
+    }
     // The same message may come both ways: keep the first.
     const seen = this.#seen.get(data.id) ?? [];
     if (seen.includes(data.seq)) return;

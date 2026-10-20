@@ -147,6 +147,11 @@ this random token for its browser tab and gives it to the audience window it ope
 (`&join=…`). The token lasts as long as the tab, so a reloaded console or audience window still has it. It is
 never written into a file.
 
+Every message carries the token, so on a file opened from disk a window sends nothing straight to the page
+that opened it until that page has shown the token: any page can open a file. Each window tells the others
+it is there once a second, so a reloaded audience window or console finds the other within a second, and
+then asks where the show is.
+
 ### Browsers
 
 The file runs in Chrome and Edge, which the tests open it in from disk on Windows, macOS and Linux.

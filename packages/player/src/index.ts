@@ -113,10 +113,12 @@ export {
   ShowSession,
 } from './session.ts';
 export {
+  COUNT_LIMIT,
   type Command,
   initialShowState,
   isNavKind,
   isNewer,
+  LEAD_MS,
   type NavKind,
   reduce,
   type ShowState,

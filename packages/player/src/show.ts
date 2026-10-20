@@ -75,10 +75,23 @@ export function initialShowState(now: number, pos: Pos = firstPos()): ShowState 
   };
 }
 
+/**
+ * The largest counter a window takes in, 2^52: no count of moves or skips comes near it, and a number that
+ * size can still go up by one without losing its precision.
+ */
+export const COUNT_LIMIT = 2 ** 52;
+
+/**
+ * A counter one higher. The move and skip counters only have to differ from the last (the windows compare
+ * them for change, never for order), so at the limit one starts again from 0 instead of growing past the
+ * numbers every window takes in.
+ */
+const bump = (n: number): number => (n + 1 < COUNT_LIMIT ? n + 1 : 0);
+
 function moveTo(state: ShowState, pos: Pos | null, kind: NavKind, now: number): ShowState {
   if (!pos || samePos(pos, state.pos)) return state;
   // Moving always resumes the animation, so the next step never appears frozen.
-  return { ...state, pos, nav: { kind, seq: state.nav.seq + 1 }, paused: false, updatedAt: now };
+  return { ...state, pos, nav: { kind, seq: bump(state.nav.seq) }, paused: false, updatedAt: now };
 }
 
 /** The show after a command. Returns the same object when the command changes nothing. */
@@ -105,9 +118,9 @@ export function reduce(deck: Deck, state: ShowState, cmd: Command, now: number):
       return moveTo(state, cmd.pos, next && samePos(next, cmd.pos) ? 'forward' : 'jump', now);
     }
     case 'repeat':
-      return { ...state, nav: { kind: 'replay', seq: state.nav.seq + 1 }, paused: false, updatedAt: now };
+      return { ...state, nav: { kind: 'replay', seq: bump(state.nav.seq) }, paused: false, updatedAt: now };
     case 'skip':
-      return { ...state, skipToken: state.skipToken + 1, updatedAt: now };
+      return { ...state, skipToken: bump(state.skipToken), updatedAt: now };
     case 'togglePause':
       return { ...state, paused: !state.paused, updatedAt: now };
     case 'toggleBlackout':
@@ -119,8 +132,17 @@ export function reduce(deck: Deck, state: ShowState, cmd: Command, now: number):
   }
 }
 
-/** A counter (a whole number from 0): the step's move count, the skip token, a time in milliseconds. */
-const isCount = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+/** A counter: a whole number from 0, below the limit (the step's move count, the skip token, a time in ms). */
+const isCount = (n: unknown): n is number =>
+  Number.isSafeInteger(n) && (n as number) >= 0 && (n as number) < COUNT_LIMIT;
+
+/**
+ * How far ahead of this window's clock a change may be stamped: a year. The windows of one presentation share
+ * one computer's clock, and a window stamps a change at most a few milliseconds ahead of it (keys pressed
+ * faster than it ticks), so only a damaged value is further ahead. Refusing those keeps every time far below
+ * the limit, so the next change, a millisecond later, always has a whole number to take.
+ */
+export const LEAD_MS = 365 * 24 * 60 * 60 * 1000;
 
 const NAV_KINDS: readonly string[] = ['forward', 'backward', 'jump', 'replay', 'sync'];
 
@@ -130,16 +152,16 @@ export const isNavKind = (kind: unknown): kind is NavKind => NAV_KINDS.includes(
 /**
  * A stored or received state, if it still fits the deck; it then shows at once (`sync`). It comes from
  * another window or the browser's storage, so nothing in it is trusted: a state without a whole-millisecond
- * time is refused (one stamped `Infinity` would outrank every later change), and a malformed counter starts
- * again from 0.
+ * time, or stamped more than a year after `now` (this window's clock), is refused (one stamped `Infinity`
+ * would outrank every later change), and a malformed counter starts again from 0.
  */
-export function sanitizeShowState(deck: Deck, value: unknown): ShowState | null {
+export function sanitizeShowState(deck: Deck, value: unknown, now: number): ShowState | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<ShowState>;
   const pos = v.pos as Partial<Pos> | undefined;
   if (!pos || !isCount(pos.s) || !isCount(pos.b)) return null;
   if (!isValidPos(deck, { s: pos.s, b: pos.b })) return null;
-  if (!isCount(v.updatedAt)) return null;
+  if (!isCount(v.updatedAt) || v.updatedAt > now + LEAD_MS) return null;
   return {
     ...initialShowState(v.updatedAt, { s: pos.s, b: pos.b }),
     skipToken: isCount(v.skipToken) ? v.skipToken : 0,

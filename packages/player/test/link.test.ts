@@ -367,22 +367,81 @@ describe('who may move the show', () => {
     }
     expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
 
-    // The audience window reloads: its token is in its address, so it rejoins and follows.
-    audience.link.stop();
+    // The audience window reloads: its token is in its address, so it rejoins and follows. It waits for the
+    // console's next ping (it says nothing to its opener before that), then asks where the show is.
+    audienceWin.run(() => audience.link.stop());
     const again = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    expect(posKey(deck, again.s.state.pos)).toBe('S00.1');
+    browser.advance(1100);
     expect(posKey(deck, again.s.state.pos)).toBe(after(2, 0));
     browser.advance(10);
     consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
     expect(posKey(deck, again.s.state.pos)).toBe(after(2));
 
     // The console reloads (its tab keeps the token): the audience window's next message lets it back in.
-    presenter.link.stop();
+    consoleWin.run(() => presenter.link.stop());
     const console2 = session(browser, consoleWin, 'presenter', presenter.storage, '', TOKEN, '*');
     browser.advance(1100);
     expect(console2.link.count('audience')).toBe(1);
     browser.advance(10);
     consoleWin.run(() => console2.s.dispatch({ type: 'next' }));
     expect(posKey(deck, again.s.state.pos)).toBe(after(2, 2));
+  });
+
+  it('hands the join token, on a file opened from disk, to no page that opened a window of the show', () => {
+    const TOKEN = '0123456789abcdef0123456789abcdef';
+    const browser = new FakeBrowser();
+    browser.channels = false;
+    // Another file in the same browser opens the console (any page can open a file the browser can reach),
+    // and listens for what reaches it.
+    const other = browser.window(null, 'null');
+    const heard: unknown[] = [];
+    other.host('*').listen((data) => heard.push(data));
+    const consoleWin = browser.window(other, 'null');
+    const presenter = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+    const audienceWin = browser.window(consoleWin, 'null');
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    // It opens a copy of the slides too, which makes a token of its own (its address has none).
+    const copy = browser.window(other, 'null');
+    session(browser, copy, 'audience', new MemoryStorage(), '', 'c'.repeat(32), '*');
+    browser.advance(2500);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'gotoScene', number: 2 }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+    // Nothing reached it: no token, no state, not even a hello.
+    expect(heard).toEqual([]);
+
+    // So what it sends moves nothing, whether it names no token or the copy's.
+    for (const token of [undefined, 'c'.repeat(32)]) {
+      const forger = new Link('presenter', SHOW, other.host('*'), { token });
+      forger.addWindow(consoleWin);
+      forger.addWindow(audienceWin);
+      const forged = { ...audience.s.state, pos: { s: 9, b: 0 }, updatedAt: browser.now + 60_000 };
+      other.run(() => {
+        forger.start();
+        forger.send({ t: 'state', state: forged, reason: 'update' });
+        forger.stop();
+      });
+    }
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2, 0));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+    expect(heard).toEqual([]);
+
+    // The console and its audience window still find each other after either reloads.
+    audienceWin.run(() => audience.link.stop());
+    const audience2 = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(1100);
+    expect(posKey(deck, audience2.s.state.pos)).toBe(after(2, 0));
+    consoleWin.run(() => presenter.link.stop());
+    const console2 = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(1100);
+    // The reloaded console kept nothing, and learnt the show from the audience window.
+    expect(posKey(deck, console2.s.state.pos)).toBe(after(2, 0));
+    consoleWin.run(() => console2.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, audience2.s.state.pos)).toBe(after(2));
+    audienceWin.run(() => audience2.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, console2.s.state.pos)).toBe(after(2, 2));
+    expect(heard).toEqual([]);
   });
 
   it('ignores a state stamped with a time that is not a number of milliseconds, so later changes still arrive', () => {
