@@ -1,0 +1,248 @@
+// The one-file HTML in Safari, Apple's own WebKit, driven through the driver macOS ships with (safaridriver),
+// so nothing is downloaded: Playwright's WebKit build is partly LGPL, which the licence rule refuses. It runs
+// on GitHub's Mac machines (the CI job "safari"); on a Mac of your own, run `safaridriver --enable` once.
+//
+//   node tools/safari.ts [--out <folder>]
+//
+// It exports the polycrisis example, opens it from disk (or, if Safari refuses a file under automation, from
+// a server on this machine, and says so), and checks the start page, the slides (keys, categories in words),
+// the presenter console, and the audience window the console opens. Screens and a report (report.md,
+// report.json) go to the out folder. It fails when a check marked required fails; the others are reported.
+import { type ChildProcess, spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readProject } from '../packages/model/src/index.ts';
+import { playerTemplate } from '../packages/player/build/template.ts';
+import { exportHtml } from '../packages/player/src/export.ts';
+import { serve } from './serve.ts';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const args = process.argv.slice(2);
+const outIndex = args.indexOf('--out');
+const out = resolve(
+  outIndex >= 0 && args[outIndex + 1] ? (args[outIndex + 1] as string) : join(tmpdir(), 'loopweft-safari'),
+);
+mkdirSync(out, { recursive: true });
+
+// WebDriver's key codes (the W3C spec's private-use characters).
+const KEY = { pageDown: String.fromCharCode(0xe00f), arrowRight: String.fromCharCode(0xe014) };
+const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
+const PORT = 4445;
+const base = `http://127.0.0.1:${PORT}`;
+
+interface Result {
+  check: string;
+  ok: boolean;
+  required: boolean;
+  detail: string;
+}
+const results: Result[] = [];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function wd(method: string, path: string, body?: unknown): Promise<unknown> {
+  const response = await fetch(`${base}${path}`, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const json = (await response.json()) as { value: unknown };
+  if (!response.ok) {
+    const v = json.value as { error?: string; message?: string };
+    throw new Error(`${method} ${path}: ${v.error ?? response.status} ${v.message ?? ''}`.trim());
+  }
+  return json.value;
+}
+
+async function main(): Promise<void> {
+  const read = readProject(readFileSync(join(root, 'examples/polycrisis.loopweft'), 'utf8'));
+  if (!read.ok) throw new Error('The example does not open.');
+  const made = exportHtml(read.project, await playerTemplate(), { notes: true });
+  const folder = mkdtempSync(join(tmpdir(), 'loopweft-safari-html-'));
+  const name = 'Global Polycrisis.html';
+  writeFileSync(join(folder, name), made.html);
+
+  const driver: ChildProcess = spawn('safaridriver', ['--port', String(PORT)], { stdio: 'inherit' });
+  let served: Awaited<ReturnType<typeof serve>> | null = null;
+  let session = '';
+  try {
+    for (let i = 0; ; i++) {
+      if (
+        await fetch(`${base}/status`).then(
+          (r) => r.ok,
+          () => false,
+        )
+      )
+        break;
+      if (i > 50)
+        throw new Error('safaridriver did not start (on your own Mac, run "safaridriver --enable" once).');
+      await sleep(200);
+    }
+    const created = (await wd('POST', '/session', {
+      capabilities: { alwaysMatch: { browserName: 'safari' } },
+    })) as { sessionId: string; capabilities: { browserVersion?: string } };
+    session = created.sessionId;
+    const s = `/session/${session}`;
+    const version = created.capabilities.browserVersion ?? 'unknown';
+    const go = (url: string) => wd('POST', `${s}/url`, { url });
+    const run = <T>(script: string, ...params: unknown[]) =>
+      wd('POST', `${s}/execute/sync`, { script, args: params }) as Promise<T>;
+    const until = async (script: string, what: string, ms = 10_000) => {
+      for (const start = Date.now(); Date.now() - start < ms; await sleep(200))
+        if (await run<boolean>(script)) return;
+      throw new Error(`timed out waiting for ${what}`);
+    };
+    const press = async (key: string) => {
+      await wd('POST', `${s}/actions`, {
+        actions: [
+          {
+            type: 'key',
+            id: 'keyboard',
+            actions: [
+              { type: 'keyDown', value: key },
+              { type: 'keyUp', value: key },
+            ],
+          },
+        ],
+      });
+      await sleep(300);
+    };
+    const shot = async (file: string) => {
+      const png = (await wd('GET', `${s}/screenshot`)) as string;
+      writeFileSync(join(out, `${file}.png`), Buffer.from(png, 'base64'));
+    };
+    const hash = () => run<string>('return decodeURIComponent(location.hash)');
+    const check = async (name: string, required: boolean, fn: () => Promise<string>) => {
+      try {
+        results.push({ check: name, ok: true, required, detail: await fn() });
+      } catch (error) {
+        results.push({ check: name, ok: false, required, detail: (error as Error).message });
+      }
+    };
+
+    // From disk, if Safari opens a file under automation; else from a server on this machine.
+    let page = pathToFileURL(join(folder, name)).href;
+    await check(`Safari ${version} opens the file from disk`, false, async () => {
+      await go(page);
+      await until('return !!document.querySelector("h1")', 'the start page');
+      return page;
+    });
+    if (!results.at(-1)?.ok) {
+      served = await serve(folder);
+      page = `${served.url}/${encodeURIComponent(name)}`;
+      await go(page);
+    }
+
+    await check('the start page: title, counts and sources', true, async () => {
+      await until('return !!document.querySelector(".lp-ref-list")', 'the sources');
+      const h1 = await run<string>('return document.querySelector("h1").textContent');
+      const meta = await run<string>('return document.querySelector(".lp-start-meta").textContent');
+      const refs = await run<number>('return document.querySelectorAll(".lp-ref-list > li").length');
+      if (!h1.startsWith('Global Polycrisis')) throw new Error(`the title reads "${h1}"`);
+      if (meta !== '11 scenes · 70 steps · 14:00 in all') throw new Error(`the counts read "${meta}"`);
+      return `${h1}; ${meta}; ${refs} sources`;
+    });
+    await shot('1-start');
+
+    await check('the slides: the stage, keys and categories in words', true, async () => {
+      await go(`${page}?view=audience&rehearse`);
+      await until('return !!document.querySelector(".lw-stage .map-label")', 'the stage');
+      const before = await hash();
+      await press(KEY.pageDown);
+      await press(KEY.arrowRight);
+      const after = await hash();
+      if (after === before) throw new Error(`the keys did not move the slides (${before})`);
+      await press('c');
+      await until('return !!document.querySelector(".lw-stage.category-words")', 'categories in words');
+      await sleep(1500);
+      return `${before} → ${after}; categories named`;
+    });
+    await shot('2-slides');
+
+    await check('rehearsal notes on N', false, async () => {
+      await press('n');
+      await until('return !document.querySelector(".lp-rehearsal").hidden', 'the notes');
+      const heading = await run<string>('return document.querySelector(".lp-rehearsal h2").textContent');
+      await shot('3-rehearsal-notes');
+      await press('n');
+      return heading;
+    });
+
+    await check('the presenter console', true, async () => {
+      await go(`${page}?view=presenter`);
+      await until(
+        'return !!document.querySelector(".lp-scene-sub") && !!document.querySelector(".lp-preview .lw-stage")',
+        'the console',
+      );
+      const sub = await run<string>('return document.querySelector(".lp-scene-sub").textContent');
+      await press(KEY.pageDown);
+      const next = await run<string>('return document.querySelector(".lp-scene-sub").textContent');
+      if (next === sub) throw new Error(`the keys did not move the console (${sub})`);
+      await sleep(1500);
+      return `${sub} → ${next}`;
+    });
+    await shot('4-console');
+
+    await check('the audience window the console opens, kept in step', false, async () => {
+      const opener = (await wd('GET', `${s}/window`)) as string;
+      const button = (await wd('POST', `${s}/element`, {
+        using: 'xpath',
+        value: '//button[normalize-space()="Open audience window"]',
+      })) as Record<string, string>;
+      await wd('POST', `${s}/element/${button[ELEMENT]}/click`, {});
+      await sleep(1500);
+      const handles = (await wd('GET', `${s}/window/handles`)) as string[];
+      const audience = handles.find((h) => h !== opener);
+      if (!audience) throw new Error('no second window opened (Safari may block it under automation)');
+      await wd('POST', `${s}/window`, { handle: audience });
+      await until('return !!document.querySelector(".lw-stage .map-label")', 'the audience stage');
+      const there = await hash();
+      await wd('POST', `${s}/window`, { handle: opener });
+      await press(KEY.pageDown);
+      const console_ = await hash();
+      await wd('POST', `${s}/window`, { handle: audience });
+      await sleep(800);
+      const followed = await hash();
+      await shot('5-audience-window');
+      if (followed !== console_)
+        throw new Error(
+          `the console went to ${console_}, the audience window stayed at ${followed} (it opened at ${there})`,
+        );
+      return `opened at ${there}; the console moved to ${console_} and the audience window followed`;
+    });
+  } finally {
+    if (session) await wd('DELETE', `/session/${session}`).catch(() => {});
+    driver.kill();
+    await served?.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+let crashed: Error | null = null;
+try {
+  await main();
+} catch (error) {
+  crashed = error as Error;
+}
+const lines = [
+  '# The one-file HTML in Safari',
+  '',
+  '| Check | Result | Detail |',
+  '|---|---|---|',
+  ...results.map(
+    (r) =>
+      `| ${r.check}${r.required ? '' : ' (reported)'} | ${r.ok ? 'pass' : 'FAIL'} | ${r.detail.replace(/\|/g, '/')} |`,
+  ),
+  ...(crashed ? ['', `Stopped: ${crashed.message}`] : []),
+];
+writeFileSync(join(out, 'report.md'), `${lines.join('\n')}\n`);
+writeFileSync(
+  join(out, 'report.json'),
+  `${JSON.stringify({ results, crashed: crashed?.message ?? null }, null, 2)}\n`,
+);
+process.stdout.write(`${lines.join('\n')}\n`);
+if (process.env.GITHUB_STEP_SUMMARY)
+  writeFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`, { flag: 'a' });
+process.exitCode = crashed || results.some((r) => r.required && !r.ok) ? 1 : 0;
