@@ -1287,9 +1287,8 @@ describe('export', () => {
 /** How systems say a drive has no hard links (Windows names a FAT drive's refusal EISDIR). */
 const NO_HARD_LINKS = ['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV', 'EISDIR'];
 
-/** What an export could leave in the folder: its temporary folder, or a lock. */
-const leftovers = () =>
-  readdirSync(dir).filter((f) => f.startsWith('.loopweft-export-') || f.endsWith('.loopweft-lock'));
+/** What an export could leave in the folder: its temporary folder. */
+const leftovers = () => readdirSync(dir).filter((f) => f.startsWith('.loopweft-export-'));
 
 /** The command line's main, as another thread of this process loads it (Node runs the source itself). */
 const MAIN = new URL('../src/main.ts', import.meta.url).href;

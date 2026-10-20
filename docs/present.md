@@ -25,6 +25,10 @@ loopweft export talk.loopweft --html
 | `--force` | Replace the file if it exists (never the project itself, under any name) |
 | `--json` | Report as one JSON document: the size, the images and any warnings |
 
+Without `--force`, the export never replaces anything: a file, a folder or a link of that name, even one made
+while it runs. A drive without hard links (FAT, some network shares) cannot add a file that safely, so there
+the export asks for `--force` or another folder.
+
 What the file holds:
 
 - **A start page:**

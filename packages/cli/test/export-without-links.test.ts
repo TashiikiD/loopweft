@@ -1,13 +1,15 @@
 // `loopweft export` on a drive without hard links (FAT, some network shares), played here by a link that the
-// file system refuses. The file then goes in place by a rename under a lock folder: never half a file, even
-// when the export stops part way, and still never over a file another export made.
+// file system refuses. Node's rename replaces what is there, so without a hard link an export cannot add a file
+// safely: without --force it refuses, never replacing anything, even a file another program makes while it
+// works; with --force a rename puts the whole file in place at once.
 import {
   existsSync,
-  mkdirSync,
+  lstatSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,8 +18,11 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/main.ts';
 
-/** What the pretend file system does: how many renames it stops (an export stopped part way). */
-const fake = vi.hoisted(() => ({ stopRenames: 0 }));
+/**
+ * What the pretend file system does: how many renames it stops (an export stopped part way), and where another
+ * program writes a file of its own just before a rename puts anything there.
+ */
+const fake = vi.hoisted(() => ({ stopRenames: 0, otherWriter: '' }));
 
 vi.mock('node:fs', async (importOriginal) => {
   const real = await importOriginal<typeof import('node:fs')>();
@@ -27,12 +32,8 @@ vi.mock('node:fs', async (importOriginal) => {
     linkSync: () => {
       throw refused('operation not permitted, link', 'EPERM');
     },
-    // A copy stopped part way leaves the start of the file, as a killed process would.
-    copyFileSync: (from: string, to: string) => {
-      real.writeFileSync(to, real.readFileSync(from).subarray(0, 1000));
-      throw refused('i/o error, copyfile', 'EIO');
-    },
     renameSync: (from: string, to: string) => {
+      if (fake.otherWriter && to === fake.otherWriter) real.writeFileSync(to, 'made by another program');
       if (fake.stopRenames > 0) {
         fake.stopRenames -= 1;
         throw refused('i/o error, rename', 'EIO');
@@ -46,6 +47,7 @@ const dir = mkdtempSync(join(tmpdir(), 'loopweft-nolinks-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 beforeEach(() => {
   fake.stopRenames = 0;
+  fake.otherWriter = '';
 });
 
 async function run(...args: string[]): Promise<{ code: number; err: string }> {
@@ -56,50 +58,61 @@ async function run(...args: string[]): Promise<{ code: number; err: string }> {
 
 const project = join(dir, 'talk.loopweft');
 const at = (name: string) => join(dir, name);
-const leftovers = () =>
-  readdirSync(dir).filter((f) => f.startsWith('.loopweft-export-') || f.endsWith('.loopweft-lock'));
+const leftovers = () => readdirSync(dir).filter((f) => f.startsWith('.loopweft-export-'));
 
 describe('export on a drive without hard links', () => {
-  // Not copyFileSync: the pretend one cuts it short.
   writeFileSync(
     project,
     readFileSync(fileURLToPath(new URL('../../../examples/polycrisis.loopweft', import.meta.url))),
   );
 
-  it('puts the whole file in place, and never over another', async () => {
-    expect((await run('export', project, '--html', '--force', '-o', at('reference.html'))).code).toBe(0);
-    const reference = readFileSync(at('reference.html'), 'utf8');
-    expect((await run('export', project, '--html', '-o', at('talk.html'))).code).toBe(0);
-    expect(readFileSync(at('talk.html'), 'utf8')).toBe(reference);
-    // Two at once: one makes the file, the other finds it there.
-    const both = await Promise.all([
-      run('export', project, '--html', '-o', at('race.html')),
-      run('export', project, '--html', '-o', at('race.html')),
-    ]);
-    expect(both.map((r) => r.code).sort()).toEqual([0, 2]);
-    expect(both.find((r) => r.code === 2)?.err).toContain('race.html already exists');
-    expect(readFileSync(at('race.html'), 'utf8')).toBe(reference);
-    expect(leftovers()).toEqual([]);
-  });
-
-  it('leaves nothing where the file goes when it stops before putting it there', async () => {
-    fake.stopRenames = 1;
-    const { code } = await run('export', project, '--html', '-o', at('stopped.html'));
-    expect(code).toBe(3);
-    expect(existsSync(at('stopped.html'))).toBe(false);
-    expect(leftovers()).toEqual([]);
-    // The next export makes it.
-    expect((await run('export', project, '--html', '-o', at('stopped.html'))).code).toBe(0);
-  });
-
-  it('waits for no lock it finds, and says what to remove if the export that made it was stopped', async () => {
-    mkdirSync(at('locked.html.loopweft-lock'));
-    const { code, err } = await run('export', project, '--html', '-o', at('locked.html'));
+  it('asks for --force rather than risk a file, and with it puts the whole file in place', async () => {
+    const { code, err } = await run('export', project, '--html', '-o', at('talk.html'));
     expect(code).toBe(2);
-    expect(err).toContain('Another export is writing');
-    expect(err).toContain('remove the folder');
-    expect(existsSync(at('locked.html'))).toBe(false);
-    rmSync(at('locked.html.loopweft-lock'), { recursive: true });
-    expect((await run('export', project, '--html', '-o', at('locked.html'))).code).toBe(0);
+    expect(err).toContain('it has no hard links');
+    expect(err).toContain('--force');
+    expect(existsSync(at('talk.html'))).toBe(false);
+    expect(leftovers()).toEqual([]);
+    expect((await run('export', project, '--html', '--force', '-o', at('talk.html'))).code).toBe(0);
+    expect(readFileSync(at('talk.html'), 'utf8')).toContain('data-notes="included"');
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('never puts its file over one another program makes while it works', async () => {
+    // Another program writes the file just before anything would be moved there: an export without --force
+    // moves nothing there, so whatever that program wrote is never replaced.
+    fake.otherWriter = at('busy.html');
+    const { code } = await run('export', project, '--html', '-o', at('busy.html'));
+    expect(code).toBe(2);
+    expect(existsSync(at('busy.html')) ? readFileSync(at('busy.html'), 'utf8') : '').not.toContain('<html');
+    // A file made after the export first looked, before it would put its own there, is found and kept.
+    writeFileSync(at('late.html'), 'made by another program');
+    fake.otherWriter = '';
+    const late = await run('export', project, '--html', '-o', at('late.html'));
+    expect(late.code).toBe(2);
+    expect(readFileSync(at('late.html'), 'utf8')).toBe('made by another program');
+    expect(leftovers()).toEqual([]);
+  });
+
+  it('counts a link to nothing as a file of that name', async (ctx) => {
+    try {
+      symlinkSync(at('nowhere.html'), at('dangling.html'));
+    } catch {
+      // Windows lets only some accounts make symbolic links.
+      ctx.skip();
+    }
+    const { code, err } = await run('export', project, '--html', '-o', at('dangling.html'));
+    expect(code).toBe(2);
+    expect(err).toContain('dangling.html already exists');
+    expect(lstatSync(at('dangling.html')).isSymbolicLink()).toBe(true);
+    expect(existsSync(at('nowhere.html'))).toBe(false);
+  });
+
+  it('leaves the old file whole when a --force export stops before putting its own there', async () => {
+    writeFileSync(at('stopped.html'), 'the old file');
+    fake.stopRenames = 1;
+    expect((await run('export', project, '--html', '--force', '-o', at('stopped.html'))).code).toBe(3);
+    expect(readFileSync(at('stopped.html'), 'utf8')).toBe('the old file');
+    expect(leftovers()).toEqual([]);
   });
 });
