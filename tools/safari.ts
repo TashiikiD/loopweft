@@ -7,8 +7,8 @@
 // It exports the polycrisis example and drives Safari through the start page, the slides (keys, categories in
 // words), the rehearsal notes, the presenter console and the audience window the console opens. WebDriver's
 // Safari refuses files on disk ("outside the sandbox"), so those checks run on the file served from this
-// machine; then the file is opened from disk as a person opens it (open -a Safari) and checked through
-// AppleScript and screens. Screens and a report (report.md, report.json) go to the out folder. It fails when
+// machine; then the file is opened from disk as a person opens it (open -a Safari), and screens of the start
+// page, the slides and the console are kept for a person to look at. Screens and a report (report.md, report.json) go to the out folder. It fails when
 // a check marked required fails; the others are reported.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -54,54 +54,28 @@ async function check(name: string, required: boolean, fn: () => Promise<string>)
 
 /**
  * The file opened as a person opens it: `open -a Safari`, as a double-click does, which lets the file into
- * Safari's sandbox (WebDriver cannot). Without WebDriver there is no page to read, so the checks read Safari's
- * address through AppleScript and take screens of the whole display; a key is sent through System Events,
- * which a machine may not allow (then it says so).
+ * Safari's sandbox (WebDriver cannot). Without WebDriver there is no page to read, and on GitHub's Mac
+ * AppleScript cannot reach Safari (its permission prompt times out), so these checks open each view by its
+ * address and keep a screen of the whole display for a person to look at: the start page, the slides at a
+ * step, and the console. (The keys and the two windows are checked above, on the file served.)
  */
 async function byDoubleClick(file: string): Promise<void> {
-  const osa = (script: string): string => {
-    const r = spawnSync('osascript', ['-e', script], { encoding: 'utf8' });
-    if (r.status !== 0) throw new Error((r.stderr || `osascript failed (${r.status})`).trim());
-    return r.stdout.trim();
-  };
-  const address = () => osa('tell application "Safari" to get URL of front document');
-  const screen = (name: string) => spawnSync('screencapture', ['-x', join(out, `${name}.png`)]);
   const url = pathToFileURL(file).href;
-  await check('opened from disk as a person opens it (open -a Safari)', false, async () => {
-    const opened = spawnSync('open', ['-a', 'Safari', file], { encoding: 'utf8' });
-    if (opened.status !== 0) throw new Error(opened.stderr.trim() || 'open failed');
-    await sleep(8000);
-    screen('6-from-disk-start');
-    const at = address();
-    if (!at.startsWith('file:')) throw new Error(`Safari shows ${at}`);
-    return `Safari shows ${at}; screen 6-from-disk-start shows what it drew (the start page is drawn by the script)`;
-  });
-  await check(
-    'from disk: the slides, and a key moving them (AppleScript, System Events)',
-    false,
-    async () => {
-      osa(`tell application "Safari" to set URL of front document to "${url}?view=audience&rehearse#S04.1"`);
-      await sleep(6000);
-      const before = address();
-      osa('tell application "Safari" to activate');
-      // Key code 121: Page Down.
-      osa('tell application "System Events" to key code 121');
-      await sleep(2500);
-      const after = address();
-      screen('7-from-disk-slides');
-      const step = (u: string) => decodeURIComponent(u.split('#')[1] ?? '(none)');
-      if (after === before)
-        throw new Error(
-          `the address stayed at ${step(after)}: the key did not arrive or did not move the slides`,
-        );
-      return `${step(before)} → ${step(after)}`;
-    },
-  );
-  try {
-    osa('tell application "Safari" to quit');
-  } catch {
-    // Safari had already gone.
+  const views: Array<[string, string, string]> = [
+    ['6-from-disk-start', file, 'the start page'],
+    ['7-from-disk-slides', `${url}?view=audience#S05.6b`, 'the slides at S05.6b'],
+    ['8-from-disk-console', `${url}?view=presenter#S04.2a`, 'the console at S04.2a'],
+  ];
+  for (const [screen, address, what] of views) {
+    await check(`from disk, opened as a person opens it: ${what} (see screen ${screen})`, false, async () => {
+      const opened = spawnSync('open', ['-a', 'Safari', address], { encoding: 'utf8' });
+      if (opened.status !== 0) throw new Error(opened.stderr.trim() || `open failed (${opened.status})`);
+      await sleep(8000);
+      spawnSync('screencapture', ['-x', join(out, `${screen}.png`)]);
+      return `opened ${address.replace(/^.*\//, '')}`;
+    });
   }
+  spawnSync('pkill', ['-x', 'Safari']);
 }
 
 async function wd(method: string, path: string, body?: unknown): Promise<unknown> {
