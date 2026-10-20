@@ -126,7 +126,23 @@ async function main(): Promise<void> {
     let page = pathToFileURL(join(folder, name)).href;
     await check(`Safari ${version} opens the file from disk`, false, async () => {
       await go(page);
-      await until('return !!document.querySelector("h1")', 'the start page');
+      try {
+        await until('return !!document.querySelector("h1")', 'the start page');
+      } catch (error) {
+        // What Safari shows instead: the address, the page's text, and the player's own problem notice.
+        const seen = await run<Record<string, unknown>>(
+          `return {
+            href: location.href,
+            state: document.readyState,
+            slot: !!document.getElementById('loopweft-project'),
+            problem: document.querySelector('.lp-problem')?.textContent ?? null,
+            text: (document.body?.innerText ?? '').slice(0, 300),
+            html: document.documentElement.outerHTML.length,
+          }`,
+        ).catch((e: Error) => ({ unreadable: e.message }));
+        await shot('0-from-disk').catch(() => {});
+        throw new Error(`${(error as Error).message}; the page: ${JSON.stringify(seen)}`);
+      }
       return page;
     });
     if (!results.at(-1)?.ok) {
