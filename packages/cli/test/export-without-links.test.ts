@@ -20,7 +20,7 @@ import { main } from '../src/main.ts';
 
 /**
  * What the pretend file system does: how many renames it stops (an export stopped part way), and where another
- * program writes a file of its own just before a rename puts anything there.
+ * program writes a file of its own just as the export goes to put its file there (after its first look).
  */
 const fake = vi.hoisted(() => ({ stopRenames: 0, otherWriter: '' }));
 
@@ -29,11 +29,11 @@ vi.mock('node:fs', async (importOriginal) => {
   const refused = (what: string, code: string) => Object.assign(new Error(`${code}: ${what}`), { code });
   return {
     ...real,
-    linkSync: () => {
+    linkSync: (_from: string, to: string) => {
+      if (fake.otherWriter && to === fake.otherWriter) real.writeFileSync(to, 'made by another program');
       throw refused('operation not permitted, link', 'EPERM');
     },
     renameSync: (from: string, to: string) => {
-      if (fake.otherWriter && to === fake.otherWriter) real.writeFileSync(to, 'made by another program');
       if (fake.stopRenames > 0) {
         fake.stopRenames -= 1;
         throw refused('i/o error, rename', 'EIO');
@@ -79,18 +79,13 @@ describe('export on a drive without hard links', () => {
   });
 
   it('never puts its file over one another program makes while it works', async () => {
-    // Another program writes the file just before anything would be moved there: an export without --force
-    // moves nothing there, so whatever that program wrote is never replaced.
+    // Another program writes the file after the export first looked (nothing was there) and just as it goes
+    // to put its own there: the export finds it, says so, and leaves it as that program wrote it.
     fake.otherWriter = at('busy.html');
-    const { code } = await run('export', project, '--html', '-o', at('busy.html'));
+    const { code, err } = await run('export', project, '--html', '-o', at('busy.html'));
     expect(code).toBe(2);
-    expect(existsSync(at('busy.html')) ? readFileSync(at('busy.html'), 'utf8') : '').not.toContain('<html');
-    // A file made after the export first looked, before it would put its own there, is found and kept.
-    writeFileSync(at('late.html'), 'made by another program');
-    fake.otherWriter = '';
-    const late = await run('export', project, '--html', '-o', at('late.html'));
-    expect(late.code).toBe(2);
-    expect(readFileSync(at('late.html'), 'utf8')).toBe('made by another program');
+    expect(err).toContain('busy.html already exists');
+    expect(readFileSync(at('busy.html'), 'utf8')).toBe('made by another program');
     expect(leftovers()).toEqual([]);
   });
 
