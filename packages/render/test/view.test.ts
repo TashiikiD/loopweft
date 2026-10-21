@@ -278,6 +278,27 @@ describe('the story view', () => {
     expect(host.querySelectorAll('.statement, .cards, .legend')).toHaveLength(0);
   });
 
+  it('shows every step at once with nothing left moving, but the timer of a held step’s wandering pulses', () => {
+    // A still (an export) is the stage at the moment a step is shown at once; anything still moving would be
+    // drawn half way. Each step is shown after the one before it, as in a talk.
+    const clock = new ManualClock();
+    const motion = new Motion(clock);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const story = new StoryView(host, { project, motion });
+    const moving: string[] = [];
+    for (const p of storyPositions(project)) {
+      story.show(p.scene, p.step, 'instant');
+      const step = project.story.scenes[p.scene]?.steps[p.step];
+      const allowed = step?.map.ambient && step.map.show !== false ? 1 : 0;
+      if (motion.active > allowed) moving.push(`${p.key}: ${motion.active}`);
+    }
+    expect(moving).toEqual([]);
+    story.dispose();
+    motion.dispose();
+    host.remove();
+  });
+
   it('numbers captions by the scenes that show one, from 1', () => {
     const motion = new Motion(new ManualClock());
     const host = document.createElement('div');

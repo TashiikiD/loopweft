@@ -5,7 +5,9 @@ The Loopweft Studio: one window with five workspaces. Phase 2 built the **Map** 
 (scenes and steps set up by clicking on the stage, overlays, notes and script, preview and checks; see
 [telling a story](../../docs/story.md)) and Phase 5 the **Present** workspace (the presenter console and its
 audience window, a rehearsal in one window) and the **Export** workspace's one-file HTML (see [presenting and
-sharing](../../docs/present.md)). Phase 6 adds the other exports: PNG, SVG, PDF and video.
+sharing](../../docs/present.md)). Phase 6 adds the other exports: so far, pictures (PNG) of a step, of every
+step (one .zip) or of the whole map, drawn in a hidden frame by the export page of `@loopweft/export`, as
+`loopweft export --png` draws them (see [exporting](../../docs/export.md)); SVG, PDF and video follow.
 
 - Draw and edit a causal map: the canvas draws it with the renderer's own geometry, glyphs and theme
   colours, so it looks as it will when presented. Every change is one of `@loopweft/model`'s operations (the

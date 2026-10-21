@@ -1,16 +1,17 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { exportPagePlugin } from '../../packages/export/build/plugin.ts';
 import { playerTemplatePlugin } from '../../packages/player/build/plugin.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 // A relative base, so the built Studio runs from any folder of a site (it is published at /loopweft/studio/).
 // Two pages: the Studio, and the audience window its presenter console opens (audience.html). The player's
-// one-file page reaches the Studio's Export through a virtual module.
+// one-file page and the export page reach the Studio's Export through virtual modules.
 export default defineConfig({
   base: './',
-  plugins: [playerTemplatePlugin()],
+  plugins: [playerTemplatePlugin(), exportPagePlugin()],
   // React's automatic JSX runtime through esbuild; no React plugin (and no Fast Refresh) needed.
   esbuild: { jsx: 'automatic' },
   worker: { format: 'es' },

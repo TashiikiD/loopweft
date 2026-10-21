@@ -6,6 +6,7 @@
     "packages/*/scripts",
     "packages/*/page",
     "packages/*/build",
+    "packages/*/node",
     "apps/*/src",
     "apps/*/test",
     "apps/*/e2e",

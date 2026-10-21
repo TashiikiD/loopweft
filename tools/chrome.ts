@@ -8,31 +8,12 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { BROWSERS } from '../packages/export/node/chrome.ts';
 
 const run = promisify(execFile);
 
-const local = process.env.LOCALAPPDATA ?? '';
-export const BROWSERS = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  ...(local ? [join(local, 'Google/Chrome/Application/chrome.exe')] : []),
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/microsoft-edge',
-];
-
-/** This computer's Chrome, or its Edge, if installed (for tests that open a file in each). */
-export function findBrowserNamed(name: 'chrome' | 'edge'): string | null {
-  const word = name === 'edge' ? /edge/i : /chrome/i;
-  return BROWSERS.find((p) => word.test(p) && existsSync(p)) ?? null;
-}
+// Where Chrome and Edge are looked for: the list the command line's exports use (@loopweft/export/node).
+export { BROWSERS, findBrowserNamed } from '../packages/export/node/chrome.ts';
 
 /** Chrome or Edge: LOOPWEFT_CHROME if set, else the first one installed. */
 export function findBrowser(): string {

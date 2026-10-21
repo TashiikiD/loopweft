@@ -12,6 +12,7 @@
     ".": "./src/main.ts"
   },
   "dependencies": {
+    "@loopweft/export": "*",
     "@loopweft/layout": "*",
     "@loopweft/model": "*",
     "@loopweft/player": "*",

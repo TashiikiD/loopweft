@@ -165,12 +165,28 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   program
     .command('export <file>')
     .description(
-      'the project as one HTML file that opens by double-click, offline: a start page, the slides, the presenter console and the sources',
+      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), or as pictures of its steps or of the whole map',
     )
-    .option('--html', 'one HTML file (the only format so far)')
-    .option('-o, --out <file>', 'the file to write (default: the project name with .html)')
-    .option('--no-notes', 'leave out the speaker notes, the script and the cues (an audience-only copy)')
-    .option('--force', 'replace the output file if it exists')
+    .option('--html', 'one HTML file')
+    .option(
+      '--png',
+      'pictures (PNG), drawn in the Chrome or Edge on this computer: --step, --all-steps or --map',
+    )
+    .option(
+      '-o, --out <file>',
+      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png, -map.png or -steps)',
+    )
+    .option(
+      '--no-notes',
+      'html: leave out the speaker notes, the script and the cues (an audience-only copy)',
+    )
+    .option('--step <step>', 'png: the step to draw, e.g. S04.2a, as it stands once its motion is over')
+    .option('--all-steps', 'png: every step, one picture each, into a new folder')
+    .option('--map', 'png: the whole map plainly, without the story (a project needs no story for it)')
+    .option('--trim', 'png --map: only the map and a margin, not the whole 16:9 stage')
+    .option('--scale <n>', 'png: 1 (1920 × 1080, the default) or 2 (3840 × 2160, for print and posters)')
+    .option('--category-words', "png: name each shown variable's category in words, as the C key does")
+    .option('--force', 'replace the output file (or files in the folder) if it exists')
     .action((file: string, o) => run(() => exportCommand(file, o))());
 
   const variable = program.command('var').description('variables: list, add, set, rm');

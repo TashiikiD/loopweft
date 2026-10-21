@@ -15,7 +15,7 @@ interface Pickers {
   showSaveFilePicker?: (options?: PickerOptions) => Promise<FileSystemFileHandle>;
 }
 interface Writable {
-  write(data: string): Promise<void>;
+  write(data: string | Blob): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -87,9 +87,15 @@ export function readMap(text: string, name: string): Opened {
   return { ok: true, project: result.project, warnings, migrated: result.migrated };
 }
 
+/** File contents as the browser takes them. */
+export type FileData = string | Uint8Array | Blob;
+
+const blobOf = (data: FileData, type: string): Blob =>
+  data instanceof Blob ? data : new Blob([data as BlobPart], { type });
+
 /** Hands the browser a file to save (other browsers' Save, and every export). */
-export function download(name: string, text: string, type = 'application/json'): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function download(name: string, data: FileData, type = 'application/json'): void {
+  const url = URL.createObjectURL(blobOf(data, type));
   const link = document.createElement('a');
   link.href = url;
   link.download = name;
@@ -103,40 +109,54 @@ export function download(name: string, text: string, type = 'application/json'):
 export const htmlNameFor = (title: string): string =>
   `${slugify(title).replace(/_/g, '-') || 'presentation'}.html`;
 
-/** Where an exported page goes: a file the person chose (Chrome, Edge), or a download. */
-export interface HtmlTarget {
+/** Where an exported file goes: a file the person chose (Chrome, Edge), or a download. */
+export interface SaveTarget {
   how: 'file' | 'download';
   name: string;
-  write(html: string): Promise<void>;
+  write(data: FileData): Promise<void>;
 }
 
+/** An exported page's target (the one-file HTML). */
+export type HtmlTarget = SaveTarget;
+
+/** A kind of file an export makes, for the save dialog. */
+export interface FileKind {
+  description: string;
+  type: string;
+  extension: string;
+}
+
+export const HTML_FILE: FileKind = { description: 'Web page', type: 'text/html', extension: '.html' };
+export const PNG_FILE: FileKind = { description: 'PNG picture', type: 'image/png', extension: '.png' };
+export const ZIP_FILE: FileKind = { description: 'Zip folder', type: 'application/zip', extension: '.zip' };
+
 /**
- * Asks where to save an exported page: the browser's save dialog (Chrome, Edge), else a download. Call it
+ * Asks where to save an exported file: the browser's save dialog (Chrome, Edge), else a download. Call it
  * straight from the click, before anything slow: the browser shows the dialog only while the click still
- * counts (a few seconds), so the page is made after the place is chosen. Null when the person cancels.
+ * counts (a few seconds), so the file is made after the place is chosen. Null when the person cancels.
  */
-export function chooseHtmlTarget(name: string): Promise<HtmlTarget | null> {
+export function chooseSaveTarget(name: string, kind: FileKind): Promise<SaveTarget | null> {
   const { showSaveFilePicker } = pickers();
   if (!showSaveFilePicker)
     return Promise.resolve({
       how: 'download',
       name,
-      write: async (html) => download(name, html, 'text/html'),
+      write: async (data) => download(name, data, kind.type),
     });
   // Called now, in the click; only its answer is awaited.
   const asking = showSaveFilePicker({
-    types: [{ description: 'Web page', accept: { 'text/html': ['.html'] } }],
+    types: [{ description: kind.description, accept: { [kind.type]: [kind.extension] } }],
     suggestedName: name,
   });
   return asking.then(
-    (handle): HtmlTarget => ({
+    (handle): SaveTarget => ({
       how: 'file',
       name: handle.name,
-      async write(html) {
+      async write(data) {
         const writable = (await (
           handle as unknown as { createWritable(): Promise<Writable> }
         ).createWritable()) as Writable;
-        await writable.write(html);
+        await writable.write(typeof data === 'string' ? data : blobOf(data, kind.type));
         await writable.close();
       },
     }),
@@ -146,6 +166,10 @@ export function chooseHtmlTarget(name: string): Promise<HtmlTarget | null> {
     },
   );
 }
+
+/** Where an exported page goes (see chooseSaveTarget). */
+export const chooseHtmlTarget = (name: string): Promise<HtmlTarget | null> =>
+  chooseSaveTarget(name, HTML_FILE);
 
 export interface Saved {
   /** The project as written: its `modified` date is today's. */

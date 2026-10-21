@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { exportPagePlugin } from './packages/export/build/plugin.ts';
 import { playerTemplatePlugin } from './packages/player/build/plugin.ts';
 
 export default defineConfig({
@@ -19,9 +20,9 @@ export default defineConfig({
       },
       {
         // The Studio's components and state, in jsdom (React's automatic JSX runtime through esbuild). The
-        // plugin gives the Export workspace the player's page, as the Studio's own build does.
+        // plugins give the Export workspace the player's page and the export page, as the Studio's build does.
         esbuild: { jsx: 'automatic' },
-        plugins: [playerTemplatePlugin()],
+        plugins: [playerTemplatePlugin(), exportPagePlugin()],
         test: {
           name: 'studio',
           include: ['apps/studio/test/**/*.test.ts', 'apps/studio/test/**/*.test.tsx'],

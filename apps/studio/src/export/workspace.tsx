@@ -1,14 +1,16 @@
-// The Export workspace. Phase 5 brings the one-file HTML: the story with its start page, slides, presenter
-// console and sources, opening offline from any folder. It is the same file `loopweft export --html` writes:
-// the player's page (loaded only when exporting, about 1.2 MB) with the project in it. PNG, SVG, PDF and video
-// come in Phase 6.
+// The Export workspace: the one-file HTML (the story with its start page, slides, presenter console and
+// sources, opening offline from any folder: the same file `loopweft export --html` writes, the player's page
+// with the project in it, loaded only when exporting) and pictures (pictures.tsx), drawn by the export page in
+// a hidden frame, which starts the first time a picture is made and stays while the workspace is open.
 import { plural } from '@loopweft/model';
 import { exportHtml, type HtmlExport, hasNotes, presenterWords } from '@loopweft/player';
 import { Alert, Button, Card, Checkbox, Group, List, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
 import { chooseHtmlTarget, htmlNameFor } from '../state/files.ts';
+import { type Engine, frameEngine, loadExportPage } from './engine.ts';
+import { PicturesCard } from './pictures.tsx';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
@@ -16,7 +18,39 @@ const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 export const loadTemplate = async (): Promise<string> =>
   (await import('virtual:loopweft-player-template')).default;
 
-export function ExportWorkspace({ template = loadTemplate }: { template?: () => Promise<string> }) {
+export interface ExportWorkspaceProps {
+  template?: () => Promise<string>;
+  /** Starts the export engine (default: the export page in a hidden frame). */
+  startEngine?: () => Promise<Engine>;
+}
+
+const startFrameEngine = async (): Promise<Engine> => frameEngine(await loadExportPage());
+
+export function ExportWorkspace({
+  template = loadTemplate,
+  startEngine = startFrameEngine,
+}: ExportWorkspaceProps) {
+  const running = useRef<Promise<Engine> | null>(null);
+  const engine = useCallback(() => {
+    if (running.current) return running.current;
+    const started = startEngine();
+    running.current = started;
+    // A start that failed is tried again next time.
+    started.catch(() => {
+      if (running.current === started) running.current = null;
+    });
+    return started;
+  }, [startEngine]);
+  useEffect(
+    () => () => {
+      void running.current?.then(
+        (e) => e.dispose(),
+        () => undefined,
+      );
+      running.current = null;
+    },
+    [],
+  );
   const store = useStudioStore();
   const project = useStudio((s) => s.project);
   const [notes, setNotes] = useState(true);
@@ -118,8 +152,9 @@ export function ExportWorkspace({ template = loadTemplate }: { template?: () => 
               )}
             </Stack>
           </Card>
+          <PicturesCard engine={engine} />
           <Text size="sm" c="dimmed">
-            PNG and SVG images of a step, PDFs (slides, speaker notes, references) and video come in Phase 6.
+            SVG drawings, the PDFs (slides, speaker notes, references) and video come later in Phase 6.
           </Text>
         </Stack>
       </div>

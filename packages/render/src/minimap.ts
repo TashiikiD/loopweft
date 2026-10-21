@@ -65,7 +65,10 @@ export class Minimap {
     this.#view.setAttribute('height', Math.max(4, Math.min(H, b.y) - y).toFixed(1));
   }
 
+  /** Shows or hides the minimap: at once for an instant step (a still, a jump), else fading over `duration`. */
   setVisible(visible: boolean, duration: number): void {
-    this.#motion.to(this.el, { opacity: visible ? 1 : 0 }, { duration: Math.max(0.01, duration) });
+    const props = { opacity: visible ? 1 : 0 };
+    if (duration <= 0) this.#motion.set(this.el, props);
+    else this.#motion.to(this.el, props, { duration });
   }
 }
