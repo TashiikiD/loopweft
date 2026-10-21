@@ -12,7 +12,7 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 5: Present and HTML**, at its checkpoint; Phase 6 (exports) starts after its review.
+**Phase 6: Exports**, at its checkpoint; Phase 7 (agent support) starts after its review.
 [The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
@@ -33,18 +33,21 @@ no server, no telemetry.
   mode that names each variable's category in words (C);
 - one HTML file to share or present from: it opens by double-click, offline, with a start page listing
   every source;
+- exports made on this computer: pictures (PNG) and editable drawings (SVG) of a step, of every step or of
+  the whole map; the slides, the speaker notes and the references as PDFs; the story as video (MP4 or
+  WebM), played frame by frame as the talk plays it; and GIF loops of a scene or some steps;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
   CSV or Excel tables, Kumu or DataViz;
 - open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes.
 
-The `loopweft` command line does the same edits and exports the HTML ([its commands](packages/cli/README.md)).
+The `loopweft` command line does the same edits and makes the same exports ([its commands](packages/cli/README.md)).
 [The example story](https://tashiikid.github.io/loopweft/demo/) is the polycrisis map exported as one HTML
-file. Images, PDFs and video come in the next phase.
+file.
 
 - [The `.loopweft` format, version 1 (draft)](docs/format.md)
 - [Importing maps](docs/import.md), [templates](docs/templates.md), [loops, ripples and paths](docs/analysis.md),
-  [sources and citations](docs/sources.md), [telling a story](docs/story.md), and
-  [presenting and sharing it](docs/present.md)
+  [sources and citations](docs/sources.md), [telling a story](docs/story.md),
+  [presenting and sharing it](docs/present.md), and [exporting](docs/export.md)
 - [The polycrisis example](examples/README.md)
 
 ## Roadmap
@@ -74,12 +77,13 @@ text, in the custom field "DataViz sources".
 | Path | What it holds |
 |---|---|
 | `packages/model` | The `.loopweft` format and everything that needs no screen |
-| `docs/` | The format specification, how imports work, the templates, what loops, ripples and paths mean, how sources and citations work, how a story is told and checked, and how it is presented and shared |
+| `docs/` | The format specification, how imports work, the templates, what loops, ripples and paths mean, how sources and citations work, how a story is told and checked, how it is presented and shared, and what each export holds |
 | `examples/` | Example projects: the polycrisis map and story |
 | `packages/motion`, `layout`, `render` | The animation engine, automatic layouts and the SVG renderer |
 | `packages/cli` | The `loopweft` command line ([its commands](packages/cli/README.md)) |
 | `apps/studio` | The Studio, where maps are drawn and edited ([try it](https://tashiikid.github.io/loopweft/studio/)) |
 | `packages/player` | The presentation runtime: the audience window, the presenter console, rehearsal notes, the start page and the one-file HTML export ([the example](https://tashiikid.github.io/loopweft/demo/), exported) |
+| `packages/export` | Every other export: pictures (PNG), drawings (SVG), the PDFs, video (MP4, WebM) and GIF ([what each holds](docs/export.md)) |
 | `site/` | The GitHub Pages landing page (`npm run site` builds `_site/`) |
 | `test/` | Repository rules, such as the dependency licence check |
 | `.github/workflows/` | CI (`npm run verify` on Windows, macOS and Linux) and the Pages deploy |
