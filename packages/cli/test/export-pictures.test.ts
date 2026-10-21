@@ -40,7 +40,10 @@ describe('loopweft export --png and --svg', () => {
     [['--html', '--png', '--map'], 'Export one format at a time (--html, --png given).'],
     [['--html', '--step', 'S04.2a'], '--step is for pictures (--png or --svg).'],
     [['--html', '--category-words'], '--category-words is for pictures (--png or --svg).'],
-    [[], 'Choose what to export: --html (one HTML file), --png (pictures) or --svg (drawings).'],
+    [
+      [],
+      'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings) or --pdf notes|references (documents).',
+    ],
     [['--svg', '--png', '--map'], 'Export one format at a time (--png, --svg given).'],
     [
       ['--svg', '--map', '--scale', '2'],

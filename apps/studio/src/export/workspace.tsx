@@ -2,6 +2,8 @@
 // sources, opening offline from any folder: the same file `loopweft export --html` writes, the player's page
 // with the project in it, loaded only when exporting) and pictures (pictures.tsx), drawn by the export page in
 // a hidden frame, which starts the first time a picture is made and stays while the workspace is open.
+
+import type { FontReader } from '@loopweft/export';
 import { plural } from '@loopweft/model';
 import { exportHtml, type HtmlExport, hasNotes, presenterWords } from '@loopweft/player';
 import { Alert, Button, Card, Checkbox, Group, List, Stack, Text, Title } from '@mantine/core';
@@ -9,7 +11,9 @@ import { notifications } from '@mantine/notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
 import { chooseHtmlTarget, htmlNameFor } from '../state/files.ts';
+import { DocumentsCard } from './documents.tsx';
 import { type Engine, frameEngine, loadExportPage } from './engine.ts';
+import { studioFonts } from './pdf-fonts.ts';
 import { PicturesCard } from './pictures.tsx';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
@@ -22,6 +26,8 @@ export interface ExportWorkspaceProps {
   template?: () => Promise<string>;
   /** Starts the export engine (default: the export page in a hidden frame). */
   startEngine?: () => Promise<Engine>;
+  /** Reads the PDFs' font files (default: the Studio's copies). */
+  fonts?: FontReader;
 }
 
 const startFrameEngine = async (): Promise<Engine> => frameEngine(await loadExportPage());
@@ -29,6 +35,7 @@ const startFrameEngine = async (): Promise<Engine> => frameEngine(await loadExpo
 export function ExportWorkspace({
   template = loadTemplate,
   startEngine = startFrameEngine,
+  fonts = studioFonts,
 }: ExportWorkspaceProps) {
   const running = useRef<Promise<Engine> | null>(null);
   const engine = useCallback(() => {
@@ -153,8 +160,9 @@ export function ExportWorkspace({
             </Stack>
           </Card>
           <PicturesCard engine={engine} />
+          <DocumentsCard fonts={fonts} />
           <Text size="sm" c="dimmed">
-            SVG drawings, the PDFs (slides, speaker notes, references) and video come later in Phase 6.
+            The slides as a PDF, and video, come later in Phase 6.
           </Text>
         </Stack>
       </div>

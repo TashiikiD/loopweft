@@ -1,16 +1,19 @@
-// `loopweft export`: a project as one HTML file to share or present, or as pictures (PNG, or SVG drawings) of
-// its steps or of the whole map. The files are the Studio's exports, byte for byte: the HTML is the player's page with the
+// `loopweft export`: a project as one HTML file to share or present, as pictures (PNG, or SVG drawings) of its
+// steps or of the whole map, or as PDF documents (the speaker notes, the references). The files are the Studio's exports, byte for byte: the HTML is the player's page with the
 // project in it; pictures are drawn by the export page in the Chrome or Edge on this computer, as the Studio
 // draws them in its own tab.
 import { join } from 'node:path';
 import {
   checkPictureJob,
   type JobEvent,
+  notesPdf,
+  type Paper,
   type PictureJob,
   type PictureTarget,
   picturesFor,
+  referencesPdf,
 } from '@loopweft/export';
-import { browserForExport, exportInBrowser } from '@loopweft/export/node';
+import { browserForExport, exportInBrowser, nodeFonts } from '@loopweft/export/node';
 import { OpError, plural, serializeProject } from '@loopweft/model';
 import { exportHtml } from '@loopweft/player';
 import { playerTemplate } from '@loopweft/player/build';
@@ -22,6 +25,9 @@ export interface ExportCommandOptions {
   html?: boolean;
   png?: boolean;
   svg?: boolean;
+  /** The PDF document: notes (the speaker notes) or references. */
+  pdf?: string;
+  paper?: string;
   out?: string;
   /** False with --no-notes: leave out the speaker notes, the script and the cues. */
   notes?: boolean;
@@ -39,20 +45,24 @@ const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 /** The project file's name without ".loopweft": the start of every default output name. */
 const stemOf = (file: string) => file.replace(/\.loopweft$/i, '');
 
-const FORMATS = ['html', 'png', 'svg'] as const;
+const FORMATS = ['html', 'png', 'svg', 'pdf'] as const;
 
 export async function exportCommand(file: string, o: ExportCommandOptions): Promise<CommandResult> {
   const chosen = FORMATS.filter((f) => o[f]);
   if (chosen.length !== 1) {
     throw new OpError(
       chosen.length === 0
-        ? 'Choose what to export: --html (one HTML file), --png (pictures) or --svg (drawings).'
+        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings) or --pdf notes|references (documents).'
         : `Export one format at a time (${chosen.map((f) => `--${f}`).join(', ')} given).`,
       'usage',
     );
   }
   const format = chosen[0] as (typeof FORMATS)[number];
-  return format === 'html' ? htmlExport(file, o) : pictureExport(file, o, format);
+  if (format !== 'pdf' && o.paper !== undefined)
+    throw new OpError('--paper is for the PDFs (--pdf).', 'usage');
+  if (format === 'html') return htmlExport(file, o);
+  if (format === 'pdf') return pdfExport(file, o);
+  return pictureExport(file, o, format);
 }
 
 async function htmlExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
@@ -212,6 +222,55 @@ async function pictureExport(
       files: written,
       bytes: total,
       ...(format === 'svg' ? { notes: [...notes] } : {}),
+    },
+  };
+}
+
+/** The PDF documents `--pdf` makes, and the file each is called by default. */
+const DOCUMENTS = {
+  notes: { make: notesPdf, file: 'speaker-notes', what: 'speaker notes' },
+  references: { make: referencesPdf, file: 'references', what: 'references' },
+} as const;
+
+function paperOf(text: string | undefined): Paper {
+  if (text === undefined || text === 'letter') return 'letter';
+  if (text === 'a4') return 'a4';
+  throw new OpError(`--paper is letter (the default) or a4, not "${text}".`, 'usage');
+}
+
+async function pdfExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
+  for (const option of ['step', 'allSteps', 'map', 'trim', 'scale', 'categoryWords'] as const) {
+    if (o[option] !== undefined)
+      throw new OpError(`--${dashed(option)} is for pictures (--png or --svg).`, 'usage');
+  }
+  if (o.notes === false) throw new OpError('--no-notes is for the HTML file (--html).', 'usage');
+  const which = o.pdf as string;
+  const document = DOCUMENTS[which as keyof typeof DOCUMENTS];
+  if (!document || !Object.hasOwn(DOCUMENTS, which))
+    throw new OpError(`--pdf is notes (the speaker notes) or references, not "${which}".`, 'usage');
+  const paper = paperOf(o.paper);
+  const project = loadProject(file);
+  const out = o.out ?? `${stemOf(file)}-${document.file}.pdf`;
+  notTheProject(file, out, 'The PDF');
+  if (!o.force && taken(out)) throw alreadyThere(out);
+  const made = await document.make(project, { paper, fonts: nodeFonts });
+  publishFile(out, made.bytes, o.force === true);
+  const paperName = paper === 'a4' ? 'A4' : 'Letter';
+  const text = [
+    `Wrote ${out} (${document.what}: ${plural(made.pages, 'page')}, ${paperName}, ${megabytes(made.bytes.length)}).`,
+    ...made.notes.map((note) => `note: ${note}`),
+  ].join('\n');
+  return {
+    text,
+    data: {
+      file,
+      out,
+      format: 'pdf',
+      document: which,
+      paper,
+      pages: made.pages,
+      bytes: made.bytes.length,
+      notes: made.notes,
     },
   };
 }

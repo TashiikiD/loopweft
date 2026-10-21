@@ -129,6 +129,7 @@ export interface FileKind {
 export const HTML_FILE: FileKind = { description: 'Web page', type: 'text/html', extension: '.html' };
 export const PNG_FILE: FileKind = { description: 'PNG picture', type: 'image/png', extension: '.png' };
 export const SVG_FILE: FileKind = { description: 'SVG drawing', type: 'image/svg+xml', extension: '.svg' };
+export const PDF_FILE: FileKind = { description: 'PDF document', type: 'application/pdf', extension: '.pdf' };
 export const ZIP_FILE: FileKind = { description: 'Zip folder', type: 'application/zip', extension: '.zip' };
 
 /**

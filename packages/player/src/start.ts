@@ -32,8 +32,8 @@ const KEYS: Array<[string, string, boolean?]> = [
   ['L', 'Low-power mode, if the animation stutters'],
 ];
 
-/** "Scenes 01, 02 and 05", with an unnumbered scene by its title. */
-function citedIn(deck: Deck, sceneIds: string[]): string {
+/** "Cited in scenes 01, 02 and 05.", with an unnumbered scene by its title; empty when none cites it. */
+export function citedInWords(deck: Deck, sceneIds: string[]): string {
   const names = sceneIds
     .map((id) => deck.scenes.find((s) => s.id === id))
     .filter((s) => s !== undefined)
@@ -141,7 +141,7 @@ export function startPage(o: StartOptions): { dispose(): void } {
 
   const reference = (ref: ReturnType<typeof referenceList>[number]): HTMLElement => {
     const s = ref.source;
-    const about = [s.summary, citedIn(deck, ref.scenes), s.licence ? `Licence: ${s.licence}.` : '']
+    const about = [s.summary, citedInWords(deck, ref.scenes), s.licence ? `Licence: ${s.licence}.` : '']
       .filter(Boolean)
       .join(' ');
     const doi = s.doi && !s.apa.includes(s.doi) ? `https://doi.org/${s.doi}` : null;

@@ -11,6 +11,7 @@ import type { Job, JobEvent, Opened } from '../src/engine.ts';
 import { Chrome, ChromePage, findBrowser } from './chrome.ts';
 
 export { BROWSERS, Chrome, ChromePage, findBrowser, findBrowserNamed, QUIET_SWITCHES } from './chrome.ts';
+export { nodeFonts } from './fonts.ts';
 
 export interface BrowserExportOptions {
   /** The browser's program file (default: LOOPWEFT_CHROME, else the Chrome or Edge installed). */

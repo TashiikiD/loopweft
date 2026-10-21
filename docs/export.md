@@ -4,8 +4,9 @@ Loopweft exports a project in these forms:
 - **One HTML file**, to present and share: see [presenting and sharing](present.md).
 - **Pictures (PNG)** of a step, of every step, or of the whole map (below).
 - **Drawings (SVG)** of the same: shapes and text that stay sharp at any size and can be edited (below).
+- **The speaker notes and the references** as PDFs to print (below).
 
-The three PDFs (slides, speaker notes, references) and video (MP4, WebM, GIF) follow in Phase 6.
+The slides as a PDF, and video (MP4, WebM, GIF), follow in Phase 6.
 
 Every export is made on this computer. Nothing is uploaded, and nothing reaches the network.
 
@@ -137,6 +138,57 @@ order. Another system's browser can lay a line of text out a fraction of a pixel
 there may differ in a few numbers (of the example's drawings checked on GitHub's machines, Windows and Linux
 gave the same file for some and not for others). It names
 Loopweft only in its properties (`<metadata>`), and its title is the project's title and the step's key.
+
+## The speaker notes and the references (PDF)
+
+Two documents to print or hand out, on Letter (the default) or A4 paper. In the Studio: **Export**, then **PDF
+documents**. On the command line:
+
+```bash
+loopweft export talk.loopweft --pdf notes
+loopweft export talk.loopweft --pdf references --paper a4
+```
+
+They are written to `<project>-speaker-notes.pdf` and `<project>-references.pdf` (`-o` names another file).
+As for every export, nothing is replaced without `--force`.
+
+**The speaker notes**, as the polycrisis talk's notes were:
+- The first page: the title, the author and course where the project gives them, and how to read the slide
+  marks.
+- Each scene on a page of its own:
+  - its number and title (as its caption shows them) and its headline;
+  - the slides it covers, its target time and when it starts in the talk (or "untimed");
+  - its steps, each with its slide number, its key and label, its cue and when it is due;
+  - the speaker notes, formatted as written (lists, bold, italics, links);
+  - the script, with a mark such as **▶ 23** wherever a key press brings up slide 23, the last bringing up the
+    next scene's first slide;
+  - the sources it draws on, by their short names.
+- A scene shows only what the project holds: no heading for notes or a script it does not have.
+
+Slide 23 is the 23rd step of the story: the slides PDF (to come) has one page per step, in the same order.
+
+**The references:**
+- every source, as an APA 7 list: alphabetical, with a hanging indent, titles in italics, and DOIs and web
+  addresses as links;
+- under each source, what the map draws from it (if the project says), the scenes that cite it (or "Not cited
+  in the story."), and its licence;
+- a supplement sits under its work;
+- the heading gives the title, the author and course where set, and the project's description;
+- at the end, every image the story shows, with its caption, its credit as the project gives it (or that it
+  gives none), where it appears and what it shows. For the example: the Richards et al. (2021) figure, with
+  its CC BY 4.0 credit.
+
+How they are made:
+- by Loopweft itself, in TypeScript (pdf-lib), in the Studio's page or on the command line alike, with no
+  browser;
+- text is set in Fraunces for reading and Inter for headings, embedded with only the letters each PDF uses;
+- arrows and signs neither font has (→, ↔, ≈) come from Noto Sans Math, also free (OFL);
+- a character no font has is named in the export's report, never dropped: it shows as an empty box.
+
+Each PDF has a bookmark for each scene (the speaker notes), page numbers in its footer, the project's title
+in its properties, and Loopweft as the program that made it. Its date is the project's own date of last save,
+if it has one, never the time of export. So the same project always gives the same file, byte for byte, on any
+computer: a test checks the example's.
 
 ## Sizes and names, for reference
 

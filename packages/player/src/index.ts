@@ -128,7 +128,7 @@ export {
   sanitizeShowState,
 } from './show.ts';
 export { type StageDriverOptions, stageDriver } from './stage.ts';
-export { presenterWords, type StartOptions, startPage } from './start.ts';
+export { citedInWords, presenterWords, type StartOptions, startPage } from './start.ts';
 export {
   browserStorage,
   type KeyValue,

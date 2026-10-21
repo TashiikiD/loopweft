@@ -1,7 +1,7 @@
 # @loopweft/export
 
-Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG) and drawings
-(SVG). The PDFs and video follow in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
+Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG), drawings
+(SVG), and the speaker notes and references PDFs. The slides PDF and video follow in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
 
 - **The export page** (`page/`): the engine (`src/engine.ts`) on a 1920 × 1080 stage, with Loopweft's fonts
   and the stage's styles, built into one HTML file by `build/page.ts`, as the player's page is. The Studio
@@ -20,6 +20,13 @@ Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, p
   what Loopweft's stylesheet uses (a backdrop at z-index -1 drawn with its stacking context). `fonts.ts` embeds
   only the font files the drawing uses; `writer.ts` writes numbers to two decimals and numbers ids in drawing
   order, so the same stage gives the same bytes. What the drawing cannot carry across exactly goes in its notes.
+- **The PDF documents** (`src/pdf/`): pure TypeScript on pdf-lib, the same in Node and in the browser. A
+  document is a list of blocks (`notes.ts`, `references.ts`; speaker notes' Markdown through `markdown.ts`),
+  set by `typeset.ts`: runs in six styles, lines broken at spaces (a long web address after a slash), headings
+  kept with what follows, short paragraphs kept whole, slide marks as chips, links, bookmarks and footers.
+  `fonts.ts` picks, for each character, the first font file of its style that has it (Fraunces, then Inter, then
+  Noto Sans Math), reads only those files and embeds only the letters used; `document.ts` sets the properties and
+  the date (the project's own, never the clock).
 - **What a job draws** (`src/pictures.ts`): one step, every step in story order, or the whole map; file
   names; the options' checks. Pure, so the Studio, the command line and the tests agree without a browser.
 - **Node** (`node/`): finds Chrome or Edge (`LOOPWEFT_CHROME` names another) and drives it headless over its

@@ -12,6 +12,11 @@ export {
   frameDocument,
   STAGE_SIZE,
 } from './frame.ts';
+export { type DocumentPdfOptions, type PdfResult, projectDate } from './pdf/document.ts';
+export { ALL_FONT_FILES, type Face, FONT_FILES, type FontReader, planFonts } from './pdf/fonts.ts';
+export { notesBlocks, notesPdf } from './pdf/notes.ts';
+export { referencesBlocks, referencesPdf } from './pdf/references.ts';
+export { type Block, PAPER, type Paper } from './pdf/typeset.ts';
 export {
   checkPictureJob,
   fileStem,

@@ -165,7 +165,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   program
     .command('export <file>')
     .description(
-      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), or as pictures (PNG) or drawings (SVG) of its steps or of the whole map',
+      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, or as PDF documents (the speaker notes, the references)',
     )
     .option('--html', 'one HTML file')
     .option(
@@ -177,8 +177,13 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
       'drawings (SVG) that stay sharp at any size and can be edited (PowerPoint, Word, Inkscape): --step, --all-steps or --map',
     )
     .option(
+      '--pdf <document>',
+      'a PDF: notes (the speaker notes) or references (an APA list with every image credit)',
+    )
+    .option('--paper <size>', 'pdf: letter (the default) or a4')
+    .option(
       '-o, --out <file>',
-      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg)',
+      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -speaker-notes.pdf or -references.pdf)',
     )
     .option(
       '--no-notes',
