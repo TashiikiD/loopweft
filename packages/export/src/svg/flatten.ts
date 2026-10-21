@@ -664,7 +664,7 @@ class Flattener {
       s.fontVariationSettings !== 'normal' ? `font-variation-settings:${s.fontVariationSettings}` : null;
     const features =
       s.fontFeatureSettings !== 'normal' ? `font-feature-settings:${s.fontFeatureSettings}` : null;
-    const style = [variation, features].filter(Boolean).join(';') || null;
+    const style = [variation, features, smoothing(s)].filter(Boolean).join(';') || null;
     return lines
       .map((line) => {
         const text = transform(line.text);
@@ -886,6 +886,8 @@ class Flattener {
       if (s.textAnchor !== 'start') attrs['text-anchor'] = s.textAnchor;
       if (s.dominantBaseline !== 'auto') attrs['dominant-baseline'] = s.dominantBaseline;
       if (s.letterSpacing !== 'normal') attrs['letter-spacing'] = parseLength(s.letterSpacing, 0) ?? null;
+      const smooth = smoothing(s);
+      if (smooth) attrs.style = smooth;
       const used = this.chars.get(s.fontFamily) ?? new Set<string>();
       this.chars.set(s.fontFamily, used);
       for (const ch of el.textContent ?? '') used.add(ch);
@@ -963,6 +965,15 @@ const GEOMETRY: Record<string, string[]> = {
 };
 const SHAPES = new Set(['path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'text', 'tspan']);
 const KNOWN = new Set([...SHAPES, 'g', 'svg']);
+
+/**
+ * How the page smooths a text's letters, where it says (the stage asks for "antialiased", which a Mac draws
+ * thinner than its default): written on the text, so a browser draws the drawing's letters as the slide's.
+ */
+function smoothing(s: CSSStyleDeclaration): string | null {
+  const value = s.getPropertyValue('-webkit-font-smoothing');
+  return value && value !== 'auto' ? `-webkit-font-smoothing:${value}` : null;
+}
 
 /** The stage (the element whose transform centres it), which never counts as a turned box. */
 function stageRoot(el: Element): Element | null {

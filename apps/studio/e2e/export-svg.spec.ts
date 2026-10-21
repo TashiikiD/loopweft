@@ -82,6 +82,7 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
   try {
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
     const fingerprints: string[] = [];
+    let worst = { name: '', far: 0, mean: 0 };
     const pairs = [...svgs.map((s, k) => [s, pngs[k]] as const), [map, mapPng] as const];
     for (const [svgEvent, pngEvent] of pairs) {
       const svg = decoder.decode((svgEvent as JobEvent).bytes);
@@ -108,7 +109,11 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
       expect(far, `${name}: share of 16 × 16 blocks more than 12 levels from the PNG`).toBeLessThan(FAR);
       expect(mean, `${name}: mean difference from the PNG`).toBeLessThan(1.5);
       fingerprints.push(`${name} ${createHash('sha256').update(svg).digest('hex').slice(0, 16)}`);
+      if (far > worst.far) worst = { name, far, mean };
     }
+    console.log(
+      `SVG furthest from its PNG (${process.platform}): ${worst.name}, ${(worst.far * 100).toFixed(2)}% of blocks, mean ${worst.mean.toFixed(2)}`,
+    );
     // Recorded on each system, to show whether drawings come out the same everywhere.
     test.info().annotations.push({ type: 'fingerprints', description: fingerprints.slice(0, 6).join(', ') });
     console.log(
