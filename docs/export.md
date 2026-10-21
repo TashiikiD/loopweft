@@ -258,9 +258,14 @@ How it is made:
 - A video starts as the talk arrives at its first step: from the step before, shown settled (for the story's
   first step, from an empty stage), as the presenter's replay of a step does. The motion into the first step is
   in the video.
-- The browser's software encoder is used where it has one (Chrome and Edge do): then the same project gives the
-  same file, byte for byte, on the same computer. Where only the graphics card can encode, the export says so,
-  as two exports may then differ slightly.
+- **The frames are the same every time.** Loopweft puts each frame in the form an encoder takes (BT.709 colours,
+  as video uses) itself, since a browser's own conversion can vary from one run to the next, and uses the
+  browser's software encoder where it has one (Chrome and Edge do).
+- **Whether the file is the same, byte for byte, depends on the browser's encoder.** WebM (VP9) came out the
+  same every time on every computer tried. MP4 (H.264) did on a Windows laptop and on GitHub's Mac; on GitHub's
+  Linux and Windows servers, Chrome's H.264 encoder gives slightly different bytes each time, from the very same
+  frames, which nobody watching could tell apart. Where the same bytes matter, export WebM. Where only the
+  graphics card can encode, the export says so, as two exports may then differ slightly.
 - Loopweft writes the MP4 and WebM files itself. Their only dates are zero, and they name the project's title
   (and author, in an MP4) and Loopweft as the program that made them.
 - A key frame every 2 seconds, so a player can jump anywhere quickly.

@@ -36,7 +36,8 @@ Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, p
   adds up). The engine plays each step as the talk's → does on the stage's manual clock, one frame of exactly
   1/fps at a time; with a hold, a step's motion is over when only idle timelines (the wandering pulses) are left
   (`Motion.busy`). A frame where nothing moved is the last one again. `encode.ts` hands the frames to the
-  browser's WebCodecs encoder (software first: the same frames give the same bytes); `mp4.ts` and `webm.ts`
+  browser's WebCodecs encoder, software first, as I420 that `yuv.ts` converts (a browser's own conversion can
+  vary from run to run); VP9 then gives the same bytes everywhere, H.264 on some computers only. `mp4.ts` and `webm.ts`
   write the file themselves, from the ISO and Matroska specifications, with no clock in them: muxer libraries
   stamp files with the time. A writer hands out a head of fixed length first and its final bytes at the end,
   so the file can be written as it comes.

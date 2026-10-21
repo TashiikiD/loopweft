@@ -75,3 +75,4 @@ export {
 } from './video/plan.ts';
 export { WebmWriter } from './video/webm.ts';
 export type { EncodedFrame, VideoMeta, VideoTrack, VideoWriter } from './video/writer.ts';
+export { I420_COLOUR, toI420 } from './video/yuv.ts';

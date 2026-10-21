@@ -8,6 +8,7 @@ import {
   type EncodedFrame,
   holdFrames,
   Mp4Writer,
+  toI420,
   type VideoJob,
   type VideoTrack,
   videoPlan,
@@ -399,5 +400,38 @@ describe('the WebM writer', () => {
 
   it('is the same bytes for the same frames', () => {
     expect(write(new WebmWriter(withoutDescription, META), frames(95, 60))).toEqual(file);
+  });
+});
+
+describe('the frames as the encoder takes them (I420)', () => {
+  /** A 2 × 2 frame of one colour, as I420: its brightness and its one pair of colour samples. */
+  const of = (r: number, g: number, b: number) => [
+    ...toI420(
+      Uint8Array.from({ length: 16 }, (_, i) => [r, g, b, 255][i % 4] as number),
+      2,
+      2,
+    ),
+  ];
+
+  it('puts BT.709 colours in the video range, a grey without colour', () => {
+    expect(of(255, 255, 255)).toEqual([235, 235, 235, 235, 128, 128]);
+    expect(of(0, 0, 0)).toEqual([16, 16, 16, 16, 128, 128]);
+    expect(of(128, 128, 128)).toEqual([126, 126, 126, 126, 128, 128]);
+    // BT.709's red, green and blue (63/102/240, 173/42/26, 32/240/118), each within one step.
+    expect(of(255, 0, 0)).toEqual([63, 63, 63, 63, 102, 240]);
+    expect(of(0, 255, 0)).toEqual([172, 172, 172, 172, 42, 26]);
+    expect(of(0, 0, 255)).toEqual([32, 32, 32, 32, 240, 118]);
+  });
+
+  it('takes each colour sample from its 2 × 2 block, and refuses an odd size', () => {
+    const rgba = new Uint8Array(4 * 2 * 4);
+    // A 4 × 2 frame: the left block white, the right block black.
+    for (const i of [0, 1, 4, 5]) rgba.set([255, 255, 255, 255], i * 4);
+    const out = [...toI420(rgba, 4, 2)];
+    expect(out.slice(0, 8)).toEqual([235, 235, 16, 16, 235, 235, 16, 16]);
+    expect(out.slice(8)).toEqual([128, 128, 128, 128]);
+    expect(() => toI420(new Uint8Array(3 * 2 * 4), 3, 2)).toThrow(
+      'An I420 frame has an even width and height.',
+    );
   });
 });

@@ -3,6 +3,7 @@
 // card's encoder may not.
 import type { VideoFormat } from './plan.ts';
 import type { EncodedFrame, VideoTrack } from './writer.ts';
+import { I420_COLOUR, toI420 } from './yuv.ts';
 
 /** Bits a second, by height and frame rate: enough for the map's thin lines and small text to stay sharp. */
 const BITRATES: Record<string, number> = {
@@ -95,6 +96,9 @@ export class FrameEncoder {
   #track: VideoTrack | null = null;
   #error: Error | null = null;
   #frames = 0;
+  /** The last frame's canvas and its pixels as I420. */
+  #canvas: HTMLCanvasElement | null = null;
+  #i420: Uint8Array | null = null;
 
   private constructor(choice: EncoderChoice, fps: number) {
     this.#fps = fps;
@@ -140,7 +144,19 @@ export class FrameEncoder {
   async encode(canvas: HTMLCanvasElement): Promise<void> {
     this.#check();
     const n = this.#frames++;
-    const frame = new VideoFrame(canvas, {
+    // The frame as I420, converted here (yuv.ts); the same canvas again is the same frame again.
+    if (canvas !== this.#canvas) {
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('This browser gives no canvas to read.');
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      this.#i420 = toI420(pixels, canvas.width, canvas.height);
+      this.#canvas = canvas;
+    }
+    const frame = new VideoFrame(this.#i420 as Uint8Array, {
+      format: 'I420',
+      codedWidth: canvas.width,
+      codedHeight: canvas.height,
+      colorSpace: I420_COLOUR,
       timestamp: Math.round((n * 1e6) / this.#fps),
       duration: Math.round(1e6 / this.#fps),
     });

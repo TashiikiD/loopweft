@@ -1,12 +1,14 @@
 // Video, in this computer's Chrome or Edge: steps played frame by frame by the export page and encoded by the
 // browser, from the command line and the Studio. Each file is played back in the browser: its length and size,
-// and its last frame against the picture of the step it ends on. With LOOPWEFT_REVIEW set to a folder, the
-// videos are saved there for the review.
+// and its last frame against the picture of the step it ends on. The same frames make the same WebM, byte for
+// byte, on every system; Chrome's H.264 encoder (MP4) does on some computers and not on others (GitHub's Linux
+// and Windows servers), so there the MP4 made twice is checked frame by frame instead. With LOOPWEFT_REVIEW set
+// to a folder, the videos are saved there for the review.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '@loopweft/cli';
-import { type FileEvent, HARDWARE_NOTE, type VideoEndEvent, type VideoJob } from '@loopweft/export';
+import type { FileEvent, VideoEndEvent, VideoJob } from '@loopweft/export';
 import { exportInBrowser } from '@loopweft/export/node';
 import { expect, type Page, test } from '@playwright/test';
 import { difference, pictures, review, text } from './pictures.ts';
@@ -28,6 +30,29 @@ async function video(job: VideoJob): Promise<{ bytes: Uint8Array; end: VideoEndE
   bytes.set(made.head, 0);
   expect(bytes.length).toBe(made.size);
   return { bytes, end: made };
+}
+
+/** Which frames of two MP4s of the same frames differ: their sizes and bytes, from each file's own tables. */
+function framesApart(a: Uint8Array, b: Uint8Array): string {
+  const table = (file: Uint8Array) => {
+    const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
+    const at = (type: string) => Buffer.from(file).lastIndexOf(type);
+    const sizes = at('stsz');
+    const offsets = at('stco');
+    const keys = at('stss');
+    const n = view.getUint32(sizes + 12);
+    return {
+      frames: Array.from({ length: n }, (_, i) => {
+        const size = view.getUint32(sizes + 16 + 4 * i);
+        const offset = view.getUint32(offsets + 12 + 4 * i);
+        return Buffer.from(file.subarray(offset, offset + size));
+      }),
+      keys: Array.from({ length: view.getUint32(keys + 8) }, (_, i) => view.getUint32(keys + 12 + 4 * i) - 1),
+    };
+  };
+  const [x, y] = [table(a), table(b)];
+  const apart = x.frames.flatMap((f, i) => (y.frames[i] && f.equals(y.frames[i] as Buffer) ? [] : [i]));
+  return `${x.frames.length} and ${y.frames.length} frames, key frames at ${x.keys.join(' ')} and ${y.keys.join(' ')}; ${apart.length} differ, from ${apart.slice(0, 8).join(' ')}`;
 }
 
 /** A video as the browser plays it: its length, its size, and the frames shown at `times` (as PNGs). */
@@ -89,7 +114,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('an MP4 of steps: the same bytes twice, a file the browser plays, ending on the step settled', async ({
+test('an MP4 of steps: a file the browser plays, ending on the step settled, and the same frames made again', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -103,13 +128,21 @@ test('an MP4 of steps: the same bytes twice, a file the browser plays, ending on
   console.log(
     `MP4 (${process.platform}): ${end.codec}, ${end.frames} frames, ${end.size} bytes, notes ${JSON.stringify(end.notes)}`,
   );
-  if (!end.notes.includes(HARDWARE_NOTE)) {
-    const second = await video(job({}));
-    expect(Buffer.from(second.bytes).equals(Buffer.from(first.bytes))).toBe(true);
-  }
+  const second = await video(job({}));
+  const same = Buffer.from(second.bytes).equals(Buffer.from(first.bytes));
+  console.log(
+    `MP4 twice (${process.platform}): ${same ? 'the same bytes' : framesApart(first.bytes, second.bytes)}`,
+  );
+  expect(second.end.frames).toBe(end.frames);
   review('video/S04.2a-to-S04.2b.mp4', first.bytes);
 
-  const shown = await played(page, first.bytes, 'video/mp4', [end.seconds - 0.5 / 30]);
+  const last = end.seconds - 0.5 / 30;
+  const shown = await played(page, first.bytes, 'video/mp4', [last]);
+  // Made again: the same frames, though not always the same bytes (above); its last frame as the first's.
+  const again = await played(page, second.bytes, 'video/mp4', [last]);
+  const twice = await difference(page, shown.frames[0] as Uint8Array, again.frames[0] as Uint8Array);
+  expect(twice.far).toBe(0);
+  expect(twice.mean).toBeLessThan(0.5);
   expect(shown.duration).toBeCloseTo(end.seconds, 2);
   expect([shown.width, shown.height]).toEqual([1920, 1080]);
   // The last frame is S04.2b held: its picture, but for what the encoding leaves soft.
@@ -126,12 +159,17 @@ test('an MP4 of steps: the same bytes twice, a file the browser plays, ending on
   review('video/S04.2a-to-S04.2b-last.png', shown.frames[0] as Uint8Array);
 });
 
-test('a WebM at 720p and 60 frames a second, in the talk’s timing: as long as the talk gives the steps', async ({
+test('a WebM at 720p and 60 frames a second, in the talk’s timing: as long as the talk gives the steps, the same bytes twice', async ({
   page,
 }) => {
   test.setTimeout(240_000);
   // S04.2a is due 7 s into its scene, S04.2b at 14 s and S04.2c at 20 s: 13 s in all.
-  const { bytes, end } = await video(job({ format: 'webm', timing: { kind: 'talk' }, height: 720, fps: 60 }));
+  const webm = job({ format: 'webm', timing: { kind: 'talk' }, height: 720, fps: 60 });
+  const { bytes, end } = await video(webm);
+  // VP9 gives the same bytes for the same frames on every system: this checks the frames, and the file around
+  // them, byte for byte.
+  const second = await video(webm);
+  expect(Buffer.from(second.bytes).equals(Buffer.from(bytes))).toBe(true);
   expect(end).toMatchObject({
     name: 'S04.2a-to-S04.2b.webm',
     width: 1280,
