@@ -1,5 +1,5 @@
-// `loopweft export`: a project as one HTML file to share or present, or as pictures (PNG) of its steps or of
-// the whole map. The files are the Studio's exports, byte for byte: the HTML is the player's page with the
+// `loopweft export`: a project as one HTML file to share or present, or as pictures (PNG, or SVG drawings) of
+// its steps or of the whole map. The files are the Studio's exports, byte for byte: the HTML is the player's page with the
 // project in it; pictures are drawn by the export page in the Chrome or Edge on this computer, as the Studio
 // draws them in its own tab.
 import { join } from 'node:path';
@@ -21,6 +21,7 @@ import { alreadyThere, FolderOut, notTheProject, publishFile, taken } from './wr
 export interface ExportCommandOptions {
   html?: boolean;
   png?: boolean;
+  svg?: boolean;
   out?: string;
   /** False with --no-notes: leave out the speaker notes, the script and the cues. */
   notes?: boolean;
@@ -38,24 +39,26 @@ const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 /** The project file's name without ".loopweft": the start of every default output name. */
 const stemOf = (file: string) => file.replace(/\.loopweft$/i, '');
 
-const FORMATS = ['html', 'png'] as const;
+const FORMATS = ['html', 'png', 'svg'] as const;
 
 export async function exportCommand(file: string, o: ExportCommandOptions): Promise<CommandResult> {
   const chosen = FORMATS.filter((f) => o[f]);
   if (chosen.length !== 1) {
     throw new OpError(
       chosen.length === 0
-        ? 'Choose what to export: --html (one HTML file) or --png (pictures).'
+        ? 'Choose what to export: --html (one HTML file), --png (pictures) or --svg (drawings).'
         : `Export one format at a time (${chosen.map((f) => `--${f}`).join(', ')} given).`,
       'usage',
     );
   }
-  return chosen[0] === 'html' ? htmlExport(file, o) : pngExport(file, o);
+  const format = chosen[0] as (typeof FORMATS)[number];
+  return format === 'html' ? htmlExport(file, o) : pictureExport(file, o, format);
 }
 
 async function htmlExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
   for (const option of ['step', 'allSteps', 'map', 'trim', 'scale', 'categoryWords'] as const) {
-    if (o[option] !== undefined) throw new OpError(`--${dashed(option)} is for pictures (--png).`, 'usage');
+    if (o[option] !== undefined)
+      throw new OpError(`--${dashed(option)} is for pictures (--png or --svg).`, 'usage');
   }
   const project = loadProject(file);
   const out = o.out ?? `${stemOf(file)}.html`;
@@ -121,11 +124,20 @@ interface Written {
   bytes: number;
 }
 
-async function pngExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
+async function pictureExport(
+  file: string,
+  o: ExportCommandOptions,
+  format: 'png' | 'svg',
+): Promise<CommandResult> {
   if (o.notes === false) throw new OpError('--no-notes is for the HTML file (--html).', 'usage');
+  if (format === 'svg' && o.scale !== undefined)
+    throw new OpError(
+      'An SVG drawing has no size in pixels: it stays sharp at any size. --scale is for --png.',
+      'usage',
+    );
   const target = pictureTarget(o);
   const job: PictureJob = {
-    format: 'png',
+    format,
     target,
     scale: scaleOf(o.scale),
     categoryWords: o.categoryWords === true,
@@ -133,12 +145,12 @@ async function pngExport(file: string, o: ExportCommandOptions): Promise<Command
   checkPictureJob(job);
   const project = loadProject(file);
   // Named before the browser starts: a step that isn't there, a story with no steps, a name that is taken.
-  const pictures = picturesFor(project, target, 'png');
+  const pictures = picturesFor(project, target, format);
   const stem = stemOf(file);
   const force = o.force === true;
   const steps = target.kind === 'steps';
-  const out =
-    o.out ?? (steps ? `${stem}-steps` : `${stem}-${(pictures[0] as (typeof pictures)[number]).name}`);
+  const folderName = format === 'png' ? `${stem}-steps` : `${stem}-steps-svg`;
+  const out = o.out ?? (steps ? folderName : `${stem}-${(pictures[0] as (typeof pictures)[number]).name}`);
   if (steps) {
     for (const picture of pictures) notTheProject(file, join(out, picture.name), 'A picture');
   } else {
@@ -148,7 +160,9 @@ async function pngExport(file: string, o: ExportCommandOptions): Promise<Command
   browserForExport();
 
   const written: Written[] = [];
+  const notes = new Set<string>();
   const record = (event: JobEvent, path: string) => {
+    for (const note of event.notes ?? []) notes.add(note);
     written.push({
       name: event.name,
       path,
@@ -178,21 +192,26 @@ async function pngExport(file: string, o: ExportCommandOptions): Promise<Command
   const total = written.reduce((n, w) => n + w.bytes, 0);
   const first = written[0] as Written;
   const size = `${first.width} × ${first.height}`;
-  const text = steps
-    ? `Wrote ${plural(written.length, 'picture')} to ${out} (${size} each, ${megabytes(total)} in all).`
-    : `Wrote ${out} (${size}, ${megabytes(total)}).`;
+  const what = format === 'png' ? 'picture' : 'drawing';
+  const text = [
+    steps
+      ? `Wrote ${plural(written.length, what)} to ${out} (${size} each, ${megabytes(total)} in all).`
+      : `Wrote ${out} (${size}, ${megabytes(total)}).`,
+    ...[...notes].map((note) => `note: ${note}`),
+  ].join('\n');
   return {
     text,
     data: {
       file,
       out,
-      format: 'png',
+      format,
       what: target.kind === 'step' ? 'step' : target.kind === 'steps' ? 'all-steps' : 'map',
-      scale: job.scale,
+      ...(format === 'png' ? { scale: job.scale } : {}),
       categoryWords: job.categoryWords,
       ...(target.kind === 'map' ? { trim: target.trim === true } : {}),
       files: written,
       bytes: total,
+      ...(format === 'svg' ? { notes: [...notes] } : {}),
     },
   };
 }

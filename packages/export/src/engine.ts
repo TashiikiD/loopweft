@@ -25,6 +25,8 @@ export type JobEvent = {
   height: number;
   /** The step it shows, e.g. "S04.2a" (none for the whole map). */
   key?: string;
+  /** An SVG's notes: what some editors leave out, and anything drawn approximately. */
+  notes?: string[];
 };
 
 export interface Opened {
@@ -118,8 +120,23 @@ export class ExportEngine {
           shown = at + 1;
         }
         const crop = picture.kind === 'map' && picture.trim ? (stage.mapBox() ?? undefined) : undefined;
-        const canvas = await stage.frame(job.scale, crop);
-        const bytes = await encodeCanvas(canvas, 'image/png');
+        let bytes: Uint8Array;
+        let width: number;
+        let height: number;
+        let notes: string[] | undefined;
+        if (job.format === 'svg') {
+          const what = picture.kind === 'map' ? 'the whole map' : picture.key;
+          const drawing = stage.svg(`${project.meta.title} · ${what}`, crop);
+          bytes = new TextEncoder().encode(drawing.svg);
+          width = Math.round(crop?.w ?? 1920);
+          height = Math.round(crop?.h ?? 1080);
+          notes = drawing.notes;
+        } else {
+          const canvas = await stage.frame(job.scale, crop);
+          bytes = await encodeCanvas(canvas, 'image/png');
+          width = canvas.width;
+          height = canvas.height;
+        }
         done++;
         yield {
           type: 'file',
@@ -127,9 +144,10 @@ export class ExportEngine {
           bytes,
           done,
           total: pictures.length,
-          width: canvas.width,
-          height: canvas.height,
+          width,
+          height,
           ...(picture.kind === 'step' ? { key: picture.key } : {}),
+          ...(notes ? { notes } : {}),
         };
       }
     } finally {

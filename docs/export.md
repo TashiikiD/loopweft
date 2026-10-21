@@ -3,9 +3,9 @@
 Loopweft exports a project in these forms:
 - **One HTML file**, to present and share: see [presenting and sharing](present.md).
 - **Pictures (PNG)** of a step, of every step, or of the whole map (below).
+- **Drawings (SVG)** of the same: shapes and text that stay sharp at any size and can be edited (below).
 
-SVG drawings, the three PDFs (slides, speaker notes, references) and video (MP4, WebM, GIF) follow in
-Phase 6.
+The three PDFs (slides, speaker notes, references) and video (MP4, WebM, GIF) follow in Phase 6.
 
 Every export is made on this computer. Nothing is uploaded, and nothing reaches the network.
 
@@ -89,6 +89,50 @@ so; set `LOOPWEFT_CHROME` to the program file of another.
 How long it takes: one picture takes a few seconds, most of it starting the browser. Every step of the
 example (70 pictures) takes about half a minute and makes about 115 MB. A picture at 3840 × 2160 is about four
 times the size of one at 1920 × 1080.
+
+## Drawings (SVG)
+
+An SVG is a drawing rather than pixels:
+- it stays sharp at any size (a poster, a printed page);
+- it opens in browsers, PowerPoint, Word, Inkscape and Illustrator;
+- its shapes and text can be edited there: move a label, change a word, recolour a link.
+
+In the Studio: **Export**, then **Pictures (PNG or SVG)**, and choose SVG. On the command line:
+
+```bash
+loopweft export talk.loopweft --svg --step S04.2a
+```
+
+The choices are those of PNG (one step, every step, the whole map, trimmed or not, categories in words), except
+the size: a drawing has no size in pixels. Its nominal size is the stage's, 1920 × 1080 (or the trimmed map's).
+Files are named as pictures are, ending in `.svg`; every step goes into `<title>-steps-svg.zip` (Studio) or a
+new folder `<project>-steps-svg/` (command line).
+
+How it is made: the drawing is read from the stage the page has laid out, the same stage the PNG draws.
+- Every box, line of text, link and variable is placed where the page placed it.
+- The map, already SVG, is copied with its colours written out.
+- Gradients, glows and shadows become SVG gradients and filters.
+- Text stays text: one line of SVG text for each line on the stage, in the same font, size and spacing.
+
+So the drawing, drawn again by a browser, matches the PNG of the same step: a test checks every step of the
+example. The largest difference is in the Richards figure (a photograph, resampled a little differently).
+
+Every drawing says what to know about it: the Studio lists it under the export, and the command line prints
+it as `note:` lines and in `--json` as `notes`. What it can say:
+- **Text is real text, in Inter and Fraunces**, embedded for browsers. PowerPoint, Word and Inkscape use the
+  fonts installed on the computer: without Inter and Fraunces (both free), they show another font, and lines
+  may come out a little longer or shorter.
+- **Glows and soft shadows are SVG filters.** Browsers and Inkscape draw them; PowerPoint and Word leave them
+  out. The map then has no glow, and labels lose the soft dark edge that keeps them clear of the links.
+- **The soft top and bottom edges of the backdrop behind a column of cards are an SVG mask**, which PowerPoint
+  and Word leave out; there the backdrop ends sharply.
+- **Drawn approximately: …** names anything the drawing could not carry across exactly, and what it did
+  instead. The example has none. A project whose stage shows something Loopweft's own stylesheet never makes
+  (another kind of gradient, a turned box) would be told here.
+
+Every drawing is the same file each time it is made from the same project, in the Studio and on the command
+line alike: its numbers are written to two decimals and its parts are numbered in drawing order. It names
+Loopweft only in its properties (`<metadata>`), and its title is the project's title and the step's key.
 
 ## Sizes and names, for reference
 

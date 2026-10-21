@@ -12,12 +12,15 @@ export type PictureTarget =
       trim?: boolean;
     };
 
-export type PictureFormat = 'png';
+/** PNG: pixels, as the screen shows them. SVG: a drawing that stays sharp at any size and can be edited. */
+export type PictureFormat = 'png' | 'svg';
+
+export const PICTURE_FORMATS: readonly PictureFormat[] = ['png', 'svg'];
 
 export interface PictureJob {
   format: PictureFormat;
   target: PictureTarget;
-  /** 1: 1920 × 1080; 2: 3840 × 2160, for print and posters. */
+  /** PNG: 1 for 1920 × 1080, 2 for 3840 × 2160 (print and posters). An SVG has no pixels: always 1. */
   scale: 1 | 2;
   /** Name each shown variable's category in words (the C key's view). */
   categoryWords: boolean;
@@ -75,6 +78,13 @@ export function picturesFor(project: Project, target: PictureTarget, extension: 
 
 /** Checks a job's options, so a mistake is named before any drawing starts. */
 export function checkPictureJob(job: PictureJob): void {
+  if (!PICTURE_FORMATS.includes(job.format))
+    throw new OpError(`Pictures are PNG or SVG, not "${job.format}".`, 'usage');
+  if (job.format === 'svg' && job.scale !== 1)
+    throw new OpError(
+      'An SVG drawing has no size in pixels: it stays sharp at any size. The scale is for PNG.',
+      'usage',
+    );
   if (!SCALES.includes(job.scale))
     throw new OpError('The scale is 1 (1920 × 1080) or 2 (3840 × 2160).', 'usage');
   if (job.target.kind !== 'map' && 'trim' in job.target)

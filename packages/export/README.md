@@ -1,7 +1,7 @@
 # @loopweft/export
 
-Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG). SVG drawings,
-the PDFs and video follow in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
+Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG) and drawings
+(SVG). The PDFs and video follow in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
 
 - **The export page** (`page/`): the engine (`src/engine.ts`) on a 1920 × 1080 stage, with Loopweft's fonts
   and the stage's styles, built into one HTML file by `build/page.ts`, as the player's page is. The Studio
@@ -13,6 +13,13 @@ the PDFs and video follow in Phase 6. See [exporting](../../docs/export.md) for 
 - **The stage** (`src/stage.ts`): the project's `StoryView`, moved only by a manual clock, with fonts loaded
   and images decoded before anything is shown. Each job draws on a stage of its own and reaches a step through
   the story from its first step, as a talk does.
+- **SVG drawings** (`src/svg/`): the laid-out stage read back and written as true SVG (`flatten.ts`): boxes
+  with their backgrounds (CSS gradients as SVG gradients, `css.ts`), borders, shadows and masks; text as one SVG
+  text per line, placed where the page placed it, its baseline measured in the page; the map's own SVG copied
+  with its colours written out; CSS filters (glows) as SVG filters. The page's painting order is followed for
+  what Loopweft's stylesheet uses (a backdrop at z-index -1 drawn with its stacking context). `fonts.ts` embeds
+  only the font files the drawing uses; `writer.ts` writes numbers to two decimals and numbers ids in drawing
+  order, so the same stage gives the same bytes. What the drawing cannot carry across exactly goes in its notes.
 - **What a job draws** (`src/pictures.ts`): one step, every step in story order, or the whole map; file
   names; the options' checks. Pure, so the Studio, the command line and the tests agree without a browser.
 - **Node** (`node/`): finds Chrome or Edge (`LOOPWEFT_CHROME` names another) and drives it headless over its

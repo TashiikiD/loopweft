@@ -163,7 +163,7 @@ describe('the Pictures card', () => {
     const held = fakeEngine({ hold: new Promise<void>((r) => (release = r)) });
     saved.length = 0;
     show(small(), held.engine);
-    const cards = screen.getAllByText('Pictures (PNG)');
+    const cards = screen.getAllByText('Pictures (PNG or SVG)');
     expect(cards).toHaveLength(2);
     const everyStep = screen.getAllByLabelText('Every step (2 pictures in one .zip)')[1] as HTMLElement;
     await user.click(everyStep);
@@ -192,6 +192,35 @@ describe('the Pictures card', () => {
     expect(await screen.findByText(/^Last export: small-map-map\.png/)).toBeTruthy();
     expect(jobs[0]?.target).toEqual({ kind: 'map', trim: true });
     expect(saved.map((s) => s.name)).toEqual(['small-map-map.png']);
+  });
+
+  it('draws an SVG, with no size to choose, and lists what to know about the drawing', async () => {
+    const saved = downloads();
+    const { engine, jobs } = fakeEngine();
+    const next = engine.next;
+    engine.next = async (id) => {
+      const event = await next(id);
+      return event
+        ? { ...event, name: event.name.replace(/\.png$/, '.svg'), notes: ['Glows are filters.'] }
+        : null;
+    };
+    show(small(), engine);
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText(/^SVG: a drawing/));
+    expect(screen.queryByLabelText(/^3840 × 2160/)).toBeNull();
+    expect(screen.getByLabelText('Every step (2 drawings in one .zip)')).toBeTruthy();
+    await act(() => user.click(screen.getByRole('button', { name: 'Export SVG…' })));
+    expect(await screen.findByText('Glows are filters.')).toBeTruthy();
+    expect(jobs[0]).toEqual({
+      format: 'svg',
+      target: { kind: 'step', step: 'S1.1' },
+      scale: 1,
+      categoryWords: false,
+    });
+    expect(saved.map((s) => s.name)).toEqual(['small-map-S1.1.svg']);
+    await user.click(screen.getByLabelText('Every step (2 drawings in one .zip)'));
+    await act(() => user.click(screen.getByRole('button', { name: 'Export drawings…' })));
+    expect(await screen.findByText(/^Last export: small-map-steps-svg\.zip, 2 drawings of/)).toBeTruthy();
   });
 
   it('says why a picture could not be made', async () => {

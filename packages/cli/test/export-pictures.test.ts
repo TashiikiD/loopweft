@@ -1,4 +1,4 @@
-// `loopweft export --png`: every mistake in the options is named before a browser is started (the drawing
+// `loopweft export --png` and `--svg`: every mistake in the options is named before a browser is started (the drawing
 // itself is tested end to end, apps/studio/e2e/export-pictures.spec.ts). LOOPWEFT_CHROME names a browser that
 // isn't there, so a test that got as far as starting one would say so.
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
@@ -29,7 +29,7 @@ async function run(...args: string[]) {
   return { code, out, err };
 }
 
-describe('loopweft export --png', () => {
+describe('loopweft export --png and --svg', () => {
   it.each([
     [['--png'], 'Choose what to draw: --step <step> (e.g. S04.2a), --all-steps, or --map (the whole map).'],
     [['--png', '--map', '--all-steps'], 'Draw one thing at a time (--all-steps, --map given).'],
@@ -38,9 +38,16 @@ describe('loopweft export --png', () => {
     [['--png', '--map', '--no-notes'], '--no-notes is for the HTML file (--html).'],
     [['--png', '--step', 'S99.1'], 'No scene "S99" (did you mean "S09"?).'],
     [['--html', '--png', '--map'], 'Export one format at a time (--html, --png given).'],
-    [['--html', '--step', 'S04.2a'], '--step is for pictures (--png).'],
-    [['--html', '--category-words'], '--category-words is for pictures (--png).'],
-    [[], 'Choose what to export: --html (one HTML file) or --png (pictures).'],
+    [['--html', '--step', 'S04.2a'], '--step is for pictures (--png or --svg).'],
+    [['--html', '--category-words'], '--category-words is for pictures (--png or --svg).'],
+    [[], 'Choose what to export: --html (one HTML file), --png (pictures) or --svg (drawings).'],
+    [['--svg', '--png', '--map'], 'Export one format at a time (--png, --svg given).'],
+    [
+      ['--svg', '--map', '--scale', '2'],
+      'An SVG drawing has no size in pixels: it stays sharp at any size. --scale is for --png.',
+    ],
+    [['--svg', '--step', 'S04.2a', '--trim'], '--trim is for the whole map (--map).'],
+    [['--svg'], 'Choose what to draw: --step <step> (e.g. S04.2a), --all-steps, or --map (the whole map).'],
   ])('%j is refused before any drawing', async (options, message) => {
     const result = await run('export', project, ...options);
     expect(result.code).toBe(2);

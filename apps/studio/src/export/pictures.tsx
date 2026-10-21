@@ -1,6 +1,7 @@
-// Pictures (PNG): one step, every step (one .zip), or the whole map, drawn by the export page in a hidden frame
-// (engine.ts), the same pictures `loopweft export --png` makes. A step is drawn as it stands once its motion
-// is over, without travelling or wandering pulses.
+// Pictures: PNG (pixels, as the screen shows them) or SVG (a drawing that stays sharp and can be edited) of one
+// step, every step (one .zip), or the whole map, drawn by the export page in a hidden frame (engine.ts), the
+// same files `loopweft export --png` and `--svg` make. A step is drawn as it stands once its motion is over,
+// without travelling or wandering pulses.
 import { fileStem, type JobEvent, type PictureJob, type PictureTarget, picturesFor } from '@loopweft/export';
 import { type Project, plural, serializeProject, stepKey } from '@loopweft/model';
 import {
@@ -9,6 +10,7 @@ import {
   Card,
   Checkbox,
   Group,
+  List,
   Progress,
   Radio,
   Select,
@@ -20,12 +22,13 @@ import { notifications } from '@mantine/notifications';
 import { zipSync } from 'fflate';
 import { useMemo, useRef, useState } from 'react';
 import { useStudio, useStudioStore } from '../context.tsx';
-import { chooseSaveTarget, PNG_FILE, ZIP_FILE } from '../state/files.ts';
+import { chooseSaveTarget, PNG_FILE, SVG_FILE, ZIP_FILE } from '../state/files.ts';
 import type { Engine } from './engine.ts';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
 type What = 'step' | 'steps' | 'map';
+type Format = 'png' | 'svg';
 
 /**
  * Every zip entry is dated 1 January 1980 (the earliest date a zip holds), so the same pictures always give
@@ -55,10 +58,13 @@ export interface PicturesCardProps {
 
 interface Made {
   name: string;
+  format: Format;
   count: number;
   width: number;
   height: number;
   bytes: number;
+  /** An SVG's notes: what some editors leave out, and anything drawn approximately. */
+  notes: string[];
 }
 
 export function PicturesCard({ engine }: PicturesCardProps) {
@@ -66,6 +72,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
   const project = useStudio((s) => s.project);
   const steps = useMemo(() => stepOptions(project), [project]);
   const [what, setWhat] = useState<What>(steps.length > 0 ? 'step' : 'map');
+  const [format, setFormat] = useState<Format>('png');
   const [step, setStep] = useState<string | null>(steps[0]?.value ?? null);
   const [scale, setScale] = useState<'1' | '2'>('1');
   const [trim, setTrim] = useState(false);
@@ -88,18 +95,27 @@ export function PicturesCard({ engine }: PicturesCardProps) {
 
   const run = async () => {
     const now = store.getState().project;
-    const job: PictureJob = { format: 'png', target: target(), scale: scale === '2' ? 2 : 1, categoryWords };
+    const job: PictureJob = {
+      format,
+      target: target(),
+      scale: format === 'png' && scale === '2' ? 2 : 1,
+      categoryWords,
+    };
     let pictures: ReturnType<typeof picturesFor>;
     try {
-      pictures = picturesFor(now, job.target, 'png');
+      pictures = picturesFor(now, job.target, format);
     } catch (error) {
       setFailure(String((error as Error).message ?? error));
       return;
     }
     const single = pictures.length === 1 && mode !== 'steps';
-    const name = single ? `${stem}-${pictures[0]?.name}` : `${stem}-steps.zip`;
+    const name = single
+      ? `${stem}-${pictures[0]?.name}`
+      : format === 'png'
+        ? `${stem}-steps.zip`
+        : `${stem}-steps-svg.zip`;
     // Where to save is asked first, in the click itself (see chooseSaveTarget).
-    const asking = chooseSaveTarget(name, single ? PNG_FILE : ZIP_FILE);
+    const asking = chooseSaveTarget(name, single ? (format === 'png' ? PNG_FILE : SVG_FILE) : ZIP_FILE);
     setFailure(null);
     setProgress({ done: 0, total: pictures.length });
     let stopped = false;
@@ -129,10 +145,12 @@ export function PicturesCard({ engine }: PicturesCardProps) {
       await saved.write(bytes);
       const result: Made = {
         name: saved.name,
+        format,
         count: files.length,
         width: first.width,
         height: first.height,
         bytes: bytes.length,
+        notes: [...new Set(files.flatMap((f) => f.notes ?? []))],
       };
       setMade(result);
       notifications.show({
@@ -156,12 +174,33 @@ export function PicturesCard({ engine }: PicturesCardProps) {
     <Card withBorder padding="lg">
       <Stack gap="sm">
         <Title order={3} size="h4">
-          Pictures (PNG)
+          Pictures (PNG or SVG)
         </Title>
         <Text size="sm">
           A step as the audience sees it once its motion is over, every step at once, or the whole map. Drawn
           by this browser, as the slides are.
         </Text>
+        <Radio.Group
+          label="Format"
+          value={format}
+          onChange={(v) => setFormat(v as Format)}
+          name="picture-format"
+        >
+          <Stack gap={6} mt={4}>
+            <Radio
+              value="png"
+              label="PNG: pixels, as the screen shows them"
+              description="For documents, slides and the web."
+              disabled={busy}
+            />
+            <Radio
+              value="svg"
+              label="SVG: a drawing that stays sharp at any size"
+              description="Shapes and text stay editable in PowerPoint, Word, Inkscape and Illustrator."
+              disabled={busy}
+            />
+          </Stack>
+        </Radio.Group>
         <Radio.Group
           label="What to draw"
           value={mode}
@@ -172,7 +211,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
             <Radio value="step" label="One step" disabled={steps.length === 0 || busy} />
             <Radio
               value="steps"
-              label={`Every step (${plural(steps.length, 'picture')} in one .zip)`}
+              label={`Every step (${plural(steps.length, format === 'png' ? 'picture' : 'drawing')} in one .zip)`}
               disabled={steps.length === 0 || busy}
             />
             <Radio value="map" label="The whole map, without the story" disabled={busy} />
@@ -198,17 +237,19 @@ export function PicturesCard({ engine }: PicturesCardProps) {
             disabled={busy}
           />
         )}
-        <Radio.Group
-          label="Size"
-          value={scale}
-          onChange={(v) => setScale(v as '1' | '2')}
-          name="picture-size"
-        >
-          <Group gap="lg" mt={4}>
-            <Radio value="1" label="1920 × 1080 (the screen)" disabled={busy} />
-            <Radio value="2" label="3840 × 2160 (for print and posters)" disabled={busy} />
-          </Group>
-        </Radio.Group>
+        {format === 'png' && (
+          <Radio.Group
+            label="Size"
+            value={scale}
+            onChange={(v) => setScale(v as '1' | '2')}
+            name="picture-size"
+          >
+            <Group gap="lg" mt={4}>
+              <Radio value="1" label="1920 × 1080 (the screen)" disabled={busy} />
+              <Radio value="2" label="3840 × 2160 (for print and posters)" disabled={busy} />
+            </Group>
+          </Radio.Group>
+        )}
         <Checkbox
           checked={categoryWords}
           onChange={(e) => setCategoryWords(e.currentTarget.checked)}
@@ -218,7 +259,13 @@ export function PicturesCard({ engine }: PicturesCardProps) {
         />
         <Group>
           <Button onClick={() => void run()} loading={busy && progress?.done === 0} disabled={busy}>
-            {mode === 'steps' ? 'Export pictures…' : 'Export PNG…'}
+            {mode === 'steps'
+              ? format === 'png'
+                ? 'Export pictures…'
+                : 'Export drawings…'
+              : format === 'png'
+                ? 'Export PNG…'
+                : 'Export SVG…'}
           </Button>
           {busy && (
             <Button variant="default" onClick={() => cancel.current?.()}>
@@ -241,10 +288,24 @@ export function PicturesCard({ engine }: PicturesCardProps) {
           </Alert>
         )}
         {made && !busy && (
-          <Text size="sm">
-            Last export: {made.name}, {made.count > 1 ? `${plural(made.count, 'picture')} of ` : ''}
-            {made.width} × {made.height}, {megabytes(made.bytes)}.
-          </Text>
+          <Stack gap={4}>
+            <Text size="sm">
+              Last export: {made.name},{' '}
+              {made.count > 1
+                ? `${plural(made.count, made.format === 'png' ? 'picture' : 'drawing')} of `
+                : ''}
+              {made.width} × {made.height}, {megabytes(made.bytes)}.
+            </Text>
+            {made.notes.length > 0 && (
+              <Alert color="blue" title="To know about this drawing">
+                <List size="sm">
+                  {made.notes.map((note) => (
+                    <List.Item key={note}>{note}</List.Item>
+                  ))}
+                </List>
+              </Alert>
+            )}
+          </Stack>
         )}
       </Stack>
     </Card>

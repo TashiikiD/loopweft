@@ -6,6 +6,7 @@ import { ManualClock, Motion } from '@loopweft/motion';
 import { StoryView, themeTokens } from '@loopweft/render';
 import { type Box, documentStyles, drawFrame, STAGE_SIZE } from './frame.ts';
 import { TRIM_MARGIN } from './pictures.ts';
+import { drawSvg, type SvgDrawing } from './svg/flatten.ts';
 
 /** Loads every font face the page declares, so labels are measured with the real fonts from the start. */
 export async function loadFonts(doc: Document): Promise<void> {
@@ -131,6 +132,12 @@ export class ExportStage {
   frame(scale: number, crop?: Box): Promise<HTMLCanvasElement> {
     this.#styles ??= documentStyles(this.#host.ownerDocument);
     return drawFrame(this.story.stage.viewport, this.#styles, { scale, ...(crop ? { crop } : {}) });
+  }
+
+  /** The stage as it is now, as an SVG drawing. */
+  svg(title: string, crop?: Box): SvgDrawing {
+    this.#styles ??= documentStyles(this.#host.ownerDocument);
+    return drawSvg(this.story.stage.viewport, { styles: this.#styles, title, ...(crop ? { crop } : {}) });
   }
 
   dispose(): void {
