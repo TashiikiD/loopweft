@@ -130,8 +130,11 @@ it as `note:` lines and in `--json` as `notes`. What it can say:
   instead. The example has none. A project whose stage shows something Loopweft's own stylesheet never makes
   (another kind of gradient, a turned box) would be told here.
 
-Every drawing is the same file each time it is made from the same project, in the Studio and on the command
-line alike: its numbers are written to two decimals and its parts are numbered in drawing order. It names
+Every drawing is the same file each time it is made from the same project on the same computer, in the Studio
+and on the command line alike: its numbers are written to two decimals and its parts are numbered in drawing
+order. Another system's browser can lay a line of text out a fraction of a pixel differently, so a drawing made
+there may differ in a few numbers (of the example's drawings checked on GitHub's machines, Windows and Linux
+gave the same file for some and not for others). It names
 Loopweft only in its properties (`<metadata>`), and its title is the project's title and the step's key.
 
 ## Sizes and names, for reference

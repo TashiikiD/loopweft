@@ -30,7 +30,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The end-to-end tests save their screens and exports in screens/ (LOOPWEFT_REVIEW), kept as the run's
+      # "screens-<system>" artifact, so a difference between systems can be seen.
       - run: npm run verify
+        env:
+          LOOPWEFT_REVIEW: screens
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: screens-${{ matrix.os }}
+          path: screens
+          if-no-files-found: ignore
+          retention-days: 14
 
   # The one-file HTML in Safari, Apple's own WebKit, through the driver macOS ships with (tools/safari.ts):
   # nothing is downloaded. Its screens and report are kept as the run's "safari" artifact.

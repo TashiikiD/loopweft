@@ -1,7 +1,7 @@
 // Shared by the export tests: the example, pictures drawn by the export page in this computer's browser, a
 // PNG's size, how much two pictures differ, and screens saved for the review.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { JobEvent, PictureJob } from '@loopweft/export';
 import { exportInBrowser } from '@loopweft/export/node';
 import { expect, type Page } from '@playwright/test';
@@ -79,6 +79,7 @@ export async function difference(
 
 export function review(name: string, bytes: Uint8Array) {
   if (!REVIEW) return;
-  mkdirSync(REVIEW, { recursive: true });
-  writeFileSync(join(REVIEW, name), bytes);
+  const file = join(REVIEW, name);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, bytes);
 }

@@ -81,7 +81,14 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
       expect(report, name).toMatchObject({ error: null, root: 'svg', foreign: 0, missing: [], outside: [] });
       expect(report.texts, `${name}: text stays text`).toBeGreaterThan(0);
       expect(svg).toContain('<metadata>Made with Loopweft');
-      const { far, mean } = await difference(page, await rasterize(page, svg), (pngEvent as JobEvent).bytes);
+      const drawnBack = await rasterize(page, svg);
+      const { far, mean } = await difference(page, drawnBack, (pngEvent as JobEvent).bytes);
+      // Every drawing, its PNG and the drawing drawn back, for the review (and for CI's artifact, to compare
+      // the systems).
+      const stem = name.replace(/\.svg$/, '');
+      review(`svg/${name}`, (svgEvent as JobEvent).bytes);
+      review(`svg/${stem}.png`, (pngEvent as JobEvent).bytes);
+      review(`svg/${stem}-drawn.png`, drawnBack);
       test.info().annotations.push({
         type: name,
         description: `far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}`,
