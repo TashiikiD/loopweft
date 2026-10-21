@@ -73,6 +73,22 @@ export class ExportStage {
     await this.#imagesReady();
   }
 
+  /** The stage before the story's first step, as the presenter's replay of that step starts from: empty. */
+  async showEmpty(sceneIndex: number, stepIndex: number): Promise<void> {
+    const scene = this.project.story.scenes[sceneIndex];
+    const step = scene?.steps[stepIndex];
+    if (!scene || !step)
+      throw new Error(`The story has no step ${stepIndex + 1} in scene ${sceneIndex + 1}.`);
+    this.story.showStep(scene, undefined, { ...step, map: { show: false }, overlays: [] }, 'instant');
+    await this.#imagesReady();
+  }
+
+  /** Moves on to a step as the talk's → does, with its full motion, from wherever the stage stands. */
+  async play(sceneIndex: number, stepIndex: number): Promise<void> {
+    this.story.show(sceneIndex, stepIndex, 'smooth');
+    await this.#imagesReady();
+  }
+
   /** Shows the whole map plainly, without overlays: the map of a project with or without a story. */
   async showMap(): Promise<void> {
     const scene: Pick<Scene, 'title'> = { title: this.project.meta.title };

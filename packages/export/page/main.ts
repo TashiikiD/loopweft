@@ -7,7 +7,7 @@ import '@fontsource-variable/fraunces/opsz.css';
 import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@loopweft/render/render.css';
 import './page.css';
-import { BRIDGE, type BridgeRequest, encodeBase64 } from '../src/bridge.ts';
+import { BRIDGE, type BridgeRequest, eventBuffers, eventToWire } from '../src/bridge.ts';
 import { ExportEngine } from '../src/engine.ts';
 
 const engine = new ExportEngine(document.getElementById('stage') as HTMLElement);
@@ -18,9 +18,7 @@ const api = {
   start: (job: Parameters<ExportEngine['start']>[0]) => engine.start(job),
   async next(id: string) {
     const event = await engine.next(id);
-    if (!event) return null;
-    const { bytes, ...rest } = event;
-    return { ...rest, base64: encodeBase64(bytes) };
+    return event ? eventToWire(event) : null;
   },
   cancel: (id: string) => engine.cancel(id),
 };
@@ -50,10 +48,7 @@ if (parentWindow) {
       }
     };
     call().then(
-      (result) => {
-        const bytes = (result as { bytes?: Uint8Array } | null)?.bytes;
-        reply({ result }, bytes ? [bytes.buffer as ArrayBuffer] : []);
-      },
+      (result) => reply({ result }, typeof result === 'object' ? eventBuffers(result) : []),
       (error: unknown) => reply({ error: error instanceof Error ? error.message : String(error) }),
     );
   });

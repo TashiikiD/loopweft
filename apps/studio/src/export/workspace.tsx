@@ -15,6 +15,7 @@ import { DocumentsCard } from './documents.tsx';
 import { type Engine, frameEngine, loadExportPage } from './engine.ts';
 import { studioFonts } from './pdf-fonts.ts';
 import { PicturesCard } from './pictures.tsx';
+import { VideoCard } from './video.tsx';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
@@ -161,9 +162,7 @@ export function ExportWorkspace({
           </Card>
           <PicturesCard engine={engine} />
           <DocumentsCard fonts={fonts} engine={engine} />
-          <Text size="sm" c="dimmed">
-            Video comes later in Phase 6.
-          </Text>
+          <VideoCard engine={engine} />
         </Stack>
       </div>
     </div>

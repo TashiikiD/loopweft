@@ -2,9 +2,9 @@
 // apps/studio/e2e/export-pictures.spec.ts): what it asks the engine for, what it saves and under which name,
 // the progress and Cancel of every step, the whole map of a project without a story, and the zip itself.
 
-import type { Job, JobEvent } from '@loopweft/export';
+import type { FileEvent, Job, PictureJob } from '@loopweft/export';
 import { createProject, type Project, serializeProject } from '@loopweft/model';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { unzipSync } from 'fflate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -52,7 +52,7 @@ function fakeEngine(options: { hold?: Promise<void> } = {}) {
       return String(jobs.length);
     },
     next: async (id) => {
-      const job = jobs[Number(id) - 1] as Job;
+      const job = jobs[Number(id) - 1] as PictureJob;
       const names =
         job.target.kind === 'map'
           ? ['map.png']
@@ -64,7 +64,7 @@ function fakeEngine(options: { hold?: Promise<void> } = {}) {
       if (done > 0 && options.hold) await options.hold;
       (engine as unknown as { made: Map<string, number> }).made.set(id, done + 1);
       const name = names[done] as string;
-      const event: JobEvent = {
+      const event: FileEvent = {
         type: 'file',
         name,
         bytes: new TextEncoder().encode(name),
@@ -126,7 +126,8 @@ describe('the Pictures card', () => {
     await user.click(screen.getByRole('combobox', { name: 'Step' }));
     await user.click(await screen.findByRole('option', { name: 'S1.2 · The link' }));
     await user.click(screen.getByLabelText(/^3840 × 2160/));
-    await user.click(screen.getByLabelText('Name categories in words'));
+    const card = screen.getByRole('heading', { name: 'Pictures (PNG or SVG)' }).closest('.mantine-Card-root');
+    await user.click(within(card as HTMLElement).getByLabelText('Name categories in words'));
     await act(() => user.click(screen.getByRole('button', { name: 'Export PNG…' })));
     expect(await screen.findByText('Last export: small-map-S1.2.png, 3840 × 2160, 0.0 MB.')).toBeTruthy();
     expect(jobs).toEqual([
@@ -200,7 +201,7 @@ describe('the Pictures card', () => {
     const next = engine.next;
     engine.next = async (id) => {
       const event = await next(id);
-      return event
+      return event?.type === 'file'
         ? { ...event, name: event.name.replace(/\.png$/, '.svg'), notes: ['Glows are filters.'] }
         : null;
     };

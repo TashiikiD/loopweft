@@ -5,8 +5,9 @@ Loopweft exports a project in these forms:
 - **Pictures (PNG)** of a step, of every step, or of the whole map (below).
 - **Drawings (SVG)** of the same: shapes and text that stay sharp at any size and can be edited (below).
 - **The slides, the speaker notes and the references** as PDFs (below).
+- **Video (MP4 or WebM)** of the story, a scene or steps, as the talk plays them (below).
 
-Video (MP4, WebM, GIF) follows in Phase 6.
+GIF follows in Phase 6.
 
 Every export is made on this computer. Nothing is uploaded, and nothing reaches the network.
 
@@ -26,7 +27,7 @@ downloaded). That browser:
 Both draw with the same page, so the Studio and the command line make the same pictures. Some fine print:
 - **A step is drawn as it stands once its motion is over:** links traced, trends landed, the camera still.
   Pulses that travel along links, and the soft pulses that wander a held step, are motion, so a picture
-  leaves them out (video will show them).
+  leaves them out (a video shows them).
 - **A step is reached through the story from its first step, as in a talk,** so it looks the same whether it
   is drawn alone, among every step, or (later) as a slide. The map keeps a little of what earlier steps did,
   such as the order its links are drawn in. A step drawn by jumping straight to it could differ by a shade
@@ -116,8 +117,8 @@ How it is made: the drawing is read from the stage the page has laid out, the sa
 - Text stays text: one line of SVG text for each line on the stage, in the same font, size and spacing.
 
 So the drawing, drawn again by a browser, matches the PNG of the same step: a test checks every step of the
-example. The largest difference is in the Richards figure (a photograph, resampled a little differently). On a
-Mac, Chrome draws the title page's large serif type in an SVG about a pixel heavier than on the slide.
+example on Windows, macOS and Linux. The largest difference is in the Richards figure (a photograph, resampled a
+little differently).
 
 Every drawing says what to know about it: the Studio lists it under the export, and the command line prints
 it as `note:` lines and in `--json` as `notes`. What it can say:
@@ -214,9 +215,65 @@ in its properties, and Loopweft as the program that made it. Its date is the pro
 if it has one, never the time of export. So the same project always gives the same file, byte for byte, on any
 computer: a test checks the example's.
 
+## Video (MP4 or WebM)
+
+The story as the talk plays it, with all its motion: links traced, pulses travelling, the camera moving, and the
+soft pulses wandering a held step. In the Studio: **Export**, then **Video**. On the command line:
+
+```bash
+loopweft export talk.loopweft --mp4
+loopweft export talk.loopweft --mp4 --scene S04 --talk-timing
+loopweft export talk.loopweft --webm --from S04.2a --to S04.6 --height 720
+```
+
+| What | Studio | Command line | File |
+|---|---|---|---|
+| The whole story | The whole story | (the default) | `<project>-story.mp4` |
+| One scene | One scene, then the scene | `--scene S04` (its id or title) | `<project>-S04.mp4` |
+| Steps | Steps, from one to another | `--from S04.2a --to S04.6` (the same step twice for one) | `<project>-S04.2a-to-S04.6.mp4` |
+
+How long each step lasts, one of:
+- **Each step's motion, then a hold** (the default): the step plays until its motion is over, then holds for
+  3 seconds (`--hold <seconds>`, 0 to 60), its soft pulses wandering if it has them. The example's story comes
+  to 6:42.
+- **The talk's own timing** (`--talk-timing`): each step until the next is due, as the Story workspace's
+  Play plays a scene. A step with no time it is due holds 4 seconds; a scene's last step holds until the scene's
+  target length. A step whose motion is not over when the next is due is cut short, as a presenter's key press
+  would. The example's story comes to 14:04, its target.
+
+| Option | Studio | Command line |
+|---|---|---|
+| Size | 1920 × 1080 or 1280 × 720 | `--height 1080` (the default) or `--height 720` |
+| Frames a second | 30 or 60 | `--fps 30` (the default) or `--fps 60` |
+| Name each shown variable's category in words | Name categories in words | `--category-words` |
+| WebM instead of MP4 | WebM (VP9) | `--webm` instead of `--mp4` |
+
+How it is made:
+- The story is played on a clock that moves one frame at a time, exactly 1/30 (or 1/60) of a second, however
+  long a frame takes to draw. So nothing is ever dropped or doubled, and a slow computer makes the same video,
+  only more slowly.
+- Each frame is drawn as a picture is (above), then encoded by the browser: MP4 is H.264, which plays everywhere
+  (PowerPoint, Keynote, the Windows and Mac players, phones, the web); WebM is VP9, for a browser that cannot
+  make MP4. There is no sound.
+- A video starts as the talk arrives at its first step: from the step before, shown settled (for the story's
+  first step, from an empty stage), as the presenter's replay of a step does. The motion into the first step is
+  in the video.
+- The browser's software encoder is used where it has one (Chrome and Edge do): then the same project gives the
+  same file, byte for byte, on the same computer. Where only the graphics card can encode, the export says so,
+  as two exports may then differ slightly.
+- Loopweft writes the MP4 and WebM files itself. Their only dates are zero, and they name the project's title
+  (and author, in an MP4) and Loopweft as the program that made them.
+- A key frame every 2 seconds, so a player can jump anywhere quickly.
+
+How long it takes: the frames where something moves are drawn one by one; a held step with nothing moving is
+the same frame again, which is quick. On a laptop, at 1920 × 1080 and 30 frames a second, the example's whole
+story took about 8 minutes with 3-second holds (6:42, 75 MB) and 11 minutes in the talk's timing (14:04, 91 MB). The Studio shows how far it has got and
+can cancel; the command line shows it on its line in a terminal.
+
 ## Sizes and names, for reference
 
-- Pictures are 1920 × 1080 pixels, the stage's own size, or 3840 × 2160; a trimmed map is smaller.
+- Pictures are 1920 × 1080 pixels, the stage's own size, or 3840 × 2160; a trimmed map is smaller. Video is
+  1920 × 1080 or 1280 × 720.
 - A file is named by the step's key, the scene's id and the step's id: `S04.2a`. Those are the names the Story
   workspace and the command line use. In a folder, pictures sort by those names, which for the example is story
   order. A scene whose id Windows keeps for a device (`CON`, `NUL`, `COM1`…) gets a `_` in front.

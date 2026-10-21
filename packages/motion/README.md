@@ -13,7 +13,9 @@ standard licence does not allow no-code animation builders.
 - **Eases** use the GSAP names the polycrisis deck was written with (`power2.out`, `back.out(1.9)`,
   `sine.inOut`), plus CSS `cubic-bezier()`.
 - **Motion** plays timelines from a clock and is the one place Pause and Skip reach. Standalone tweens take a
-  property over from earlier ones still driving it.
+  property over from earlier ones still driving it. A timeline marked `idle` (the pulses that wander a held
+  step) plays on without counting as motion: `busy` is 0 once only idle ones are left, so a video knows when a
+  step has settled.
 - **Clocks:** `FrameClock` follows the display for live playback; `ManualClock` steps exact frames for tests
   and video export; `IntervalClock` drives headless captures, which get no animation frames.
 

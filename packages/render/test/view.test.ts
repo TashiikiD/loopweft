@@ -291,9 +291,37 @@ describe('the story view', () => {
       story.show(p.scene, p.step, 'instant');
       const step = project.story.scenes[p.scene]?.steps[p.step];
       const allowed = step?.map.ambient && step.map.show !== false ? 1 : 0;
-      if (motion.active > allowed) moving.push(`${p.key}: ${motion.active}`);
+      if (motion.active > allowed || motion.busy > 0) moving.push(`${p.key}: ${motion.active}`);
     }
     expect(moving).toEqual([]);
+    story.dispose();
+    motion.dispose();
+    host.remove();
+  });
+
+  it('settles every step played as the talk plays it, leaving only the wandering pulses (a video’s hold)', () => {
+    const clock = new ManualClock();
+    const motion = new Motion(clock);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const story = new StoryView(host, { project, motion });
+    const settled: string[] = [];
+    let wandering = 0;
+    for (const p of storyPositions(project)) {
+      story.show(p.scene, p.step, 'smooth');
+      let frames = 0;
+      while (motion.busy > 0 && frames < 30 * 60) {
+        clock.tick(1 / 30);
+        frames++;
+      }
+      settled.push(motion.busy === 0 ? 'settled' : `${p.key} still moving after a minute`);
+      // Held on: nothing but idle timelines starts again.
+      clock.advance(5, 30);
+      expect(motion.busy, p.key).toBe(0);
+      if (motion.active > 0) wandering++;
+    }
+    expect(new Set(settled)).toEqual(new Set(['settled']));
+    expect(wandering).toBeGreaterThan(0);
     story.dispose();
     motion.dispose();
     host.remove();

@@ -1,12 +1,12 @@
 // Notes, the script with its key marks, the story's checks and the preview, in jsdom.
 import { createProject, moveStep, type Project, type Step, setStep } from '@loopweft/model';
+import { playTimes } from '@loopweft/player';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
 import { memoryRecovery } from '../src/state/recovery.ts';
 import { createStudioStore, type StudioStore } from '../src/state/store.ts';
-import { playTimes } from '../src/story/workspace.tsx';
 
 afterEach(() => {
   vi.useRealTimers();

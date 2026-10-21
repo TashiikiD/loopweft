@@ -8,7 +8,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '@loopweft/cli';
-import type { JobEvent } from '@loopweft/export';
+import type { FileEvent } from '@loopweft/export';
 import { readProject, stepKey } from '@loopweft/model';
 import { chromium, expect, type Page, test } from '@playwright/test';
 import { findBrowser } from '../../../tools/chrome.ts';
@@ -18,11 +18,8 @@ import { choose } from './story.ts';
 const STEM = 'global-polycrisis-the-connections-that-change-everything';
 const decoder = new TextDecoder();
 
-/**
- * How far a drawing drawn back may be from its PNG: 1% of blocks; 2.5% on macOS, where Chrome draws the title
- * page's large serif type in an SVG about a pixel heavier than on the slide (seen on GitHub's Mac).
- */
-const FAR = process.platform === 'darwin' ? 0.025 : 0.01;
+/** How far a drawing drawn back may be from its PNG: 1% of blocks (the furthest on GitHub's machines: 0.22%). */
+const FAR = 0.01;
 
 /** The drawings whose fingerprints are printed on each system, and kept for the review. */
 const FINGERPRINTED = /^(S00\.1|S05\.6b|S07\.2|map)\./;
@@ -85,20 +82,20 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
     let worst = { name: '', far: 0, mean: 0 };
     const pairs = [...svgs.map((s, k) => [s, pngs[k]] as const), [map, mapPng] as const];
     for (const [svgEvent, pngEvent] of pairs) {
-      const svg = decoder.decode((svgEvent as JobEvent).bytes);
-      const name = (svgEvent as JobEvent).name;
+      const svg = decoder.decode((svgEvent as FileEvent).bytes);
+      const name = (svgEvent as FileEvent).name;
       const report = await inspect(page, svg);
       expect(report, name).toMatchObject({ error: null, root: 'svg', foreign: 0, missing: [], outside: [] });
       expect(report.texts, `${name}: text stays text`).toBeGreaterThan(0);
       expect(svg).toContain('<metadata>Made with Loopweft');
       const drawnBack = await rasterize(page, svg);
-      const { far, mean } = await difference(page, drawnBack, (pngEvent as JobEvent).bytes);
+      const { far, mean } = await difference(page, drawnBack, (pngEvent as FileEvent).bytes);
       // For the review (and CI's artifact, to compare the systems): the drawings fingerprinted below, and any
       // far from its PNG, each with its PNG and the drawing drawn back.
       const stem = name.replace(/\.svg$/, '');
       if (FINGERPRINTED.test(name) || far >= 0.005) {
-        review(`svg/${name}`, (svgEvent as JobEvent).bytes);
-        review(`svg/${stem}.png`, (pngEvent as JobEvent).bytes);
+        review(`svg/${name}`, (svgEvent as FileEvent).bytes);
+        review(`svg/${stem}.png`, (pngEvent as FileEvent).bytes);
         review(`svg/${stem}-drawn.png`, drawnBack);
       }
       test.info().annotations.push({
@@ -136,16 +133,16 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
     } as const;
     const [wordsSvg] = await pictures(words);
     const [wordsPng] = await pictures({ ...words, format: 'png' });
-    const named = decoder.decode((wordsSvg as JobEvent).bytes);
+    const named = decoder.decode((wordsSvg as FileEvent).bytes);
     expect(named).toContain('>ENERGY AND MATERIAL SYSTEMS</text>');
-    const apart = await difference(page, await rasterize(page, named), (wordsPng as JobEvent).bytes);
+    const apart = await difference(page, await rasterize(page, named), (wordsPng as FileEvent).bytes);
     expect(apart.far).toBeLessThan(FAR);
     expect(apart.mean).toBeLessThan(1.5);
-    expect((wordsSvg as JobEvent).notes?.filter((n) => n.startsWith('Drawn approximately'))).toEqual([]);
+    expect((wordsSvg as FileEvent).notes?.filter((n) => n.startsWith('Drawn approximately'))).toEqual([]);
 
     for (const key of ['S05.6b', 'S07.2'])
       review(`svg-${key}.svg`, svgs[keys.indexOf(key)]?.bytes as Uint8Array);
-    review('svg-map.svg', (map as JobEvent).bytes);
+    review('svg-map.svg', (map as FileEvent).bytes);
   } finally {
     await browser.close();
   }
@@ -159,7 +156,7 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
       categoryWords: false,
     });
     expect(
-      Buffer.from((alone as JobEvent).bytes).equals(Buffer.from(svgs[keys.indexOf(key)]?.bytes ?? [])),
+      Buffer.from((alone as FileEvent).bytes).equals(Buffer.from(svgs[keys.indexOf(key)]?.bytes ?? [])),
       key,
     ).toBe(true);
   }
@@ -237,7 +234,7 @@ test.describe('in the Studio', () => {
       categoryWords: false,
     });
     // The same drawing as the command line's, for the drawing is read from the page, not drawn by the card.
-    expect(svg).toBe(decoder.decode((cli as JobEvent).bytes));
+    expect(svg).toBe(decoder.decode((cli as FileEvent).bytes));
     const notes = card.getByRole('alert').filter({ hasText: 'To know about this drawing' });
     await expect(notes).toContainText('Glows and soft shadows are SVG filters');
     await expect(notes).toContainText('SVG mask');

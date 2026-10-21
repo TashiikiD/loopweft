@@ -34,6 +34,13 @@ export class Motion {
     return this.#playing.size;
   }
 
+  /** Timelines playing now that are a step's motion, not idle ones: 0 once the step has settled. */
+  get busy(): number {
+    let busy = 0;
+    for (const timeline of this.#playing) if (!timeline.idle) busy++;
+    return busy;
+  }
+
   setPaused(paused: boolean): void {
     this.#paused = paused;
   }
@@ -87,8 +94,8 @@ export class Motion {
   }
 
   /** Calls `fn` after `seconds` (paused and skipped with everything else). */
-  delayedCall(seconds: number, fn: () => void): Timeline {
-    return this.play(new Timeline().call(fn, seconds));
+  delayedCall(seconds: number, fn: () => void, options: Pick<TimelineOptions, 'idle'> = {}): Timeline {
+    return this.play(new Timeline(options).call(fn, seconds));
   }
 
   /** Stops standalone tweens driving `keys` of `target` (all of its properties when `keys` is absent). */

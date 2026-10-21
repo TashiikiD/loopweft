@@ -131,6 +131,11 @@ class Nested implements Child {
 
 export interface TimelineOptions {
   onComplete?: () => void;
+  /**
+   * Plays on while a step is held (the pulses that wander a held map), so it is not part of the step's
+   * motion: a video holds a step once only idle timelines are left.
+   */
+  idle?: boolean;
 }
 
 export class Timeline {
@@ -143,6 +148,11 @@ export class Timeline {
 
   constructor(options: TimelineOptions = {}) {
     this.#options = options;
+  }
+
+  /** True for a timeline that plays on while a step is held (see TimelineOptions). */
+  get idle(): boolean {
+    return this.#options.idle === true;
   }
 
   /** The playhead, in seconds (−Infinity before the first render). */

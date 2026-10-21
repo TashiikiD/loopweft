@@ -1,8 +1,27 @@
 // @loopweft/export: every export but the one-file HTML (that one is @loopweft/player's). Drawn exports run in
 // the export page (page/), in the Studio's hidden frame or a headless browser (node/); this entry holds what
 // both sides share.
-export { BRIDGE, type BridgeCall, type BridgeReply, type BridgeRequest, encodeBase64 } from './bridge.ts';
-export { ExportEngine, type Job, type JobEvent, type Opened } from './engine.ts';
+export {
+  BRIDGE,
+  type BridgeCall,
+  type BridgeReply,
+  type BridgeRequest,
+  encodeBase64,
+} from './bridge.ts';
+export {
+  type EventOf,
+  ExportEngine,
+  type FileEvent,
+  fileEvent,
+  HARDWARE_NOTE,
+  isVideoJob,
+  type Job,
+  type JobEvent,
+  type Opened,
+  type VideoDataEvent,
+  type VideoEndEvent,
+  type VideoEvent,
+} from './engine.ts';
 export {
   type Box,
   documentStyles,
@@ -33,3 +52,26 @@ export {
   TRIM_MARGIN,
 } from './pictures.ts';
 export { ExportStage, loadFonts } from './stage.ts';
+export { videoSupport } from './video/encode.ts';
+export { Mp4Writer } from './video/mp4.ts';
+export {
+  checkVideoJob,
+  FRAME_RATES,
+  HOLD_DEFAULT,
+  HOLD_MAX,
+  holdFrames,
+  isVideoFormat,
+  MOTION_MAX,
+  VIDEO_FORMATS,
+  VIDEO_HEIGHTS,
+  type VideoFormat,
+  type VideoJob,
+  type VideoPlan,
+  type VideoStep,
+  type VideoTarget,
+  type VideoTiming,
+  videoPlan,
+  videoSize,
+} from './video/plan.ts';
+export { WebmWriter } from './video/webm.ts';
+export type { EncodedFrame, VideoMeta, VideoTrack, VideoWriter } from './video/writer.ts';

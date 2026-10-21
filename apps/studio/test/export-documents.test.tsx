@@ -1,11 +1,11 @@
 // The Export workspace's PDF documents card: the speaker notes and the references, on Letter or A4, made in
 // the page with the code `loopweft export --pdf` runs (here with the fonts read from disk), and the Studio's
 // own copies of every font file the PDFs may need.
-import { ALL_FONT_FILES, type Job, type JobEvent, notesPdf } from '@loopweft/export';
+import { ALL_FONT_FILES, type FileEvent, type Job, notesPdf } from '@loopweft/export';
 // The fonts' own entry: the rest of @loopweft/export/node builds pages with Vite, which jsdom cannot host.
 import { nodeFonts } from '@loopweft/export/node/fonts';
 import { createProject, type Project } from '@loopweft/model';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PDFDocument } from 'pdf-lib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -122,7 +122,7 @@ describe('the PDF documents card', () => {
         jobs.push(job);
         return '1';
       },
-      next: async (): Promise<JobEvent | null> => {
+      next: async (): Promise<FileEvent | null> => {
         if (done === keys.length) return null;
         const key = keys[done++] as string;
         return {
@@ -150,7 +150,10 @@ describe('the PDF documents card', () => {
     await user.click(screen.getByLabelText('Slides (70 pages)'));
     // Slides are 16:9 pages: no paper to choose, but categories in words.
     expect(screen.queryByLabelText('A4')).toBeNull();
-    const words = screen.getAllByLabelText('Name categories in words').at(-1) as HTMLElement;
+    const card = screen
+      .getByRole('heading', { name: 'PDF documents' })
+      .closest('.mantine-Card-root') as HTMLElement;
+    const words = within(card).getByLabelText('Name categories in words');
     await user.click(words);
     await act(() => user.click(screen.getByRole('button', { name: 'Export PDF…' })));
     expect(

@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '@loopweft/cli';
-import { type JobEvent, notesPdf, referencesPdf } from '@loopweft/export';
+import { type FileEvent, notesPdf, referencesPdf } from '@loopweft/export';
 import { nodeFonts } from '@loopweft/export/node';
 import { readProject } from '@loopweft/model';
 import { chromium, expect, test } from '@playwright/test';
@@ -57,10 +57,10 @@ test('loopweft export --pdf slides: a 16:9 page per step, each the picture of it
     const browser = await chromium.launch({ executablePath: findBrowser() });
     try {
       const page = await browser.newPage();
-      const apart = await difference(page, images[36] as Uint8Array, (png as JobEvent).bytes);
+      const apart = await difference(page, images[36] as Uint8Array, (png as FileEvent).bytes);
       expect(apart.far, 'blocks of slide 37 apart from S05.6b').toBeLessThan(0.002);
       expect(apart.mean).toBeLessThan(1.5);
-      const other = await difference(page, images[35] as Uint8Array, (png as JobEvent).bytes);
+      const other = await difference(page, images[35] as Uint8Array, (png as FileEvent).bytes);
       expect(other.far, 'slide 36 is another step').toBeGreaterThan(0.05);
     } finally {
       await browser.close();

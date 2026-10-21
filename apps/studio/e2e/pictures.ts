@@ -2,7 +2,7 @@
 // PNG's size, how much two pictures differ, and screens saved for the review.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import type { JobEvent, PictureJob } from '@loopweft/export';
+import type { FileEvent, PictureJob } from '@loopweft/export';
 import { exportInBrowser } from '@loopweft/export/node';
 import { expect, type Page } from '@playwright/test';
 
@@ -18,8 +18,8 @@ export function pngSize(bytes: Uint8Array): { width: number; height: number } {
 }
 
 /** The files one job of the export page makes, from the example (or another project's text). */
-export async function pictures(job: PictureJob, project = text): Promise<JobEvent[]> {
-  const made: JobEvent[] = [];
+export async function pictures(job: PictureJob, project = text): Promise<FileEvent[]> {
+  const made: FileEvent[] = [];
   await exportInBrowser(project, job, (event) => {
     made.push(event);
   });

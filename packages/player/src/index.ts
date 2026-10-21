@@ -98,6 +98,7 @@ export {
   withJoin,
 } from './link.ts';
 export { type MdElement, type MdNode, type MdTag, markdownToDom, parseMarkdown } from './markdown.ts';
+export { HOLD_SECONDS, playTimes, sceneLength } from './pacing.ts';
 export {
   type AudienceTarget,
   openAudienceWindow,

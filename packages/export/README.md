@@ -1,7 +1,8 @@
 # @loopweft/export
 
 Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG), drawings
-(SVG), and the slides, speaker notes and references PDFs. Video follows in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
+(SVG), the slides, speaker notes and references PDFs, and video (MP4 or WebM). GIF follows in Phase 6. See
+[exporting](../../docs/export.md) for what each export holds.
 
 - **The export page** (`page/`): the engine (`src/engine.ts`) on a 1920 × 1080 stage, with Loopweft's fonts
   and the stage's styles, built into one HTML file by `build/page.ts`, as the player's page is. The Studio
@@ -30,11 +31,20 @@ Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, p
   page, with a bookmark at each scene.
 - **What a job draws** (`src/pictures.ts`): one step, every step in story order, or the whole map; file
   names; the options' checks. Pure, so the Studio, the command line and the tests agree without a browser.
+- **Video** (`src/video/`): `plan.ts` (pure) says which steps a video plays and, in the talk's timing, how many
+  frames each lasts (the player's `playTimes` and `sceneLength`, counted from the running total so rounding never
+  adds up). The engine plays each step as the talk's → does on the stage's manual clock, one frame of exactly
+  1/fps at a time; with a hold, a step's motion is over when only idle timelines (the wandering pulses) are left
+  (`Motion.busy`). A frame where nothing moved is the last one again. `encode.ts` hands the frames to the
+  browser's WebCodecs encoder (software first: the same frames give the same bytes); `mp4.ts` and `webm.ts`
+  write the file themselves, from the ISO and Matroska specifications, with no clock in them: muxer libraries
+  stamp files with the time. A writer hands out a head of fixed length first and its final bytes at the end,
+  so the file can be written as it comes.
 - **Node** (`node/`): finds Chrome or Edge (`LOOPWEFT_CHROME` names another) and drives it headless over its
   DevTools protocol, through a pipe (no port is opened). Each run has a throwaway profile and none of the
   browser's background traffic. The browser keeps its graphics path: without it (`--disable-gpu`), text inside
-  a frame lands about a pixel from where the page draws it. `exportInBrowser(text, job, onFile)` opens a
-  project, runs one job and hands back each file it makes.
+  a frame lands about a pixel from where the page draws it. `exportInBrowser(text, job, onEvent)` opens a
+  project, runs one job and hands back each file it makes (for a video, each piece of the file, then its head).
 
 Nothing reads the clock. The same project gives the same pictures in the same browser on the same computer,
 byte for byte.

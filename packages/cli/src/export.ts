@@ -1,11 +1,16 @@
 // `loopweft export`: a project as one HTML file to share or present, as pictures (PNG, or SVG drawings) of its
-// steps or of the whole map, or as PDF documents (the slides, the speaker notes, the references). The files are the Studio's exports, byte for byte: the HTML is the player's page with the
-// project in it; pictures are drawn by the export page in the Chrome or Edge on this computer, as the Studio
-// draws them in its own tab.
+// steps or of the whole map, as PDF documents (the slides, the speaker notes, the references), or as video
+// (MP4 or WebM) of its story. The files are the Studio's exports, byte for byte: the HTML is the player's page
+// with the project in it; pictures and video are drawn by the export page in the Chrome or Edge on this
+// computer, as the Studio draws them in its own tab.
 import { join } from 'node:path';
 import {
   checkPictureJob,
-  type JobEvent,
+  checkVideoJob,
+  type EventOf,
+  type FileEvent,
+  FRAME_RATES,
+  HOLD_DEFAULT,
   notesPdf,
   type Paper,
   type PictureJob,
@@ -14,6 +19,11 @@ import {
   referencesPdf,
   type SlidePicture,
   slidesPdf,
+  VIDEO_HEIGHTS,
+  type VideoFormat,
+  type VideoJob,
+  type VideoTarget,
+  videoPlan,
 } from '@loopweft/export';
 import { browserForExport, exportInBrowser, nodeFonts } from '@loopweft/export/node';
 import { OpError, plural, serializeProject } from '@loopweft/model';
@@ -21,7 +31,7 @@ import { exportHtml } from '@loopweft/player';
 import { playerTemplate } from '@loopweft/player/build';
 import type { CommandResult } from './commands.ts';
 import { loadProject } from './support.ts';
-import { alreadyThere, FolderOut, notTheProject, publishFile, taken } from './write.ts';
+import { alreadyThere, FileOut, FolderOut, notTheProject, publishFile, taken } from './write.ts';
 
 export interface ExportCommandOptions {
   html?: boolean;
@@ -40,6 +50,20 @@ export interface ExportCommandOptions {
   trim?: boolean;
   scale?: string;
   categoryWords?: boolean;
+  mp4?: boolean;
+  webm?: boolean;
+  scene?: string;
+  from?: string;
+  to?: string;
+  hold?: string;
+  talkTiming?: boolean;
+  height?: string;
+  fps?: string;
+}
+
+/** Where a long export says how far it has got (a terminal's line, rewritten), if anywhere. */
+export interface ExportProgress {
+  progress?: (text: string) => void;
 }
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
@@ -47,14 +71,21 @@ const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 /** The project file's name without ".loopweft": the start of every default output name. */
 const stemOf = (file: string) => file.replace(/\.loopweft$/i, '');
 
-const FORMATS = ['html', 'png', 'svg', 'pdf'] as const;
+const FORMATS = ['html', 'png', 'svg', 'pdf', 'mp4', 'webm'] as const;
 
-export async function exportCommand(file: string, o: ExportCommandOptions): Promise<CommandResult> {
+/** The options only a video takes. */
+const VIDEO_OPTIONS = ['scene', 'from', 'to', 'hold', 'talkTiming', 'height', 'fps'] as const;
+
+export async function exportCommand(
+  file: string,
+  o: ExportCommandOptions,
+  report: ExportProgress = {},
+): Promise<CommandResult> {
   const chosen = FORMATS.filter((f) => o[f]);
   if (chosen.length !== 1) {
     throw new OpError(
       chosen.length === 0
-        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings) or --pdf slides|notes|references (documents).'
+        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings), --pdf slides|notes|references (documents), or --mp4 or --webm (video).'
         : `Export one format at a time (${chosen.map((f) => `--${f}`).join(', ')} given).`,
       'usage',
     );
@@ -62,6 +93,11 @@ export async function exportCommand(file: string, o: ExportCommandOptions): Prom
   const format = chosen[0] as (typeof FORMATS)[number];
   if (format !== 'pdf' && o.paper !== undefined)
     throw new OpError('--paper is for the PDFs (--pdf).', 'usage');
+  if (format === 'mp4' || format === 'webm') return videoExport(file, o, format, report);
+  for (const option of VIDEO_OPTIONS) {
+    if (o[option] !== undefined)
+      throw new OpError(`--${dashed(option)} is for video (--mp4 or --webm).`, 'usage');
+  }
   if (format === 'html') return htmlExport(file, o);
   if (format === 'pdf') return pdfExport(file, o);
   return pictureExport(file, o, format);
@@ -173,7 +209,7 @@ async function pictureExport(
 
   const written: Written[] = [];
   const notes = new Set<string>();
-  const record = (event: JobEvent, path: string) => {
+  const record = (event: FileEvent, path: string) => {
     for (const note of event.notes ?? []) notes.add(note);
     written.push({
       name: event.name,
@@ -323,6 +359,136 @@ async function slidesExport(file: string, o: ExportCommandOptions): Promise<Comm
       pages: made.pages,
       bytes: made.bytes.length,
       notes: [],
+    },
+  };
+}
+
+/** What --scene, --from and --to ask a video to play: the story unless one of them is given. */
+function videoTarget(o: ExportCommandOptions): VideoTarget {
+  if (o.scene !== undefined && (o.from !== undefined || o.to !== undefined))
+    throw new OpError('Play a scene (--scene) or steps (--from and --to), not both.', 'usage');
+  if (o.scene !== undefined) return { kind: 'scene', scene: o.scene };
+  if (o.from !== undefined || o.to !== undefined) {
+    if (o.from === undefined || o.to === undefined)
+      throw new OpError(
+        'Steps run --from one --to another (e.g. --from S04.2a --to S04.6; the same step twice for one).',
+        'usage',
+      );
+    return { kind: 'steps', from: o.from, to: o.to };
+  }
+  return { kind: 'story' };
+}
+
+function choice<T extends number>(
+  text: string | undefined,
+  allowed: readonly T[],
+  option: string,
+  what: string,
+): T {
+  if (text === undefined) return allowed[0] as T;
+  const value = Number(text);
+  if (!(allowed as readonly number[]).includes(value))
+    throw new OpError(`--${option} is ${allowed.join(' or ')} (${what}), not "${text}".`, 'usage');
+  return value as T;
+}
+
+const minutes = (seconds: number) => {
+  const s = Math.round(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/** A video of the story, a scene or steps, played by the export page in this computer's browser. */
+async function videoExport(
+  file: string,
+  o: ExportCommandOptions,
+  format: VideoFormat,
+  report: ExportProgress,
+): Promise<CommandResult> {
+  for (const option of ['step', 'allSteps', 'map', 'trim', 'scale'] as const) {
+    if (o[option] !== undefined)
+      throw new OpError(
+        `--${dashed(option)} is for pictures (--png or --svg)${option === 'step' ? '; a video of one step is --from S04.2a --to S04.2a' : ''}.`,
+        'usage',
+      );
+  }
+  if (o.notes === false) throw new OpError('--no-notes is for the HTML file (--html).', 'usage');
+  if (o.hold !== undefined && o.talkTiming)
+    throw new OpError(
+      'Hold each step (--hold) or keep the talk’s timing (--talk-timing), not both.',
+      'usage',
+    );
+  const hold = o.hold === undefined ? HOLD_DEFAULT : Number(o.hold);
+  if (o.hold !== undefined && (o.hold.trim() === '' || !Number.isFinite(hold)))
+    throw new OpError(`--hold is a number of seconds, not "${o.hold}".`, 'usage');
+  const job: VideoJob = {
+    format,
+    target: videoTarget(o),
+    timing: o.talkTiming ? { kind: 'talk' } : { kind: 'hold', seconds: hold },
+    height: choice(o.height, VIDEO_HEIGHTS, 'height', '1920 × 1080 or 1280 × 720 pixels'),
+    fps: choice(o.fps, FRAME_RATES, 'fps', 'frames a second'),
+    categoryWords: o.categoryWords === true,
+  };
+  checkVideoJob(job);
+  const project = loadProject(file);
+  // Named before the browser starts: a scene or step that isn't there, steps out of order, a name taken.
+  const plan = videoPlan(project, job);
+  const out = o.out ?? `${stemOf(file)}-${plan.name}`;
+  notTheProject(file, out, 'The video');
+  const force = o.force === true;
+  if (!force && taken(out)) throw alreadyThere(out);
+  browserForExport();
+
+  const written = new FileOut(out, force);
+  let end: Extract<EventOf<VideoJob>, { type: 'video' }> | null = null;
+  try {
+    await exportInBrowser(serializeProject(project), job, (event) => {
+      if (event.type === 'data') {
+        written.append(event.bytes);
+        report.progress?.(
+          `Playing ${event.key} (${event.done} of ${event.total} steps): ${minutes(event.seconds)} of video so far`,
+        );
+      } else {
+        written.rewriteStart(event.head);
+        end = event;
+      }
+    });
+    const made = end as Extract<EventOf<VideoJob>, { type: 'video' }> | null;
+    if (!made || made.size !== written.size) throw new Error('The video did not arrive whole.');
+    written.finish();
+  } catch (error) {
+    written.abandon();
+    throw error;
+  } finally {
+    report.progress?.('');
+  }
+  const made = end as unknown as Extract<EventOf<VideoJob>, { type: 'video' }>;
+  const timing =
+    job.timing.kind === 'talk' ? 'the talk’s timing' : `each step held ${plural(hold, 'second')}`;
+  const text = [
+    `Wrote ${out} (${minutes(made.seconds)}, ${made.width} × ${made.height} at ${made.fps} fps, ${plural(plan.steps.length, 'step')}, ${timing}, ${megabytes(made.size)}).`,
+    ...made.notes.map((note) => `note: ${note}`),
+  ].join('\n');
+  return {
+    text,
+    data: {
+      file,
+      out,
+      format,
+      what: job.target.kind,
+      ...(job.target.kind === 'scene' ? { scene: job.target.scene } : {}),
+      ...(job.target.kind === 'steps' ? { from: job.target.from, to: job.target.to } : {}),
+      timing: job.timing.kind,
+      ...(job.timing.kind === 'hold' ? { hold: job.timing.seconds } : {}),
+      width: made.width,
+      height: made.height,
+      fps: made.fps,
+      frames: made.frames,
+      seconds: made.seconds,
+      steps: plan.steps.length,
+      codec: made.codec,
+      categoryWords: job.categoryWords,
+      bytes: made.size,
+      notes: made.notes,
     },
   };
 }

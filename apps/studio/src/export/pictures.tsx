@@ -2,7 +2,14 @@
 // step, every step (one .zip), or the whole map, drawn by the export page in a hidden frame (engine.ts), the
 // same files `loopweft export --png` and `--svg` make. A step is drawn as it stands once its motion is over,
 // without travelling or wandering pulses.
-import { fileStem, type JobEvent, type PictureJob, type PictureTarget, picturesFor } from '@loopweft/export';
+import {
+  type FileEvent,
+  fileEvent,
+  fileStem,
+  type PictureJob,
+  type PictureTarget,
+  picturesFor,
+} from '@loopweft/export';
 import { type Project, plural, serializeProject, stepKey } from '@loopweft/model';
 import {
   Alert,
@@ -131,16 +138,17 @@ export function PicturesCard({ engine }: PicturesCardProps) {
       await drawing.open(serializeProject(now));
       const id = await drawing.start(job);
       running = { engine: drawing, id };
-      const files: JobEvent[] = [];
+      const files: FileEvent[] = [];
       for (;;) {
         if (stopped) return;
-        const event = await drawing.next(id);
-        if (!event) break;
+        const next = await drawing.next(id);
+        if (!next) break;
+        const event = fileEvent(next);
         files.push(event);
         setProgress({ done: event.done, total: event.total, ...(event.key ? { key: event.key } : {}) });
       }
       if (stopped) return;
-      const first = files[0] as JobEvent;
+      const first = files[0] as FileEvent;
       const bytes = single ? first.bytes : zipPictures(files);
       await saved.write(bytes);
       const result: Made = {

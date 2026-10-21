@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { main } from '@loopweft/cli';
-import type { JobEvent } from '@loopweft/export';
+import type { FileEvent } from '@loopweft/export';
 import { readProject, serializeProject, stepKey } from '@loopweft/model';
 import { exportHtml } from '@loopweft/player';
 import { playerTemplate } from '@loopweft/player/build';
@@ -49,7 +49,7 @@ test('pictures of steps match what the audience window shows, and come out the s
       categoryWords: false,
     });
     expect(
-      Buffer.from((again as JobEvent).bytes).equals(Buffer.from(made[keys.indexOf(key)]?.bytes ?? [])),
+      Buffer.from((again as FileEvent).bytes).equals(Buffer.from(made[keys.indexOf(key)]?.bytes ?? [])),
     ).toBe(true);
   }
 
@@ -108,22 +108,22 @@ test('double size, the trimmed whole map and categories in words', async () => {
     scale: 2,
     categoryWords: false,
   });
-  expect(pngSize((big as JobEvent).bytes)).toEqual({ width: 3840, height: 2160 });
+  expect(pngSize((big as FileEvent).bytes)).toEqual({ width: 3840, height: 2160 });
 
   const [whole] = await pictures({ format: 'png', target: { kind: 'map' }, scale: 1, categoryWords: false });
-  expect(pngSize((whole as JobEvent).bytes)).toEqual({ width: 1920, height: 1080 });
-  expect((whole as JobEvent).name).toBe('map.png');
+  expect(pngSize((whole as FileEvent).bytes)).toEqual({ width: 1920, height: 1080 });
+  expect((whole as FileEvent).name).toBe('map.png');
   const [trimmed] = await pictures({
     format: 'png',
     target: { kind: 'map', trim: true },
     scale: 1,
     categoryWords: false,
   });
-  const size = pngSize((trimmed as JobEvent).bytes);
+  const size = pngSize((trimmed as FileEvent).bytes);
   expect(size.width).toBeLessThanOrEqual(1920);
   expect(size.height).toBeLessThan(1080);
   expect(size.width * size.height).toBeLessThan(1920 * 1080);
-  review('png-map-trimmed.png', (trimmed as JobEvent).bytes);
+  review('png-map-trimmed.png', (trimmed as FileEvent).bytes);
 
   const [words] = await pictures({
     format: 'png',
@@ -137,8 +137,8 @@ test('double size, the trimmed whole map and categories in words', async () => {
     scale: 1,
     categoryWords: false,
   });
-  expect(Buffer.from((words as JobEvent).bytes).equals(Buffer.from((plain as JobEvent).bytes))).toBe(false);
-  review('png-S04.2a-category-words.png', (words as JobEvent).bytes);
+  expect(Buffer.from((words as FileEvent).bytes).equals(Buffer.from((plain as FileEvent).bytes))).toBe(false);
+  review('png-S04.2a-category-words.png', (words as FileEvent).bytes);
 });
 
 test('loopweft export --png: a step, every step into a new folder, and the whole map', async () => {
@@ -206,7 +206,7 @@ test('loopweft export --png: a step, every step into a new folder, and the whole
     scale: 1,
     categoryWords: false,
   });
-  expect(readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as JobEvent).bytes))).toBe(
+  expect(readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))).toBe(
     true,
   );
   // A project without the story still draws its map.
@@ -263,7 +263,7 @@ test.describe('in the Studio', () => {
       scale: 1,
       categoryWords: false,
     });
-    const apart = await difference(page, one.bytes, (cli as JobEvent).bytes);
+    const apart = await difference(page, one.bytes, (cli as FileEvent).bytes);
     expect(apart.far).toBeLessThan(0.01);
     expect(apart.mean).toBeLessThan(0.6);
     review('studio-export.png', new Uint8Array(await page.screenshot()));

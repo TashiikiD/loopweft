@@ -1,14 +1,17 @@
 // How `loopweft export` puts its files on disk: whole or not at all, never over the project, and never over
 // anything else unless --force says so (even a file another program made while the export was being drawn).
 import {
+  closeSync,
   linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   renameSync,
   rmSync,
   statSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { OpError } from '@loopweft/model';
@@ -80,6 +83,72 @@ export function publishFile(out: string, data: string | Uint8Array, force: boole
     else placeNew(temporary, out);
   } finally {
     rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+/**
+ * A file written in pieces as they come (a video, which can run to hundreds of megabytes), in a new folder of
+ * its own beside `out`, then put in place whole as `publishFile` puts a file: never half a file, and nothing
+ * replaced without `force`.
+ */
+export class FileOut {
+  readonly path: string;
+  readonly #force: boolean;
+  readonly #folder: string;
+  readonly #temporary: string;
+  #fd: number | null;
+  #at = 0;
+
+  constructor(out: string, force: boolean) {
+    this.path = out;
+    this.#force = force;
+    this.#folder = mkdtempSync(join(dirname(resolve(out)), '.loopweft-export-'));
+    this.#temporary = join(this.#folder, basename(out));
+    this.#fd = openSync(this.#temporary, 'wx');
+  }
+
+  #open(): number {
+    if (this.#fd === null) throw new Error('The file is already closed.');
+    return this.#fd;
+  }
+
+  /** Adds bytes at the end. */
+  append(data: Uint8Array): void {
+    const fd = this.#open();
+    for (let done = 0; done < data.length; )
+      done += writeSync(fd, data, done, data.length - done, this.#at + done);
+    this.#at += data.length;
+  }
+
+  /** Writes bytes over the start of what is written (a video's head, once its numbers are known). */
+  rewriteStart(data: Uint8Array): void {
+    if (data.length > this.#at) throw new Error('There is less written than that to write over.');
+    const fd = this.#open();
+    for (let done = 0; done < data.length; ) done += writeSync(fd, data, done, data.length - done, done);
+  }
+
+  /** Bytes written so far. */
+  get size(): number {
+    return this.#at;
+  }
+
+  /** Puts the finished file in place. */
+  finish(): void {
+    closeSync(this.#open());
+    this.#fd = null;
+    try {
+      if (this.#force) renameSync(this.#temporary, this.path);
+      else placeNew(this.#temporary, this.path);
+    } finally {
+      rmSync(this.#folder, { recursive: true, force: true });
+    }
+  }
+
+  /** After a failure: the half-written file goes. */
+  abandon(): void {
+    if (this.#fd !== null) closeSync(this.#fd);
+    this.#fd = null;
+    rmSync(this.#folder, { recursive: true, force: true });
   }
 }
 

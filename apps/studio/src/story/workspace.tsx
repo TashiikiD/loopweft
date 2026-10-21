@@ -4,7 +4,8 @@
 // it. With the stage focused, the arrow keys move through the story as a presenter would (forward with the
 // full motion, back with a quick fade).
 
-import { type Project, type Step, sceneNumbers } from '@loopweft/model';
+import { type Project, sceneNumbers } from '@loopweft/model';
+import { HOLD_SECONDS, playTimes } from '@loopweft/player';
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import {
   IconChevronLeft,
@@ -21,24 +22,6 @@ import { StoryOutline } from './outline.tsx';
 import { StorySide } from './panels.tsx';
 import { type Brush, LOOK, RecordBar, RecordLayer } from './record.tsx';
 import { type Shown, type StageHandle, StoryStage } from './stage.tsx';
-
-/** How long a step holds while the scene plays when the next has no time it is due. */
-export const HOLD_SECONDS = 4;
-
-/**
- * When each step of a scene comes up as the scene plays, in seconds into the scene: a step due at a time
- * (`at`) comes up then, or at once when the step before came up later; an untimed step comes up HOLD_SECONDS
- * after the one before. The first step comes up at its own time, or at 0.
- */
-export function playTimes(steps: readonly Pick<Step, 'at'>[]): number[] {
-  const times: number[] = [];
-  for (const step of steps) {
-    const before = times.at(-1);
-    if (before === undefined) times.push(step.at ?? 0);
-    else times.push(step.at !== undefined ? Math.max(before, step.at) : before + HOLD_SECONDS);
-  }
-  return times;
-}
 
 export function StoryWorkspace() {
   const store = useStudioStore();

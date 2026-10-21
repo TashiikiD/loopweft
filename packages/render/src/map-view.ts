@@ -475,7 +475,7 @@ export class MapView {
     const launch = () => {
       const path = walker.walk() ?? [];
       if (path.length > 0) {
-        const tl = new Timeline({ onComplete: () => this.#ambientWalks.delete(tl) });
+        const tl = new Timeline({ idle: true, onComplete: () => this.#ambientWalks.delete(tl) });
         path.forEach((edge, i) => {
           this.#firePulse(tl, { edge, at: i * TRAVEL * 1.3, tone: spec.tone }, r.camera.zoom, true);
         });
@@ -485,9 +485,9 @@ export class MapView {
       // A gap of 0 or less (from a project that was not checked) would call this again at once, without
       // end: the walks stop instead.
       const gap = walker.gap();
-      this.#ambientNext = gap > 0 ? this.#motion.delayedCall(gap, launch) : null;
+      this.#ambientNext = gap > 0 ? this.#motion.delayedCall(gap, launch, { idle: true }) : null;
     };
-    this.#ambientNext = this.#motion.delayedCall(after, launch);
+    this.#ambientNext = this.#motion.delayedCall(after, launch, { idle: true });
   }
 
   /** Shows, changes or clears a variable's ▲/▼/± badge; on a forward step it pops in when its pulse lands. */

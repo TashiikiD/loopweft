@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { OpError } from '@loopweft/model';
 import { exportPage } from '../build/page.ts';
-import type { Job, JobEvent, Opened } from '../src/engine.ts';
+import type { EventOf, Job, Opened } from '../src/engine.ts';
 import { Chrome, ChromePage, findBrowser } from './chrome.ts';
 
 export { BROWSERS, Chrome, ChromePage, findBrowser, findBrowserNamed, QUIET_SWITCHES } from './chrome.ts';
@@ -66,16 +66,25 @@ export class BrowserExporter {
     return this.#page.evaluate<Opened>(`window.loopweftExport.open(${JSON.stringify(text)})`);
   }
 
-  /** Runs a job, handing each file it makes to `onFile` as it comes. */
-  async run(job: Job, onFile: (event: JobEvent) => void | Promise<void>): Promise<void> {
+  /** Runs a job, handing each file (or each piece of a video) to `onEvent` as it comes. */
+  async run<J extends Job>(job: J, onEvent: (event: EventOf<J>) => void | Promise<void>): Promise<void> {
     const id = await this.#page.evaluate<string>(`window.loopweftExport.start(${JSON.stringify(job)})`);
-    for (;;) {
-      const event = await this.#page.evaluate<(Omit<JobEvent, 'bytes'> & { base64: string }) | null>(
-        `window.loopweftExport.next(${JSON.stringify(id)})`,
-      );
-      if (!event) return;
-      const { base64, ...rest } = event;
-      await onFile({ ...rest, bytes: new Uint8Array(Buffer.from(base64, 'base64')) } as JobEvent);
+    try {
+      for (;;) {
+        const wire = await this.#page.evaluate<{ base64: Record<string, string> } | null>(
+          `window.loopweftExport.next(${JSON.stringify(id)})`,
+        );
+        if (!wire) return;
+        const { base64, ...rest } = wire;
+        const event: Record<string, unknown> = { ...rest };
+        for (const [key, text] of Object.entries(base64))
+          event[key] = new Uint8Array(Buffer.from(text, 'base64'));
+        await onEvent(event as EventOf<J>);
+      }
+    } catch (error) {
+      // A failure on this side (a file that could not be written) stops the job in the page too.
+      await this.#page.evaluate(`window.loopweftExport.cancel(${JSON.stringify(id)})`).catch(() => undefined);
+      throw error;
     }
   }
 
@@ -86,16 +95,16 @@ export class BrowserExporter {
 }
 
 /** Opens a project in a headless browser, runs one job, and closes the browser. */
-export async function exportInBrowser(
+export async function exportInBrowser<J extends Job>(
   text: string,
-  job: Job,
-  onFile: (event: JobEvent) => void | Promise<void>,
+  job: J,
+  onEvent: (event: EventOf<J>) => void | Promise<void>,
   options: BrowserExportOptions = {},
 ): Promise<Opened> {
   const exporter = await BrowserExporter.start(options);
   try {
     const opened = await exporter.open(text);
-    await exporter.run(job, onFile);
+    await exporter.run(job, onEvent);
     return opened;
   } finally {
     await exporter.close();

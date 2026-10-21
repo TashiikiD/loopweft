@@ -5,6 +5,7 @@
 // `{ "ok": true, ... }`, or `{ "ok": false, "error": { "message", "exitCode", "issues" } }`.
 // Exit codes: 0 ok · 1 the project is invalid (or would become so) · 2 wrong usage · 3 internal error.
 import { readFileSync } from 'node:fs';
+import { HOLD_DEFAULT } from '@loopweft/export';
 import { FRAMES, LEVELS, OpError, PLACES } from '@loopweft/model';
 import { Command, CommanderError } from 'commander';
 import {
@@ -87,6 +88,19 @@ const processIo: Io = {
 
 export const EXIT = { ok: 0, invalid: 1, usage: 2, internal: 3 } as const;
 
+/**
+ * A line on the terminal that a long export rewrites as it goes (an empty text clears it). Only on this
+ * process's own terminal: nothing when the output goes to a file, another program or a test.
+ */
+function progressLine(io: Io): ((text: string) => void) | undefined {
+  if (io !== processIo || !process.stderr.isTTY) return undefined;
+  return (text) =>
+    process.stderr.write(
+      `
+${text}[K`,
+    );
+}
+
 const VERSION = (
   JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 ).version;
@@ -165,7 +179,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   program
     .command('export <file>')
     .description(
-      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, or as PDF documents (the slides, the speaker notes, the references)',
+      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, as PDF documents (the slides, the speaker notes, the references), or as video (MP4 or WebM) of its story',
     )
     .option('--html', 'one HTML file')
     .option(
@@ -182,8 +196,23 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     )
     .option('--paper <size>', 'pdf: letter (the default) or a4')
     .option(
+      '--mp4',
+      'video (MP4, H.264, no sound) of the story as the talk plays it, made in the Chrome or Edge on this computer: the whole story, --scene, or --from and --to',
+    )
+    .option('--webm', 'video as WebM (VP9), for a browser that cannot make MP4')
+    .option('--scene <scene>', 'mp4, webm: one scene, by its id or title')
+    .option('--from <step>', 'mp4, webm: the first step to play, e.g. S04.2a (with --to)')
+    .option('--to <step>', 'mp4, webm: the last step to play (with --from)')
+    .option(
+      '--hold <seconds>',
+      `mp4, webm: how long each step holds once its motion is over (default ${HOLD_DEFAULT})`,
+    )
+    .option('--talk-timing', "mp4, webm: each step until the next is due, as the talk's timing has it")
+    .option('--height <pixels>', 'mp4, webm: 1080 (1920 × 1080, the default) or 720 (1280 × 720)')
+    .option('--fps <n>', 'mp4, webm: 30 (the default) or 60 frames a second')
+    .option(
       '-o, --out <file>',
-      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -slides.pdf, -speaker-notes.pdf or -references.pdf)',
+      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -slides.pdf, -speaker-notes.pdf, -references.pdf, or -story, -<scene> or -<step>-to-<step> with .mp4 or .webm)',
     )
     .option(
       '--no-notes',
@@ -196,10 +225,10 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--scale <n>', 'png: 1 (1920 × 1080, the default) or 2 (3840 × 2160, for print and posters)')
     .option(
       '--category-words',
-      "png, svg, pdf slides: name each shown variable's category in words, as the C key does",
+      "png, svg, pdf slides, mp4, webm: name each shown variable's category in words, as the C key does",
     )
     .option('--force', 'replace the output file (or files in the folder) if it exists')
-    .action((file: string, o) => run(() => exportCommand(file, o))());
+    .action((file: string, o) => run(() => exportCommand(file, o, { progress: progressLine(io) }))());
 
   const variable = program.command('var').description('variables: list, add, set, rm');
   variable

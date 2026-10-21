@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ManualClock, Motion } from '../src/index.ts';
+import { ManualClock, Motion, Timeline } from '../src/index.ts';
 
 const setup = () => {
   const clock = new ManualClock();
@@ -64,6 +64,17 @@ describe('the director', () => {
     clock.advance(0.1);
     motion.landAll();
     expect([a.v, b.v, fired, motion.active]).toEqual([1, 2, true, 0]);
+  });
+
+  it('counts as busy only the timelines that are not idle', () => {
+    const { clock, motion } = setup();
+    const box = { x: 0 };
+    motion.to(box, { x: 1 }, { duration: 1 });
+    motion.delayedCall(0.5, () => {}, { idle: true });
+    motion.play(new Timeline({ idle: true }).to(box, { x: 2 }, { duration: 3, at: 2 }));
+    expect([motion.active, motion.busy]).toEqual([3, 1]);
+    clock.advance(1);
+    expect([motion.active, motion.busy]).toEqual([1, 0]);
   });
 
   it('calls a function after a delay, paused with everything else', () => {

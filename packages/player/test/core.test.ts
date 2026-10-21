@@ -18,6 +18,7 @@ import {
   pace,
   paceText,
   parseKey,
+  playTimes,
   posKey,
   prevPos,
   receiveLimit,
@@ -26,6 +27,7 @@ import {
   type ShowState,
   sanitizeClock,
   sanitizeShowState,
+  sceneLength,
   sceneTag,
   toggleClock,
   totalSteps,
@@ -333,5 +335,17 @@ describe('the clock and pace', () => {
     expect(fmt(840)).toBe('14:00');
     expect(fmt(61.9)).toBe('1:01');
     expect(fmt(-5)).toBe('−0:05');
+  });
+});
+
+describe('a scene playing by itself', () => {
+  it('runs for its target length, or a hold after its last step', () => {
+    const steps = [{ at: 0 }, { at: 14 }, {}];
+    expect(playTimes(steps)).toEqual([0, 14, 18]);
+    expect(sceneLength({ steps, targetSeconds: 60 })).toBe(60);
+    // A target its steps outrun, or none: the hold after the last step.
+    expect(sceneLength({ steps, targetSeconds: 10 })).toBe(22);
+    expect(sceneLength({ steps })).toBe(22);
+    expect(sceneLength({ steps: [] })).toBe(0);
   });
 });

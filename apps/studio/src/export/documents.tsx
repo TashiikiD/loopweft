@@ -4,8 +4,8 @@
 // with the same code as `loopweft export --pdf`.
 import {
   type FontReader,
+  fileEvent,
   fileStem,
-  type JobEvent,
   notesPdf,
   type Paper,
   referencesPdf,
@@ -82,8 +82,9 @@ export function DocumentsCard({ fonts, engine }: DocumentsCardProps) {
     const pictures: SlidePicture[] = [];
     for (;;) {
       if (stopped()) return null;
-      const event: JobEvent | null = await drawer.next(id);
-      if (!event) break;
+      const next = await drawer.next(id);
+      if (!next) break;
+      const event = fileEvent(next);
       pictures.push({ key: event.key as string, jpeg: event.bytes });
       setProgress({ done: event.done, total: event.total });
     }

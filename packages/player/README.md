@@ -15,6 +15,9 @@ Built so far (Phase 5, in slices):
   B or . to blank, F5 ignored, a held key never races through steps); `JumpBuffer` for "a number, then Enter".
 - `pace`: the presenter's clock and how they are doing against each scene's target (on pace within 15 s, late
   to 45 s, very late beyond).
+- `playTimes` and `sceneLength`: when each step comes up as a scene plays by itself (at its own time, or 4 s
+  after the step before), and how long the scene runs (its target, or 4 s after its last step). The Studio's
+  preview and a video in the talk's timing share them.
 - `Link` and `ShowSession`: the windows of one presentation kept in step. Every message goes over a
   BroadcastChannel where one opens and straight to the windows each window knows (the one that opened it, the
   ones it opened, any it heard from), so a file opened from disk works too; the newest change wins, and a
