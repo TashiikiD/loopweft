@@ -1,5 +1,5 @@
 // `loopweft export`: a project as one HTML file to share or present, as pictures (PNG, or SVG drawings) of its
-// steps or of the whole map, or as PDF documents (the speaker notes, the references). The files are the Studio's exports, byte for byte: the HTML is the player's page with the
+// steps or of the whole map, or as PDF documents (the slides, the speaker notes, the references). The files are the Studio's exports, byte for byte: the HTML is the player's page with the
 // project in it; pictures are drawn by the export page in the Chrome or Edge on this computer, as the Studio
 // draws them in its own tab.
 import { join } from 'node:path';
@@ -12,6 +12,8 @@ import {
   type PictureTarget,
   picturesFor,
   referencesPdf,
+  type SlidePicture,
+  slidesPdf,
 } from '@loopweft/export';
 import { browserForExport, exportInBrowser, nodeFonts } from '@loopweft/export/node';
 import { OpError, plural, serializeProject } from '@loopweft/model';
@@ -52,7 +54,7 @@ export async function exportCommand(file: string, o: ExportCommandOptions): Prom
   if (chosen.length !== 1) {
     throw new OpError(
       chosen.length === 0
-        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings) or --pdf notes|references (documents).'
+        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings) or --pdf slides|notes|references (documents).'
         : `Export one format at a time (${chosen.map((f) => `--${f}`).join(', ')} given).`,
       'usage',
     );
@@ -239,15 +241,24 @@ function paperOf(text: string | undefined): Paper {
 }
 
 async function pdfExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
+  const which = o.pdf as string;
+  const slides = which === 'slides';
   for (const option of ['step', 'allSteps', 'map', 'trim', 'scale', 'categoryWords'] as const) {
+    if (option === 'categoryWords' && slides) continue;
     if (o[option] !== undefined)
-      throw new OpError(`--${dashed(option)} is for pictures (--png or --svg).`, 'usage');
+      throw new OpError(
+        `--${dashed(option)} is for pictures (--png or --svg)${option === 'categoryWords' ? ' and the slides (--pdf slides)' : ''}.`,
+        'usage',
+      );
   }
   if (o.notes === false) throw new OpError('--no-notes is for the HTML file (--html).', 'usage');
-  const which = o.pdf as string;
+  if (slides) return slidesExport(file, o);
   const document = DOCUMENTS[which as keyof typeof DOCUMENTS];
   if (!document || !Object.hasOwn(DOCUMENTS, which))
-    throw new OpError(`--pdf is notes (the speaker notes) or references, not "${which}".`, 'usage');
+    throw new OpError(
+      `--pdf is slides (one page per step), notes (the speaker notes) or references, not "${which}".`,
+      'usage',
+    );
   const paper = paperOf(o.paper);
   const project = loadProject(file);
   const out = o.out ?? `${stemOf(file)}-${document.file}.pdf`;
@@ -271,6 +282,47 @@ async function pdfExport(file: string, o: ExportCommandOptions): Promise<Command
       pages: made.pages,
       bytes: made.bytes.length,
       notes: made.notes,
+    },
+  };
+}
+
+/** The slides PDF: every step drawn by the export page in this computer's browser, one 16:9 page each. */
+async function slidesExport(file: string, o: ExportCommandOptions): Promise<CommandResult> {
+  if (o.paper !== undefined)
+    throw new OpError(
+      'The slides are 16:9 pages, the stage’s own shape: --paper is for notes and references.',
+      'usage',
+    );
+  const job: PictureJob = {
+    format: 'jpeg',
+    target: { kind: 'steps' },
+    scale: 1,
+    categoryWords: o.categoryWords === true,
+  };
+  const project = loadProject(file);
+  if (project.story.scenes.every((scene) => scene.steps.length === 0))
+    throw new OpError('The story has no steps yet, so there are no slides to make.', 'usage');
+  const out = o.out ?? `${stemOf(file)}-slides.pdf`;
+  notTheProject(file, out, 'The PDF');
+  if (!o.force && taken(out)) throw alreadyThere(out);
+  browserForExport();
+  const pictures: SlidePicture[] = [];
+  await exportInBrowser(serializeProject(project), job, (event) => {
+    pictures.push({ key: event.key as string, jpeg: event.bytes });
+  });
+  const made = await slidesPdf(project, pictures);
+  publishFile(out, made.bytes, o.force === true);
+  return {
+    text: `Wrote ${out} (slides: ${plural(made.pages, 'page')}, 16:9, ${megabytes(made.bytes.length)}).`,
+    data: {
+      file,
+      out,
+      format: 'pdf',
+      document: 'slides',
+      categoryWords: job.categoryWords,
+      pages: made.pages,
+      bytes: made.bytes.length,
+      notes: [],
     },
   };
 }

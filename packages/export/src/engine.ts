@@ -8,6 +8,7 @@
 // the same.
 import { issueLines, type Project, readProject } from '@loopweft/model';
 import { encodeCanvas } from './frame.ts';
+import { SLIDE_QUALITY } from './pdf/slides.ts';
 import { checkPictureJob, type Picture, type PictureJob, picturesFor } from './pictures.ts';
 import { ExportStage } from './stage.ts';
 
@@ -133,7 +134,10 @@ export class ExportEngine {
           notes = drawing.notes;
         } else {
           const canvas = await stage.frame(job.scale, crop);
-          bytes = await encodeCanvas(canvas, 'image/png');
+          bytes =
+            job.format === 'jpeg'
+              ? await encodeCanvas(canvas, 'image/jpeg', SLIDE_QUALITY)
+              : await encodeCanvas(canvas, 'image/png');
           width = canvas.width;
           height = canvas.height;
         }

@@ -1,7 +1,7 @@
 # @loopweft/export
 
 Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG), drawings
-(SVG), and the speaker notes and references PDFs. The slides PDF and video follow in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
+(SVG), and the slides, speaker notes and references PDFs. Video follows in Phase 6. See [exporting](../../docs/export.md) for what each export holds.
 
 - **The export page** (`page/`): the engine (`src/engine.ts`) on a 1920 × 1080 stage, with Loopweft's fonts
   and the stage's styles, built into one HTML file by `build/page.ts`, as the player's page is. The Studio
@@ -26,7 +26,8 @@ Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, p
   kept with what follows, short paragraphs kept whole, slide marks as chips, links, bookmarks and footers.
   `fonts.ts` picks, for each character, the first font file of its style that has it (Fraunces, then Inter, then
   Noto Sans Math), reads only those files and embeds only the letters used; `document.ts` sets the properties and
-  the date (the project's own, never the clock).
+  the date (the project's own, never the clock). `slides.ts` puts the export page's JPEG of each step on a 16:9
+  page, with a bookmark at each scene.
 - **What a job draws** (`src/pictures.ts`): one step, every step in story order, or the whole map; file
   names; the options' checks. Pure, so the Studio, the command line and the tests agree without a browser.
 - **Node** (`node/`): finds Chrome or Edge (`LOOPWEFT_CHROME` names another) and drives it headless over its

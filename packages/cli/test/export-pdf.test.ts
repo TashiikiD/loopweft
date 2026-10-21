@@ -54,7 +54,18 @@ describe('loopweft export --pdf', () => {
   });
 
   it.each([
-    [['--pdf', 'slides'], '--pdf is notes (the speaker notes) or references, not "slides".'],
+    [
+      ['--pdf', 'posters'],
+      '--pdf is slides (one page per step), notes (the speaker notes) or references, not "posters".',
+    ],
+    [
+      ['--pdf', 'slides', '--paper', 'a4'],
+      'The slides are 16:9 pages, the stage’s own shape: --paper is for notes and references.',
+    ],
+    [
+      ['--pdf', 'notes', '--category-words'],
+      '--category-words is for pictures (--png or --svg) and the slides (--pdf slides).',
+    ],
     [['--pdf', 'notes', '--paper', 'legal'], '--paper is letter (the default) or a4, not "legal".'],
     [['--pdf', 'notes', '--step', 'S04.2a'], '--step is for pictures (--png or --svg).'],
     [['--pdf', 'notes', '--no-notes'], '--no-notes is for the HTML file (--html).'],
@@ -64,6 +75,14 @@ describe('loopweft export --pdf', () => {
     const result = await run('export', project, ...options);
     expect(result.code).toBe(2);
     expect(result.err.trim()).toBe(message);
+  });
+
+  it('refuses the slides of a story with no steps, before any browser starts', async () => {
+    const bare = join(dir, 'bare.loopweft');
+    expect((await run('new', bare, '--title', 'Bare')).code).toBe(0);
+    const result = await run('export', bare, '--pdf', 'slides');
+    expect(result.code).toBe(2);
+    expect(result.err.trim()).toBe('The story has no steps yet, so there are no slides to make.');
   });
 
   it('never writes a PDF over the project', async () => {

@@ -15,10 +15,13 @@ export type PictureTarget =
 /** PNG: pixels, as the screen shows them. SVG: a drawing that stays sharp at any size and can be edited. */
 export type PictureFormat = 'png' | 'svg';
 
+/** What the engine can make of a stage: a picture, or, for the slides PDF, a JPEG of each step. */
+export type FrameFormat = PictureFormat | 'jpeg';
+
 export const PICTURE_FORMATS: readonly PictureFormat[] = ['png', 'svg'];
 
 export interface PictureJob {
-  format: PictureFormat;
+  format: FrameFormat;
   target: PictureTarget;
   /** PNG: 1 for 1920 × 1080, 2 for 3840 × 2160 (print and posters). An SVG has no pixels: always 1. */
   scale: 1 | 2;
@@ -78,8 +81,10 @@ export function picturesFor(project: Project, target: PictureTarget, extension: 
 
 /** Checks a job's options, so a mistake is named before any drawing starts. */
 export function checkPictureJob(job: PictureJob): void {
-  if (!PICTURE_FORMATS.includes(job.format))
+  if (!PICTURE_FORMATS.includes(job.format as PictureFormat) && job.format !== 'jpeg')
     throw new OpError(`Pictures are PNG or SVG, not "${job.format}".`, 'usage');
+  if (job.format === 'jpeg' && (job.scale !== 1 || job.target.kind !== 'steps'))
+    throw new OpError('The slides are every step, at the stage’s own size.', 'usage');
   if (job.format === 'svg' && job.scale !== 1)
     throw new OpError(
       'An SVG drawing has no size in pixels: it stays sharp at any size. The scale is for PNG.',

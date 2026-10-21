@@ -165,7 +165,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   program
     .command('export <file>')
     .description(
-      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, or as PDF documents (the speaker notes, the references)',
+      'the project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, or as PDF documents (the slides, the speaker notes, the references)',
     )
     .option('--html', 'one HTML file')
     .option(
@@ -178,12 +178,12 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     )
     .option(
       '--pdf <document>',
-      'a PDF: notes (the speaker notes) or references (an APA list with every image credit)',
+      'a PDF: slides (one 16:9 page per step, drawn in Chrome or Edge), notes (the speaker notes) or references (an APA list with every image credit)',
     )
     .option('--paper <size>', 'pdf: letter (the default) or a4')
     .option(
       '-o, --out <file>',
-      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -speaker-notes.pdf or -references.pdf)',
+      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -slides.pdf, -speaker-notes.pdf or -references.pdf)',
     )
     .option(
       '--no-notes',
@@ -194,7 +194,10 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--map', 'png, svg: the whole map plainly, without the story (a project needs no story for it)')
     .option('--trim', 'png, svg --map: only the map and a margin, not the whole 16:9 stage')
     .option('--scale <n>', 'png: 1 (1920 × 1080, the default) or 2 (3840 × 2160, for print and posters)')
-    .option('--category-words', "png, svg: name each shown variable's category in words, as the C key does")
+    .option(
+      '--category-words',
+      "png, svg, pdf slides: name each shown variable's category in words, as the C key does",
+    )
     .option('--force', 'replace the output file (or files in the folder) if it exists')
     .action((file: string, o) => run(() => exportCommand(file, o))());
 

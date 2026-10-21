@@ -160,9 +160,9 @@ export function ExportWorkspace({
             </Stack>
           </Card>
           <PicturesCard engine={engine} />
-          <DocumentsCard fonts={fonts} />
+          <DocumentsCard fonts={fonts} engine={engine} />
           <Text size="sm" c="dimmed">
-            The slides as a PDF, and video, come later in Phase 6.
+            Video comes later in Phase 6.
           </Text>
         </Stack>
       </div>

@@ -16,9 +16,11 @@ export { type DocumentPdfOptions, type PdfResult, projectDate } from './pdf/docu
 export { ALL_FONT_FILES, type Face, FONT_FILES, type FontReader, planFonts } from './pdf/fonts.ts';
 export { notesBlocks, notesPdf } from './pdf/notes.ts';
 export { referencesBlocks, referencesPdf } from './pdf/references.ts';
+export { SLIDE_PAGE, SLIDE_QUALITY, type SlidePicture, type SlidesResult, slidesPdf } from './pdf/slides.ts';
 export { type Block, PAPER, type Paper } from './pdf/typeset.ts';
 export {
   checkPictureJob,
+  type FrameFormat,
   fileStem,
   type Picture,
   type PictureFormat,

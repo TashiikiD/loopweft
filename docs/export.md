@@ -4,9 +4,9 @@ Loopweft exports a project in these forms:
 - **One HTML file**, to present and share: see [presenting and sharing](present.md).
 - **Pictures (PNG)** of a step, of every step, or of the whole map (below).
 - **Drawings (SVG)** of the same: shapes and text that stay sharp at any size and can be edited (below).
-- **The speaker notes and the references** as PDFs to print (below).
+- **The slides, the speaker notes and the references** as PDFs (below).
 
-The slides as a PDF, and video (MP4, WebM, GIF), follow in Phase 6.
+Video (MP4, WebM, GIF) follows in Phase 6.
 
 Every export is made on this computer. Nothing is uploaded, and nothing reaches the network.
 
@@ -139,6 +139,30 @@ there may differ in a few numbers (of the example's drawings checked on GitHub's
 gave the same file for some and not for others). It names
 Loopweft only in its properties (`<metadata>`), and its title is the project's title and the step's key.
 
+## The slides (PDF)
+
+One 16:9 page per step, in story order: a backup for the day (the talk goes on from any PDF reader, one page per
+key press) and a handout. In the Studio: **Export**, **PDF documents**, then **Slides**. On the command line:
+
+```bash
+loopweft export talk.loopweft --pdf slides
+```
+
+- Each page is the step as the audience sees it once its motion is over, drawn as a PNG picture is (by the
+  browser, on the command line the Chrome or Edge on this computer), then kept as a JPEG of high quality (95%).
+  JPEG keeps the file a size that can be emailed: the example's 70 slides take about 15 MB, against 113 MB as
+  pictures.
+- Nothing is drawn on the slides: the reader's page number is the slide's number, as the speaker notes' marks
+  count them.
+- A bookmark opens each scene at its first slide, named as its caption names it ("05 · Feedback: the widening
+  lens").
+- Pages are 16:9, the stage's own shape, whatever the paper (`--paper` is for the notes and references).
+- **Name categories in words** (`--category-words`) draws the slides as the C key shows them.
+- Every step is drawn, so a story of 70 steps takes about 20 seconds; the Studio shows its progress and can
+  cancel.
+- Written to `<project>-slides.pdf`. As for the pictures, the same project gives the same file on the same
+  computer and browser.
+
 ## The speaker notes and the references (PDF)
 
 Two documents to print or hand out, on Letter (the default) or A4 paper. In the Studio: **Export**, then **PDF
@@ -165,7 +189,7 @@ As for every export, nothing is replaced without `--force`.
   - the sources it draws on, by their short names.
 - A scene shows only what the project holds: no heading for notes or a script it does not have.
 
-Slide 23 is the 23rd step of the story: the slides PDF (to come) has one page per step, in the same order.
+Slide 23 is the 23rd step of the story: the slides PDF has one page per step, in the same order.
 
 **The references:**
 - every source, as an APA 7 list: alphabetical, with a hanging indent, titles in italics, and DOIs and web
