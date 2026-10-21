@@ -12,8 +12,7 @@ import { encodeCanvas } from './frame.ts';
 import { SLIDE_QUALITY } from './pdf/slides.ts';
 import { checkPictureJob, type Picture, type PictureJob, picturesFor } from './pictures.ts';
 import { ExportStage } from './stage.ts';
-import { chooseEncoder, FrameEncoder } from './video/encode.ts';
-import { Mp4Writer } from './video/mp4.ts';
+import { GIF_WARNING_BYTES } from './video/gif.ts';
 import {
   checkVideoJob,
   holdFrames,
@@ -24,8 +23,7 @@ import {
   videoPlan,
   videoSize,
 } from './video/plan.ts';
-import { WebmWriter } from './video/webm.ts';
-import type { VideoWriter } from './video/writer.ts';
+import { openSink } from './video/sink.ts';
 
 export type Job = PictureJob | VideoJob;
 
@@ -75,9 +73,12 @@ export interface VideoEndEvent {
   seconds: number;
   /** The whole file, in bytes. */
   size: number;
-  /** The codec the browser encoded with, e.g. "avc1.640028". */
+  /** The codec the browser encoded with, e.g. "avc1.640028", or "gif". */
   codec: string;
+  /** What to know about the file. */
   notes: string[];
+  /** What may stand in its way: a GIF too large for many apps to take. */
+  warnings: string[];
 }
 
 export type VideoEvent = VideoDataEvent | VideoEndEvent;
@@ -94,9 +95,10 @@ export function fileEvent(event: JobEvent): FileEvent {
   return event;
 }
 
-/** The note a video carries when only the graphics card could encode it. */
-export const HARDWARE_NOTE =
-  'This browser could only encode the video on the graphics card, so exporting it again may not give exactly the same file.';
+/** The warning on a GIF past GIF_WARNING_BYTES. */
+export function gifSizeWarning(bytes: number): string {
+  return `At ${(bytes / 1_000_000).toFixed(1)} MB, this GIF is past 20 MB: many apps, chats and email services refuse a GIF that large, or play it slowly. Fewer steps make a smaller one, and an MP4 of the same steps is far smaller.`;
+}
 
 export interface Opened {
   title: string;
@@ -240,17 +242,16 @@ export class ExportEngine {
    * stage), so the video starts as the presenter's replay of that step does.
    */
   async *#video(project: Project, job: VideoJob, plan: VideoPlan): AsyncGenerator<VideoEvent, void> {
-    const choice = await chooseEncoder(job.format, job.height, job.fps);
-    if (!choice)
-      throw new Error(
-        job.format === 'mp4'
-          ? 'This browser cannot make MP4 video (H.264). Export WebM instead, or use Chrome or Edge.'
-          : 'This browser cannot make WebM video (VP9). Use Chrome or Edge.',
-      );
+    const meta = {
+      title: plan.what === 'the story' ? project.meta.title : `${project.meta.title} · ${plan.what}`,
+      ...(project.meta.author ? { author: project.meta.author } : {}),
+      program: 'Loopweft',
+    };
+    const sink = await openSink(job, meta);
     this.#host.replaceChildren();
-    const stage = await ExportStage.create(this.#host, project);
-    const encoder = FrameEncoder.open(choice, job.fps);
+    let stage: ExportStage | null = null;
     try {
+      stage = await ExportStage.create(this.#host, project);
       stage.setCategoryWords(job.categoryWords);
       const order = project.story.scenes.flatMap((scene, s) => scene.steps.map((_, t) => [s, t] as const));
       const first = plan.steps[0] as VideoPlan['steps'][number];
@@ -265,59 +266,39 @@ export class ExportEngine {
       const scale = width / 1920;
       const dt = 1 / job.fps;
       const hold = job.timing.kind === 'hold' ? holdFrames(job.timing.seconds, job.fps) : 0;
-      const meta = {
-        title: plan.what === 'the story' ? project.meta.title : `${project.meta.title} · ${plan.what}`,
-        ...(project.meta.author ? { author: project.meta.author } : {}),
-        program: 'Loopweft',
-      };
-      let writer: VideoWriter | null = null;
-      const pending: Uint8Array[] = [];
-      // The encoder says what its frames are with the first one; the file starts then.
-      const collect = () => {
-        const encoded = encoder.take();
-        if (encoded.length === 0) return;
-        if (!writer) {
-          const track = encoder.track;
-          if (!track) throw new Error('The browser’s video encoder did not say what its frames are.');
-          writer = job.format === 'mp4' ? new Mp4Writer(track, meta) : new WebmWriter(track, meta);
-          pending.push(writer.head);
-        }
-        for (const frame of encoded) pending.push(...writer.add(frame));
-      };
+      const on = stage;
       let frames = 0;
       let ticks = 0;
       let canvas: HTMLCanvasElement | null = null;
       let pressed = false;
       // Moves the clock on to the time of frame `n`.
       const reach = (n: number) => {
-        for (; ticks < n; ticks++) stage.clock.tick(dt);
+        for (; ticks < n; ticks++) on.clock.tick(dt);
       };
       const draw = async () => {
         // Nothing playing and no key pressed since the last frame: this frame is that one again.
-        const same = canvas !== null && !pressed && stage.motion.active === 0;
+        const same = canvas !== null && !pressed && on.motion.active === 0;
         reach(frames);
-        if (!same) canvas = await stage.frame(scale);
+        if (!same) canvas = await on.frame(scale);
         pressed = false;
-        await encoder.encode(canvas as HTMLCanvasElement);
+        await sink.frame(canvas as HTMLCanvasElement, same);
         frames++;
-        collect();
       };
       let size = 0;
-      const piece = (): Uint8Array => {
-        const bytes = new Uint8Array(pending.reduce((n, p) => n + p.length, 0));
+      const piece = (parts: Uint8Array[]): Uint8Array => {
+        const bytes = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
         let o = 0;
-        for (const p of pending) {
+        for (const p of parts) {
           bytes.set(p, o);
           o += p.length;
         }
-        pending.length = 0;
         size += bytes.length;
         return bytes;
       };
 
       for (const [i, step] of plan.steps.entries()) {
         reach(frames);
-        await stage.play(step.sceneIndex, step.stepIndex);
+        await on.play(step.sceneIndex, step.stepIndex);
         pressed = true;
         if (step.frames !== null) {
           for (let f = 0; f < step.frames; f++) await draw();
@@ -326,7 +307,7 @@ export class ExportEngine {
           const limit = frames + MOTION_MAX * job.fps;
           for (;;) {
             await draw();
-            if (stage.motion.busy === 0) break;
+            if (on.motion.busy === 0) break;
             if (frames > limit)
               throw new Error(`The motion of ${step.key} is still going after ${MOTION_MAX} seconds.`);
           }
@@ -334,7 +315,7 @@ export class ExportEngine {
         }
         yield {
           type: 'data',
-          bytes: piece(),
+          bytes: piece(sink.take()),
           done: i + 1,
           total: plan.steps.length,
           key: step.key,
@@ -343,15 +324,11 @@ export class ExportEngine {
       }
       if (frames === 0)
         throw new Error('These steps all come up at once in the talk, so there is no video to make.');
-      await encoder.flush();
-      collect();
-      const made = (writer as VideoWriter | null)?.finish();
-      if (!made) throw new Error('The browser’s video encoder made no frames.');
-      pending.push(...made.body, made.tail);
+      const made = await sink.finish();
       const last = plan.steps.at(-1) as VideoPlan['steps'][number];
       yield {
         type: 'data',
-        bytes: piece(),
+        bytes: piece(made.last),
         done: plan.steps.length,
         total: plan.steps.length,
         key: last.key,
@@ -367,12 +344,13 @@ export class ExportEngine {
         frames,
         seconds: frames / job.fps,
         size,
-        codec: (encoder.track as { codec: string }).codec,
-        notes: choice.hardware ? [HARDWARE_NOTE] : [],
+        codec: made.codec,
+        notes: sink.notes,
+        warnings: job.format === 'gif' && size > GIF_WARNING_BYTES ? [gifSizeWarning(size)] : [],
       };
     } finally {
-      encoder.close();
-      stage.dispose();
+      sink.close();
+      stage?.dispose();
     }
   }
 }

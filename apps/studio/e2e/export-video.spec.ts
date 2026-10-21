@@ -184,6 +184,106 @@ test('a WebM at 720p and 60 frames a second, in the talk’s timing: as long as 
   expect([shown.width, shown.height]).toEqual([1280, 720]);
 });
 
+/** A GIF as the browser decodes it: its size, its frames and their time, how often it plays, its last frame. */
+async function decoded(
+  page: Page,
+  bytes: Uint8Array,
+): Promise<{
+  width: number;
+  height: number;
+  frames: number;
+  seconds: number;
+  loops: number;
+  last: Uint8Array;
+}> {
+  const result = await page.evaluate(async (base64) => {
+    const data = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const decoder = new ImageDecoder({ data, type: 'image/gif' });
+    await decoder.tracks.ready;
+    await decoder.completed;
+    const track = decoder.tracks.selectedTrack as ImageTrack;
+    let micro = 0;
+    let last = '';
+    let size = { width: 0, height: 0 };
+    for (let i = 0; i < track.frameCount; i++) {
+      const { image } = await decoder.decode({ frameIndex: i });
+      micro += image.duration ?? 0;
+      if (i === track.frameCount - 1) {
+        const canvas = new OffscreenCanvas(image.displayWidth, image.displayHeight);
+        canvas.getContext('2d')?.drawImage(image, 0, 0);
+        const blob = await canvas.convertToBlob({ type: 'image/png' });
+        last = await new Promise<string>((done) => {
+          const r = new FileReader();
+          r.onload = () => done(String(r.result).split(',')[1] as string);
+          r.readAsDataURL(blob);
+        });
+        size = { width: image.displayWidth, height: image.displayHeight };
+      }
+      image.close();
+    }
+    return { ...size, frames: track.frameCount, seconds: micro / 1e6, loops: track.repetitionCount, last };
+  }, Buffer.from(bytes).toString('base64'));
+  return { ...result, last: new Uint8Array(Buffer.from(result.last, 'base64')) };
+}
+
+/** A picture at half its size, as the browser scales it, to set beside a GIF's frame. */
+async function halved(page: Page, png: Uint8Array): Promise<Uint8Array> {
+  const base64 = await page.evaluate(async (data) => {
+    const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const bitmap = await createImageBitmap(blob, {
+      resizeWidth: 960,
+      resizeHeight: 540,
+      resizeQuality: 'high',
+    });
+    const canvas = new OffscreenCanvas(960, 540);
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
+    const out = await canvas.convertToBlob({ type: 'image/png' });
+    return await new Promise<string>((done) => {
+      const r = new FileReader();
+      r.onload = () => done(String(r.result).split(',')[1] as string);
+      r.readAsDataURL(out);
+    });
+  }, Buffer.from(png).toString('base64'));
+  return new Uint8Array(Buffer.from(base64, 'base64'));
+}
+
+test('a GIF of steps: it loops, 960 × 540, as long as its video, a held frame once, the same bytes twice', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const gifJob = job({ format: 'gif', height: 540, fps: 15 });
+  const first = await video(gifJob);
+  const { end } = first;
+  expect(end).toMatchObject({ name: 'S04.2a-to-S04.2b.gif', width: 960, height: 540, fps: 15, codec: 'gif' });
+  expect(end.warnings).toEqual([]);
+  const second = await video(gifJob);
+  expect(Buffer.from(second.bytes).equals(Buffer.from(first.bytes))).toBe(true);
+  review('video/S04.2a-to-S04.2b.gif', first.bytes);
+
+  const shown = await decoded(page, first.bytes);
+  expect([shown.width, shown.height]).toEqual([960, 540]);
+  expect(shown.loops).toBe(Number.POSITIVE_INFINITY);
+  // Its time, in hundredths, adds up to the video's; the held seconds are one frame each.
+  expect(shown.seconds).toBeCloseTo(end.seconds, 1);
+  expect(shown.frames).toBeLessThan(end.frames);
+  console.log(
+    `GIF (${process.platform}): ${end.frames} frames played, ${shown.frames} in the file, ${end.size} bytes`,
+  );
+  // The last frame is S04.2b held, at half size, in 256 colours.
+  const [png] = await pictures({
+    format: 'png',
+    target: { kind: 'step', step: 'S04.2b' },
+    scale: 1,
+    categoryWords: false,
+  });
+  const apart = await difference(page, shown.last, await halved(page, (png as FileEvent).bytes));
+  console.log(`GIF's last frame against S04.2b's picture (${process.platform}): ${JSON.stringify(apart)}`);
+  expect(apart.far).toBeLessThan(0.02);
+  expect(apart.mean).toBeLessThan(3);
+  review('video/S04.2a-to-S04.2b-gif-last.png', shown.last);
+});
+
 test('loopweft export --mp4: a scene’s steps, never over a file without --force', async ({ page }) => {
   test.setTimeout(240_000);
   const folder = mkdtempSync(join(tmpdir(), 'loopweft-video-'));
@@ -209,6 +309,13 @@ test('loopweft export --mp4: a scene’s steps, never over a file without --forc
     const again = await run('export', project, '--mp4', '--from', 'S04.3', '--to', 'S04.3');
     expect(again.code).toBe(2);
     expect(again.err).toContain('already exists');
+    const gif = await run('export', project, '--gif', '--from', 'S04.3', '--to', 'S04.3', '--hold', '0.5');
+    expect(gif.code).toBe(0);
+    expect(gif.out).toMatch(
+      /^Wrote .*talk-S04\.3\.gif \(0:0\d, 960 × 540 at 15 fps, 1 step, each step held 0\.5 seconds, \d+\.\d MB\)\.\n$/,
+    );
+    const looped = await decoded(page, new Uint8Array(readFileSync(join(folder, 'talk-S04.3.gif'))));
+    expect([looped.width, looped.height, looped.loops]).toEqual([960, 540, Number.POSITIVE_INFINITY]);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -229,7 +336,7 @@ test.describe('in the Studio', () => {
     await page.goto('/?example');
     await page.getByRole('tab', { name: 'Export' }).click();
     const card = page.locator('.mantine-Card-root', {
-      has: page.getByRole('heading', { name: 'Video (MP4 or WebM)' }),
+      has: page.getByRole('heading', { name: 'Video (MP4, WebM or GIF)' }),
     });
     await expect(card).toBeVisible();
     await card.getByLabel('Steps, from one to another').check();

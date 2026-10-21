@@ -4,15 +4,18 @@
 // A video plays the story's steps as the talk does (→ from one to the next, with the full motion), on a
 // clock that steps exact frames. Each step lasts either its motion and then a hold (the step held, its
 // pulses wandering, for a few seconds), or as long as the talk gives it: until the next step is due, as the
-// Studio's preview plays a scene.
+// Studio's preview plays a scene. A GIF plays the same way, smaller and slower (960 × 540, 15 frames a second).
 import { OpError, type Project, resolveScene, resolveStep, stepKey } from '@loopweft/model';
 import { playTimes, sceneLength } from '@loopweft/player';
 import { stepFileName } from '../pictures.ts';
 
-/** MP4 (H.264): plays everywhere. WebM (VP9): for a browser that cannot make MP4. */
-export type VideoFormat = 'mp4' | 'webm';
+/**
+ * MP4 (H.264): plays everywhere. WebM (VP9): for a browser that cannot make MP4. GIF: a short loop that shows
+ * wherever an image does (a chat, a web page, a slide), of a scene or some steps.
+ */
+export type VideoFormat = 'mp4' | 'webm' | 'gif';
 
-export const VIDEO_FORMATS: readonly VideoFormat[] = ['mp4', 'webm'];
+export const VIDEO_FORMATS: readonly VideoFormat[] = ['mp4', 'webm', 'gif'];
 
 /** What to play: the whole story, one scene, or the steps from one to another (both included). */
 export type VideoTarget =
@@ -32,16 +35,22 @@ export const HOLD_MAX = 60;
 /** How long a step's motion may run before the export gives up on it, in seconds. */
 export const MOTION_MAX = 120;
 
+/** An MP4's or WebM's heights and frame rates (a GIF is always GIF_HEIGHT high at GIF_RATE). */
 export const VIDEO_HEIGHTS = [1080, 720] as const;
 export const FRAME_RATES = [30, 60] as const;
+
+/** A GIF: 960 × 540 at 15 frames a second (decision 10 of Phase 6). */
+export const GIF_HEIGHT = 540;
+export const GIF_RATE = 15;
 
 export interface VideoJob {
   format: VideoFormat;
   target: VideoTarget;
   timing: VideoTiming;
-  /** 1080 for 1920 × 1080, 720 for 1280 × 720. */
-  height: (typeof VIDEO_HEIGHTS)[number];
-  fps: (typeof FRAME_RATES)[number];
+  /** 1080 for 1920 × 1080, 720 for 1280 × 720; a GIF's is 540 (960 × 540). */
+  height: (typeof VIDEO_HEIGHTS)[number] | typeof GIF_HEIGHT;
+  /** 30 or 60; a GIF's is 15. */
+  fps: (typeof FRAME_RATES)[number] | typeof GIF_RATE;
   /** Name each shown variable's category in words (the C key's view). */
   categoryWords: boolean;
 }
@@ -82,11 +91,21 @@ export function holdFrames(seconds: number, fps: number): number {
 /** Checks a job's options, so a mistake is named before any drawing starts. */
 export function checkVideoJob(job: VideoJob): void {
   if (!isVideoFormat(job.format))
-    throw new OpError(`Video is MP4 or WebM, not "${String(job.format)}".`, 'usage');
-  if (!(VIDEO_HEIGHTS as readonly number[]).includes(job.height))
-    throw new OpError('A video is 1080 (1920 × 1080) or 720 (1280 × 720) pixels high.', 'usage');
-  if (!(FRAME_RATES as readonly number[]).includes(job.fps))
-    throw new OpError('A video runs at 30 or 60 frames a second.', 'usage');
+    throw new OpError(`Video is MP4, WebM or GIF, not "${String(job.format)}".`, 'usage');
+  if (job.format === 'gif') {
+    if (job.height !== GIF_HEIGHT || job.fps !== GIF_RATE)
+      throw new OpError('A GIF is 960 × 540 at 15 frames a second.', 'usage');
+    if (job.target.kind === 'story')
+      throw new OpError(
+        'A GIF is of a scene or some steps: the whole story would make one far too large to share. Choose a scene, or steps from one to another (or make an MP4).',
+        'usage',
+      );
+  } else {
+    if (!(VIDEO_HEIGHTS as readonly number[]).includes(job.height))
+      throw new OpError('A video is 1080 (1920 × 1080) or 720 (1280 × 720) pixels high.', 'usage');
+    if (!(FRAME_RATES as readonly number[]).includes(job.fps))
+      throw new OpError('A video runs at 30 or 60 frames a second.', 'usage');
+  }
   if (job.timing.kind === 'hold') {
     const s = job.timing.seconds;
     if (!Number.isFinite(s) || s < 0 || s > HOLD_MAX)

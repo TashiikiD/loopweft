@@ -9,7 +9,7 @@ sharing](../../docs/present.md)). Phase 6 adds the other exports: so far, pictur
 a step, of every step (one .zip) or of the whole map, drawn in a hidden frame by the export page of
 `@loopweft/export`, as `loopweft export --png` and `--svg` draw them, the slides, speaker notes and
 references as PDFs, and video (MP4 or WebM) of the story, a scene or steps, played there frame by frame and
-encoded by the browser (see [exporting](../../docs/export.md)); GIF follows.
+encoded by the browser, or a GIF of a scene or some steps (see [exporting](../../docs/export.md)).
 
 - Draw and edit a causal map: the canvas draws it with the renderer's own geometry, glyphs and theme
   colours, so it looks as it will when presented. Every change is one of `@loopweft/model`'s operations (the

@@ -132,10 +132,32 @@ describe('what a video plays', () => {
     expect(refusal(() => checkVideoJob(job({ timing: { kind: 'hold', seconds: 61 } })))).toBe(
       'The hold after each step is 0 to 60 seconds, not 61.',
     );
-    expect(refusal(() => checkVideoJob(job({ format: 'gif' as 'mp4' })))).toBe(
-      'Video is MP4 or WebM, not "gif".',
+    expect(refusal(() => checkVideoJob(job({ format: 'avi' as 'mp4' })))).toBe(
+      'Video is MP4, WebM or GIF, not "avi".',
     );
     expect(() => checkVideoJob(job({ height: 720, fps: 60, timing: { kind: 'talk' } }))).not.toThrow();
+  });
+
+  it('makes a GIF of a scene or some steps, at 960 × 540 and 15 frames a second', () => {
+    const gif = job({ format: 'gif', height: 540, fps: 15, target: { kind: 'scene', scene: 'S01' } });
+    expect(() => checkVideoJob(gif)).not.toThrow();
+    expect(videoPlan(project, { ...gif, timing: { kind: 'talk' } })).toMatchObject({
+      name: 'S01.gif',
+      frames: 900,
+    });
+    expect(refusal(() => checkVideoJob({ ...gif, target: { kind: 'story' } }))).toBe(
+      'A GIF is of a scene or some steps: the whole story would make one far too large to share. Choose a scene, or steps from one to another (or make an MP4).',
+    );
+    expect(refusal(() => checkVideoJob({ ...gif, height: 1080 }))).toBe(
+      'A GIF is 960 × 540 at 15 frames a second.',
+    );
+    expect(refusal(() => checkVideoJob({ ...gif, fps: 30 }))).toBe(
+      'A GIF is 960 × 540 at 15 frames a second.',
+    );
+    expect(refusal(() => checkVideoJob(job({ height: 540 })))).toBe(
+      'A video is 1080 (1920 × 1080) or 720 (1280 × 720) pixels high.',
+    );
+    expect(videoSize(540)).toEqual({ width: 960, height: 540 });
   });
 
   it('holds for whole frames, at least the one that shows the step settled', () => {

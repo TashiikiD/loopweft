@@ -1,7 +1,7 @@
 # @loopweft/export
 
 Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, pictures (PNG), drawings
-(SVG), the slides, speaker notes and references PDFs, and video (MP4 or WebM). GIF follows in Phase 6. See
+(SVG), the slides, speaker notes and references PDFs, video (MP4 or WebM) and GIF loops. See
 [exporting](../../docs/export.md) for what each export holds.
 
 - **The export page** (`page/`): the engine (`src/engine.ts`) on a 1920 × 1080 stage, with Loopweft's fonts
@@ -40,7 +40,9 @@ Every export but the one-file HTML (that one is `@loopweft/player`'s): so far, p
   vary from run to run); VP9 then gives the same bytes everywhere, H.264 on some computers only. `mp4.ts` and `webm.ts`
   write the file themselves, from the ISO and Matroska specifications, with no clock in them: muxer libraries
   stamp files with the time. A writer hands out a head of fixed length first and its final bytes at the end,
-  so the file can be written as it comes.
+  so the file can be written as it comes. `gif.ts` writes a GIF with gifenc (MIT): each frame only the rectangle
+  that changed (`changedRect`), placed over the one before, in its own 256 colours, its delay in hundredths
+  from the running total. `sink.ts` hands each frame to the right one.
 - **Node** (`node/`): finds Chrome or Edge (`LOOPWEFT_CHROME` names another) and drives it headless over its
   DevTools protocol, through a pipe (no port is opened). Each run has a throwaway profile and none of the
   browser's background traffic. The browser keeps its graphics path: without it (`--disable-gpu`), text inside

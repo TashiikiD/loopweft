@@ -5,9 +5,8 @@ Loopweft exports a project in these forms:
 - **Pictures (PNG)** of a step, of every step, or of the whole map (below).
 - **Drawings (SVG)** of the same: shapes and text that stay sharp at any size and can be edited (below).
 - **The slides, the speaker notes and the references** as PDFs (below).
-- **Video (MP4 or WebM)** of the story, a scene or steps, as the talk plays them (below).
-
-GIF follows in Phase 6.
+- **Video (MP4 or WebM)** of the story, a scene or steps, as the talk plays them, and **GIF** loops of a scene
+  or some steps (below).
 
 Every export is made on this computer. Nothing is uploaded, and nothing reaches the network.
 
@@ -275,10 +274,37 @@ the same frame again, which is quick. On a laptop, at 1920 × 1080 and 30 frames
 story took about 8 minutes with 3-second holds (6:42, 75 MB) and 11 minutes in the talk's timing (14:04, 91 MB). The Studio shows how far it has got and
 can cancel; the command line shows it on its line in a terminal.
 
+## GIF
+
+A short loop of a scene or some steps, played as a video is (above), that shows wherever an image does: a chat,
+a web page, a slide, an email. In the Studio: **Export**, **Video**, then **GIF**. On the command line:
+
+```bash
+loopweft export talk.loopweft --gif --scene S04
+loopweft export talk.loopweft --gif --from S04.2a --to S04.2d --hold 1
+```
+
+- **960 × 540 at 15 frames a second**, looping for ever. The timing (each step's motion then a hold, or the
+  talk's own) and categories in words are chosen as for a video; the size and rate are not.
+- **A scene or some steps, not the whole story**: a whole story would make a file far too large to share (an MP4
+  of it is the way).
+- **256 colours a frame**, as GIF allows: each frame has its own, so colours stay true, but the soft glows and
+  the backdrop's gradient show faint bands.
+- **Small for what it shows:** each frame holds only the part of the screen that changed since the frame
+  before, and a held step where nothing moves is one frame shown for as long as it is held. Two steps of the
+  example with 1-second holds come to about 0.3 MB; its scene 4 (nine steps, 55 seconds with 3-second holds) to
+  about 9 MB.
+- **Past 20 MB, the export warns**: many apps, chats and email services refuse a GIF that large, or play it
+  slowly. The GIF is still made; fewer steps make a smaller one.
+- GIF counts time in hundredths of a second: each frame lasts 6 or 7 hundredths so that the whole lasts exactly
+  as long as the video would. The same project gives the same file, byte for byte, on the same computer.
+- Written to `<project>-<scene>.gif` or `<project>-<step>-to-<step>.gif`. Loopweft writes it with gifenc
+  (MIT), with no date in it.
+
 ## Sizes and names, for reference
 
 - Pictures are 1920 × 1080 pixels, the stage's own size, or 3840 × 2160; a trimmed map is smaller. Video is
-  1920 × 1080 or 1280 × 720.
+  1920 × 1080 or 1280 × 720; a GIF is 960 × 540.
 - A file is named by the step's key, the scene's id and the step's id: `S04.2a`. Those are the names the Story
   workspace and the command line use. In a folder, pictures sort by those names, which for the example is story
   order. A scene whose id Windows keeps for a device (`CON`, `NUL`, `COM1`…) gets a `_` in front.

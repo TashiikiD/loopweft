@@ -61,9 +61,18 @@ describe('loopweft export --mp4 and --webm', () => {
       ['--mp4', '--from', 'S05.1', '--to', 'S04.2a'],
       'S04.2a comes before S05.1 in the story; name the first step of the video first.',
     ],
-    [['--png', '--map', '--scene', 'S04'], '--scene is for video (--mp4 or --webm).'],
-    [['--html', '--talk-timing'], '--talk-timing is for video (--mp4 or --webm).'],
-    [['--pdf', 'slides', '--fps', '60'], '--fps is for video (--mp4 or --webm).'],
+    [
+      ['--gif'],
+      'A GIF is of a scene or some steps: the whole story would make one far too large to share. Choose a scene, or steps from one to another (or make an MP4).',
+    ],
+    [
+      ['--gif', '--scene', 'S04', '--height', '720'],
+      'A GIF is 960 × 540 at 15 frames a second: --height and --fps are for MP4 and WebM.',
+    ],
+    [['--gif', '--mp4', '--scene', 'S04'], 'Export one format at a time (--mp4, --gif given).'],
+    [['--png', '--map', '--scene', 'S04'], '--scene is for video (--mp4, --webm or --gif).'],
+    [['--html', '--talk-timing'], '--talk-timing is for video (--mp4, --webm or --gif).'],
+    [['--pdf', 'slides', '--fps', '60'], '--fps is for video (--mp4, --webm or --gif).'],
   ])('%j is refused before any drawing', async (options, message) => {
     const result = await run('export', project, ...options);
     expect(result.code).toBe(2);

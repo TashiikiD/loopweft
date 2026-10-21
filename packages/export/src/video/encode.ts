@@ -2,6 +2,10 @@
 // where the browser has one: it gives the same bytes for the same frames on every run, where a graphics
 // card's encoder may not.
 import type { VideoFormat } from './plan.ts';
+
+/** The formats the browser's encoder makes (a GIF is Loopweft's own, gif.ts). */
+export type EncodedFormat = Exclude<VideoFormat, 'gif'>;
+
 import type { EncodedFrame, VideoTrack } from './writer.ts';
 import { I420_COLOUR, toI420 } from './yuv.ts';
 
@@ -14,7 +18,7 @@ const BITRATES: Record<string, number> = {
 };
 
 /** The codec strings, at the lowest level that holds the size and rate (H.264 High; VP9 profile 0, 8-bit). */
-const CODECS: Record<VideoFormat, Record<string, string>> = {
+const CODECS: Record<EncodedFormat, Record<string, string>> = {
   mp4: {
     '1080@30': 'avc1.640028',
     '1080@60': 'avc1.64002a',
@@ -38,7 +42,7 @@ export interface EncoderChoice {
   hardware: boolean;
 }
 
-function configFor(format: VideoFormat, height: number, fps: number): VideoEncoderConfig {
+function configFor(format: EncodedFormat, height: number, fps: number): VideoEncoderConfig {
   const key = `${height}@${fps}`;
   const codec = CODECS[format][key];
   const bitrate = BITRATES[key];
@@ -57,7 +61,7 @@ function configFor(format: VideoFormat, height: number, fps: number): VideoEncod
 
 /** The encoder this browser offers for a video, software first; null when it has none. */
 export async function chooseEncoder(
-  format: VideoFormat,
+  format: EncodedFormat,
   height: number,
   fps: number,
 ): Promise<EncoderChoice | null> {
@@ -75,10 +79,10 @@ export async function chooseEncoder(
   return null;
 }
 
-/** Which video formats this browser can make (at 1080p and 30 frames a second). */
+/** Which video formats this browser can make (MP4 and WebM at 1080p and 30 frames a second; a GIF always). */
 export async function videoSupport(): Promise<Record<VideoFormat, boolean>> {
   const [mp4, webm] = await Promise.all([chooseEncoder('mp4', 1080, 30), chooseEncoder('webm', 1080, 30)]);
-  return { mp4: mp4 !== null, webm: webm !== null };
+  return { mp4: mp4 !== null, webm: webm !== null, gif: true };
 }
 
 /** A copy of bytes the encoder lends. */

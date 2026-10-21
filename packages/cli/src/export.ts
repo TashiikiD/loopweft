@@ -1,6 +1,6 @@
 // `loopweft export`: a project as one HTML file to share or present, as pictures (PNG, or SVG drawings) of its
 // steps or of the whole map, as PDF documents (the slides, the speaker notes, the references), or as video
-// (MP4 or WebM) of its story. The files are the Studio's exports, byte for byte: the HTML is the player's page
+// (MP4 or WebM) of its story, or a GIF of a scene or some steps. The files are the Studio's exports, byte for byte: the HTML is the player's page
 // with the project in it; pictures and video are drawn by the export page in the Chrome or Edge on this
 // computer, as the Studio draws them in its own tab.
 import { join } from 'node:path';
@@ -10,6 +10,8 @@ import {
   type EventOf,
   type FileEvent,
   FRAME_RATES,
+  GIF_HEIGHT,
+  GIF_RATE,
   HOLD_DEFAULT,
   notesPdf,
   type Paper,
@@ -52,6 +54,7 @@ export interface ExportCommandOptions {
   categoryWords?: boolean;
   mp4?: boolean;
   webm?: boolean;
+  gif?: boolean;
   scene?: string;
   from?: string;
   to?: string;
@@ -71,7 +74,7 @@ const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 /** The project file's name without ".loopweft": the start of every default output name. */
 const stemOf = (file: string) => file.replace(/\.loopweft$/i, '');
 
-const FORMATS = ['html', 'png', 'svg', 'pdf', 'mp4', 'webm'] as const;
+const FORMATS = ['html', 'png', 'svg', 'pdf', 'mp4', 'webm', 'gif'] as const;
 
 /** The options only a video takes. */
 const VIDEO_OPTIONS = ['scene', 'from', 'to', 'hold', 'talkTiming', 'height', 'fps'] as const;
@@ -85,7 +88,7 @@ export async function exportCommand(
   if (chosen.length !== 1) {
     throw new OpError(
       chosen.length === 0
-        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings), --pdf slides|notes|references (documents), or --mp4 or --webm (video).'
+        ? 'Choose what to export: --html (one HTML file), --png (pictures), --svg (drawings), --pdf slides|notes|references (documents), or --mp4, --webm or --gif (video).'
         : `Export one format at a time (${chosen.map((f) => `--${f}`).join(', ')} given).`,
       'usage',
     );
@@ -93,10 +96,10 @@ export async function exportCommand(
   const format = chosen[0] as (typeof FORMATS)[number];
   if (format !== 'pdf' && o.paper !== undefined)
     throw new OpError('--paper is for the PDFs (--pdf).', 'usage');
-  if (format === 'mp4' || format === 'webm') return videoExport(file, o, format, report);
+  if (format === 'mp4' || format === 'webm' || format === 'gif') return videoExport(file, o, format, report);
   for (const option of VIDEO_OPTIONS) {
     if (o[option] !== undefined)
-      throw new OpError(`--${dashed(option)} is for video (--mp4 or --webm).`, 'usage');
+      throw new OpError(`--${dashed(option)} is for video (--mp4, --webm or --gif).`, 'usage');
   }
   if (format === 'html') return htmlExport(file, o);
   if (format === 'pdf') return pdfExport(file, o);
@@ -417,6 +420,12 @@ async function videoExport(
       'Hold each step (--hold) or keep the talk’s timing (--talk-timing), not both.',
       'usage',
     );
+  const gif = format === 'gif';
+  if (gif && (o.height !== undefined || o.fps !== undefined))
+    throw new OpError(
+      'A GIF is 960 × 540 at 15 frames a second: --height and --fps are for MP4 and WebM.',
+      'usage',
+    );
   const hold = o.hold === undefined ? HOLD_DEFAULT : Number(o.hold);
   if (o.hold !== undefined && (o.hold.trim() === '' || !Number.isFinite(hold)))
     throw new OpError(`--hold is a number of seconds, not "${o.hold}".`, 'usage');
@@ -424,8 +433,8 @@ async function videoExport(
     format,
     target: videoTarget(o),
     timing: o.talkTiming ? { kind: 'talk' } : { kind: 'hold', seconds: hold },
-    height: choice(o.height, VIDEO_HEIGHTS, 'height', '1920 × 1080 or 1280 × 720 pixels'),
-    fps: choice(o.fps, FRAME_RATES, 'fps', 'frames a second'),
+    height: gif ? GIF_HEIGHT : choice(o.height, VIDEO_HEIGHTS, 'height', '1920 × 1080 or 1280 × 720 pixels'),
+    fps: gif ? GIF_RATE : choice(o.fps, FRAME_RATES, 'fps', 'frames a second'),
     categoryWords: o.categoryWords === true,
   };
   checkVideoJob(job);
@@ -466,6 +475,7 @@ async function videoExport(
     job.timing.kind === 'talk' ? 'the talk’s timing' : `each step held ${plural(hold, 'second')}`;
   const text = [
     `Wrote ${out} (${minutes(made.seconds)}, ${made.width} × ${made.height} at ${made.fps} fps, ${plural(plan.steps.length, 'step')}, ${timing}, ${megabytes(made.size)}).`,
+    ...made.warnings.map((warning) => `warning: ${warning}`),
     ...made.notes.map((note) => `note: ${note}`),
   ].join('\n');
   return {
@@ -488,6 +498,7 @@ async function videoExport(
       codec: made.codec,
       categoryWords: job.categoryWords,
       bytes: made.size,
+      warnings: made.warnings,
       notes: made.notes,
     },
   };

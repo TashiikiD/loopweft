@@ -1,9 +1,12 @@
 // Video: the story, a scene or steps played as the talk plays them, frame by frame, by the export page in a
-// hidden frame (engine.ts), and encoded by this browser: the same file `loopweft export --mp4` makes. Each
-// step's motion then a hold (its pulses wandering), or the talk's own timing. No sound.
+// hidden frame (engine.ts), and encoded by this browser (MP4, WebM) or by Loopweft (GIF, of a scene or some
+// steps): the same file `loopweft export --mp4` makes. Each step's motion then a hold (its pulses wandering),
+// or the talk's own timing. No sound.
 import {
   FRAME_RATES,
   fileStem,
+  GIF_HEIGHT,
+  GIF_RATE,
   HOLD_DEFAULT,
   HOLD_MAX,
   type VideoEndEvent,
@@ -44,6 +47,9 @@ const minutes = (seconds: number) => {
 
 export const MP4_FILE: FileKind = { description: 'MP4 video', type: 'video/mp4', extension: '.mp4' };
 export const WEBM_FILE: FileKind = { description: 'WebM video', type: 'video/webm', extension: '.webm' };
+export const GIF_FILE: FileKind = { description: 'GIF animation', type: 'image/gif', extension: '.gif' };
+
+const FILE_KINDS = { mp4: MP4_FILE, webm: WEBM_FILE, gif: GIF_FILE } as const;
 
 type What = 'story' | 'scene' | 'steps';
 
@@ -125,7 +131,7 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
       (s) => {
         if (!live) return;
         setSupport(s);
-        if (!s.mp4 && s.webm) setFormat('webm');
+        if (!s.mp4) setFormat(s.webm ? 'webm' : 'gif');
       },
       () => undefined,
     );
@@ -141,12 +147,16 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
   const chosenTo = pick(to, steps, steps.at(-1)?.value);
   const stem = fileStem(project.meta.title);
   const noSteps = steps.length === 0;
-  const cannot = support !== null && !support.mp4 && !support.webm;
+  const gif = format === 'gif';
+  /** No MP4 or WebM from this browser (a GIF is always possible). */
+  const noVideo = support !== null && !support.mp4 && !support.webm;
+  // A GIF is of a scene or some steps, never the whole story.
+  const playing: What = gif && what === 'story' ? 'scene' : what;
 
   const target = (): VideoTarget =>
-    what === 'scene'
+    playing === 'scene'
       ? { kind: 'scene', scene: chosenScene as string }
-      : what === 'steps'
+      : playing === 'steps'
         ? { kind: 'steps', from: chosenFrom as string, to: chosenTo as string }
         : { kind: 'story' };
 
@@ -156,8 +166,8 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
       format,
       target: target(),
       timing: talk ? { kind: 'talk' } : { kind: 'hold', seconds: hold },
-      height: height === '720' ? 720 : 1080,
-      fps: fps === '60' ? 60 : 30,
+      height: gif ? GIF_HEIGHT : height === '720' ? 720 : 1080,
+      fps: gif ? GIF_RATE : fps === '60' ? 60 : 30,
       categoryWords,
     };
     let name: string;
@@ -168,7 +178,7 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
       return;
     }
     // Where to save is asked first, in the click itself (see chooseSaveTarget).
-    const asking = chooseSaveTarget(name, format === 'mp4' ? MP4_FILE : WEBM_FILE);
+    const asking = chooseSaveTarget(name, FILE_KINDS[format]);
     setFailure(null);
     setProgress({ done: 0, total: 0, seconds: 0 });
     let stopped = false;
@@ -180,15 +190,15 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
     try {
       const saved = await asking;
       if (!saved || stopped) return;
-      const playing = await engine();
-      await playing.open(serializeProject(now));
-      const id = await playing.start(job);
-      running = { engine: playing, id };
+      const player = await engine();
+      await player.open(serializeProject(now));
+      const id = await player.start(job);
+      running = { engine: player, id };
       const parts: Uint8Array[] = [];
       let end: VideoEndEvent | null = null;
       for (;;) {
         if (stopped) return;
-        const event = await playing.next(id);
+        const event = await player.next(id);
         if (!event) break;
         if (event.type === 'data') {
           parts.push(event.bytes);
@@ -197,9 +207,7 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
       }
       if (stopped) return;
       if (!end) throw new Error('The video did not arrive whole.');
-      const file = new Blob(withHead(parts, end.head) as BlobPart[], {
-        type: format === 'mp4' ? MP4_FILE.type : WEBM_FILE.type,
-      });
+      const file = new Blob(withHead(parts, end.head) as BlobPart[], { type: FILE_KINDS[format].type });
       if (file.size !== end.size) throw new Error('The video did not arrive whole.');
       await saved.write(file);
       setMade({ name: saved.name, end });
@@ -224,7 +232,7 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
     <Card withBorder padding="lg">
       <Stack gap="sm">
         <Title order={3} size="h4">
-          Video (MP4 or WebM)
+          Video (MP4, WebM or GIF)
         </Title>
         <Text size="sm">
           The story as the talk plays it, with its full motion, frame by frame. Made by this browser; no
@@ -253,20 +261,32 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
               description="Plays in browsers, VLC and most players; for when MP4 cannot be made."
               disabled={busy || (support !== null && !support.webm)}
             />
+            <Radio
+              value="gif"
+              label="GIF: a short loop that shows wherever an image does"
+              description="A scene or some steps, 960 × 540 at 15 frames a second, 256 colours a frame: for chats, web pages and slides."
+              disabled={busy}
+            />
           </Stack>
         </Radio.Group>
-        <Radio.Group label="What to play" value={what} onChange={(v) => setWhat(v as What)} name="video-what">
+        <Radio.Group
+          label="What to play"
+          value={playing}
+          onChange={(v) => setWhat(v as What)}
+          name="video-what"
+        >
           <Stack gap={6} mt={4}>
             <Radio
               value="story"
               label={`The whole story (${plural(steps.length, 'step')})`}
-              disabled={busy || noSteps}
+              description={gif ? 'Not as a GIF: it would be far too large to share.' : undefined}
+              disabled={busy || noSteps || gif}
             />
             <Radio value="scene" label="One scene" disabled={busy || noSteps} />
             <Radio value="steps" label="Steps, from one to another" disabled={busy || noSteps} />
           </Stack>
         </Radio.Group>
-        {what === 'scene' && (
+        {playing === 'scene' && (
           <Select
             label="Scene"
             data={scenes}
@@ -276,7 +296,7 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
             disabled={busy}
           />
         )}
-        {what === 'steps' && (
+        {playing === 'steps' && (
           <Group grow align="flex-start">
             <Select
               label="From"
@@ -333,31 +353,33 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
             disabled={busy}
           />
         )}
-        <Group gap="xl" align="flex-start">
-          <Radio.Group
-            label="Size"
-            value={height}
-            onChange={(v) => setHeight(v as '1080' | '720')}
-            name="video-size"
-          >
-            <Group gap="lg" mt={4}>
-              <Radio value="1080" label="1920 × 1080" disabled={busy} />
-              <Radio value="720" label="1280 × 720" disabled={busy} />
-            </Group>
-          </Radio.Group>
-          <Radio.Group
-            label="Frames a second"
-            value={fps}
-            onChange={(v) => setFps(v as '30' | '60')}
-            name="video-fps"
-          >
-            <Group gap="lg" mt={4}>
-              {FRAME_RATES.map((rate) => (
-                <Radio key={rate} value={String(rate)} label={String(rate)} disabled={busy} />
-              ))}
-            </Group>
-          </Radio.Group>
-        </Group>
+        {!gif && (
+          <Group gap="xl" align="flex-start">
+            <Radio.Group
+              label="Size"
+              value={height}
+              onChange={(v) => setHeight(v as '1080' | '720')}
+              name="video-size"
+            >
+              <Group gap="lg" mt={4}>
+                <Radio value="1080" label="1920 × 1080" disabled={busy} />
+                <Radio value="720" label="1280 × 720" disabled={busy} />
+              </Group>
+            </Radio.Group>
+            <Radio.Group
+              label="Frames a second"
+              value={fps}
+              onChange={(v) => setFps(v as '30' | '60')}
+              name="video-fps"
+            >
+              <Group gap="lg" mt={4}>
+                {FRAME_RATES.map((rate) => (
+                  <Radio key={rate} value={String(rate)} label={String(rate)} disabled={busy} />
+                ))}
+              </Group>
+            </Radio.Group>
+          </Group>
+        )}
         <Checkbox
           checked={categoryWords}
           onChange={(e) => setCategoryWords(e.currentTarget.checked)}
@@ -369,9 +391,9 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
           <Button
             onClick={() => void run()}
             loading={busy && progress?.done === 0}
-            disabled={busy || noSteps || cannot}
+            disabled={busy || noSteps || (noVideo && !gif)}
           >
-            {format === 'mp4' ? 'Export MP4…' : 'Export WebM…'}
+            {format === 'mp4' ? 'Export MP4…' : gif ? 'Export GIF…' : 'Export WebM…'}
           </Button>
           {busy && (
             <Button variant="default" onClick={() => cancel.current?.()}>
@@ -384,9 +406,10 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
             The story has no steps yet, so there is nothing to play.
           </Text>
         )}
-        {cannot && (
-          <Alert color="yellow" title="No video from this browser">
-            This browser cannot encode video. Chrome and Edge can, as can `loopweft export --mp4`.
+        {noVideo && (
+          <Alert color="yellow" title="No MP4 or WebM from this browser">
+            This browser cannot encode video, though it can make a GIF. Chrome and Edge can, as can `loopweft
+            export --mp4`.
           </Alert>
         )}
         {busy && progress && progress.total > 0 && (
@@ -409,6 +432,15 @@ export function VideoCard({ engine, support: ask = videoSupport }: VideoCardProp
               Last export: {made.name}, {minutes(made.end.seconds)} at {made.end.width} × {made.end.height},{' '}
               {made.end.fps} frames a second, {megabytes(made.end.size)}.
             </Text>
+            {made.end.warnings.length > 0 && (
+              <Alert color="yellow" title="Before you share it">
+                <List size="sm">
+                  {made.end.warnings.map((warning) => (
+                    <List.Item key={warning}>{warning}</List.Item>
+                  ))}
+                </List>
+              </Alert>
+            )}
             {made.end.notes.length > 0 && (
               <Alert color="blue" title="To know about this video">
                 <List size="sm">

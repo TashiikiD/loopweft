@@ -13,7 +13,7 @@ export {
   ExportEngine,
   type FileEvent,
   fileEvent,
-  HARDWARE_NOTE,
+  gifSizeWarning,
   isVideoJob,
   type Job,
   type JobEvent,
@@ -53,10 +53,13 @@ export {
 } from './pictures.ts';
 export { ExportStage, loadFonts } from './stage.ts';
 export { videoSupport } from './video/encode.ts';
+export { changedRect, GIF_FPS, GIF_HEAD, GIF_SIZE, GIF_WARNING_BYTES, GifWriter } from './video/gif.ts';
 export { Mp4Writer } from './video/mp4.ts';
 export {
   checkVideoJob,
   FRAME_RATES,
+  GIF_HEIGHT,
+  GIF_RATE,
   HOLD_DEFAULT,
   HOLD_MAX,
   holdFrames,
@@ -73,6 +76,7 @@ export {
   videoPlan,
   videoSize,
 } from './video/plan.ts';
+export { HARDWARE_NOTE } from './video/sink.ts';
 export { WebmWriter } from './video/webm.ts';
 export type { EncodedFrame, VideoMeta, VideoTrack, VideoWriter } from './video/writer.ts';
 export { I420_COLOUR, toI420 } from './video/yuv.ts';

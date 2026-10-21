@@ -200,19 +200,23 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
       'video (MP4, H.264, no sound) of the story as the talk plays it, made in the Chrome or Edge on this computer: the whole story, --scene, or --from and --to',
     )
     .option('--webm', 'video as WebM (VP9), for a browser that cannot make MP4')
-    .option('--scene <scene>', 'mp4, webm: one scene, by its id or title')
-    .option('--from <step>', 'mp4, webm: the first step to play, e.g. S04.2a (with --to)')
-    .option('--to <step>', 'mp4, webm: the last step to play (with --from)')
+    .option(
+      '--gif',
+      'a GIF that loops (960 × 540, 15 frames a second) of a scene or some steps: --scene, or --from and --to',
+    )
+    .option('--scene <scene>', 'mp4, webm, gif: one scene, by its id or title')
+    .option('--from <step>', 'mp4, webm, gif: the first step to play, e.g. S04.2a (with --to)')
+    .option('--to <step>', 'mp4, webm, gif: the last step to play (with --from)')
     .option(
       '--hold <seconds>',
-      `mp4, webm: how long each step holds once its motion is over (default ${HOLD_DEFAULT})`,
+      `mp4, webm, gif: how long each step holds once its motion is over (default ${HOLD_DEFAULT})`,
     )
-    .option('--talk-timing', "mp4, webm: each step until the next is due, as the talk's timing has it")
+    .option('--talk-timing', "mp4, webm, gif: each step until the next is due, as the talk's timing has it")
     .option('--height <pixels>', 'mp4, webm: 1080 (1920 × 1080, the default) or 720 (1280 × 720)')
     .option('--fps <n>', 'mp4, webm: 30 (the default) or 60 frames a second')
     .option(
       '-o, --out <file>',
-      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -slides.pdf, -speaker-notes.pdf, -references.pdf, or -story, -<scene> or -<step>-to-<step> with .mp4 or .webm)',
+      'the file (or, for --all-steps, the folder) to write (default: the project name with .html, -<step>.png or .svg, -map.png or .svg, -steps or -steps-svg, -slides.pdf, -speaker-notes.pdf, -references.pdf, or -story, -<scene> or -<step>-to-<step> with .mp4, .webm or .gif)',
     )
     .option(
       '--no-notes',
@@ -225,7 +229,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--scale <n>', 'png: 1 (1920 × 1080, the default) or 2 (3840 × 2160, for print and posters)')
     .option(
       '--category-words',
-      "png, svg, pdf slides, mp4, webm: name each shown variable's category in words, as the C key does",
+      "png, svg, pdf slides, mp4, webm, gif: name each shown variable's category in words, as the C key does",
     )
     .option('--force', 'replace the output file (or files in the folder) if it exists')
     .action((file: string, o) => run(() => exportCommand(file, o, { progress: progressLine(io) }))());
