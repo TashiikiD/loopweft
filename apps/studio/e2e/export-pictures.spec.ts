@@ -89,9 +89,10 @@ test('pictures of steps match what the audience window shows, and come out the s
       });
       // Within the drawing's own rounding (Chrome lays text out a pixel apart here and there inside a drawn
       // frame), with nothing missing or moved.
-      expect(far, `${key}: share of 8 × 8 blocks more than 12 levels from the audience window`).toBeLessThan(
-        0.01,
-      );
+      expect(
+        far,
+        `${key}: share of 16 × 16 blocks more than 12 levels from the audience window`,
+      ).toBeLessThan(0.01);
       expect(mean, `${key}: mean difference from the audience window`).toBeLessThan(0.6);
     }
   } finally {

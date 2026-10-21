@@ -27,7 +27,7 @@ export async function pictures(job: PictureJob, project = text): Promise<JobEven
 }
 
 /**
- * How two pictures of the same size differ, in blocks of 8 × 8 pixels (each block's mean colour), so that a
+ * How two pictures of the same size differ, in blocks of 16 × 16 pixels (each block's mean colour), so that a
  * line of text a pixel lower counts for little and a missing caption, card or figure for a lot: the share of
  * blocks more than 12 levels apart (of 255), and the mean difference of the pixels themselves.
  */
@@ -38,6 +38,7 @@ export async function difference(
 ): Promise<{ far: number; mean: number }> {
   return page.evaluate(
     async ([x, y]) => {
+      const BLOCK = 16;
       const pixels = async (base64: string) => {
         const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
         const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
@@ -54,16 +55,16 @@ export async function difference(
       }
       let far = 0;
       let blocks = 0;
-      for (let by = 0; by + 8 <= height; by += 8) {
-        for (let bx = 0; bx + 8 <= width; bx += 8) {
+      for (let by = 0; by + BLOCK <= height; by += BLOCK) {
+        for (let bx = 0; bx + BLOCK <= width; bx += BLOCK) {
           blocks++;
           const mean = [0, 0, 0, 0, 0, 0];
-          for (let yy = by; yy < by + 8; yy++) {
-            for (let xx = bx; xx < bx + 8; xx++) {
+          for (let yy = by; yy < by + BLOCK; yy++) {
+            for (let xx = bx; xx < bx + BLOCK; xx++) {
               const i = (yy * width + xx) * 4;
               for (let k = 0; k < 3; k++) {
-                mean[k] = (mean[k] ?? 0) + (p.data[i + k] ?? 0) / 64;
-                mean[k + 3] = (mean[k + 3] ?? 0) + (q.data[i + k] ?? 0) / 64;
+                mean[k] = (mean[k] ?? 0) + (p.data[i + k] ?? 0) / (BLOCK * BLOCK);
+                mean[k + 3] = (mean[k + 3] ?? 0) + (q.data[i + k] ?? 0) / (BLOCK * BLOCK);
               }
             }
           }

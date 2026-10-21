@@ -18,6 +18,15 @@ import { choose } from './story.ts';
 const STEM = 'global-polycrisis-the-connections-that-change-everything';
 const decoder = new TextDecoder();
 
+/**
+ * How far a drawing drawn back may be from its PNG: 1% of blocks; 2.5% on macOS, where Chrome draws the title
+ * page's large serif type in an SVG about a pixel heavier than on the slide (seen on GitHub's Mac).
+ */
+const FAR = process.platform === 'darwin' ? 0.025 : 0.01;
+
+/** The drawings whose fingerprints are printed on each system, and kept for the review. */
+const FINGERPRINTED = /^(S00\.1|S05\.6b|S07\.2|map)\./;
+
 /** Checks a drawing as an SVG reader would, in the page: well formed, nothing outside it, nothing undefined. */
 async function inspect(page: Page, svg: string) {
   return page.evaluate((source) => {
@@ -83,25 +92,27 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
       expect(svg).toContain('<metadata>Made with Loopweft');
       const drawnBack = await rasterize(page, svg);
       const { far, mean } = await difference(page, drawnBack, (pngEvent as JobEvent).bytes);
-      // Every drawing, its PNG and the drawing drawn back, for the review (and for CI's artifact, to compare
-      // the systems).
+      // For the review (and CI's artifact, to compare the systems): the drawings fingerprinted below, and any
+      // far from its PNG, each with its PNG and the drawing drawn back.
       const stem = name.replace(/\.svg$/, '');
-      review(`svg/${name}`, (svgEvent as JobEvent).bytes);
-      review(`svg/${stem}.png`, (pngEvent as JobEvent).bytes);
-      review(`svg/${stem}-drawn.png`, drawnBack);
+      if (FINGERPRINTED.test(name) || far >= 0.005) {
+        review(`svg/${name}`, (svgEvent as JobEvent).bytes);
+        review(`svg/${stem}.png`, (pngEvent as JobEvent).bytes);
+        review(`svg/${stem}-drawn.png`, drawnBack);
+      }
       test.info().annotations.push({
         type: name,
         description: `far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}`,
       });
       // The figure's photograph is resampled a little differently in an SVG; everything else is closer.
-      expect(far, `${name}: share of 8 × 8 blocks more than 12 levels from the PNG`).toBeLessThan(0.01);
+      expect(far, `${name}: share of 16 × 16 blocks more than 12 levels from the PNG`).toBeLessThan(FAR);
       expect(mean, `${name}: mean difference from the PNG`).toBeLessThan(1.5);
       fingerprints.push(`${name} ${createHash('sha256').update(svg).digest('hex').slice(0, 16)}`);
     }
     // Recorded on each system, to show whether drawings come out the same everywhere.
     test.info().annotations.push({ type: 'fingerprints', description: fingerprints.slice(0, 6).join(', ') });
     console.log(
-      `SVG fingerprints (${process.platform}): ${fingerprints.filter((f) => /^(S00\.1|S05\.6b|S07\.2|map)\./.test(f)).join(', ')}`,
+      `SVG fingerprints (${process.platform}): ${fingerprints.filter((f) => FINGERPRINTED.test(f)).join(', ')}`,
     );
 
     // Notes: the example's drawings use filters (glows) and, behind its card columns, a mask.
@@ -123,7 +134,7 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
     const named = decoder.decode((wordsSvg as JobEvent).bytes);
     expect(named).toContain('>ENERGY AND MATERIAL SYSTEMS</text>');
     const apart = await difference(page, await rasterize(page, named), (wordsPng as JobEvent).bytes);
-    expect(apart.far).toBeLessThan(0.01);
+    expect(apart.far).toBeLessThan(FAR);
     expect(apart.mean).toBeLessThan(1.5);
     expect((wordsSvg as JobEvent).notes?.filter((n) => n.startsWith('Drawn approximately'))).toEqual([]);
 

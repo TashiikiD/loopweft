@@ -115,7 +115,8 @@ How it is made: the drawing is read from the stage the page has laid out, the sa
 - Text stays text: one line of SVG text for each line on the stage, in the same font, size and spacing.
 
 So the drawing, drawn again by a browser, matches the PNG of the same step: a test checks every step of the
-example. The largest difference is in the Richards figure (a photograph, resampled a little differently).
+example. The largest difference is in the Richards figure (a photograph, resampled a little differently). On a
+Mac, Chrome draws the title page's large serif type in an SVG about a pixel heavier than on the slide.
 
 Every drawing says what to know about it: the Studio lists it under the export, and the command line prints
 it as `note:` lines and in `--json` as `notes`. What it can say:
