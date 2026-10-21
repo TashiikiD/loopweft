@@ -13,6 +13,7 @@ import {
   posKey,
   presentationId,
   startAudience,
+  startConsole,
 } from '../src/index.ts';
 import { example, exampleText, MemoryStorage } from './helpers.ts';
 
@@ -232,6 +233,76 @@ describe('the audience window', () => {
         history.replaceState(null, '', '/');
         vi.useRealTimers();
       }
+    }
+  });
+
+  it('takes up the console’s clock when it goes, with no storage in either window to carry it', async () => {
+    // The clock is moved by hand, in steps shorter than a window takes to count another as gone.
+    let now = 1_700_000_000_000;
+    const time = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const refuse = (): never => {
+      throw new Error('Storage is blocked.');
+    };
+    const refusing: KeyValue = { getItem: refuse, setItem: refuse, removeItem: refuse };
+    const settle = () => new Promise((r) => setTimeout(r, 50));
+    try {
+      for (const [storage, late] of [
+        [null, false],
+        [refusing, false],
+        [null, true],
+      ] as const) {
+        const consoleHost = document.createElement('div');
+        const startTheConsole = () => {
+          document.body.appendChild(consoleHost);
+          return startConsole({
+            host: consoleHost,
+            project,
+            show: SHOW,
+            audience: { url: '?view=audience', name: 'test-audience' },
+            address: false,
+            storage,
+            clock: new ManualClock(),
+          });
+        };
+        const button = (label: string) =>
+          [...consoleHost.querySelectorAll('button')].find(
+            (b) => b.textContent === label,
+          ) as HTMLButtonElement;
+        // The console's own buttons, so that keys do not reach the audience window here as well.
+        let presenter = late ? startTheConsole() : null;
+        if (late) {
+          button('Next ▶').click();
+          button('▶ Start clock').click();
+          now += 2000;
+        }
+        const { host, audience } = open(true, storage);
+        presenter ??= startTheConsole();
+        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(true));
+        if (!late) {
+          button('Next ▶').click();
+          button('▶ Start clock').click();
+          now += 2000;
+          // Scene 02 comes up at 0:02 on the console's clock.
+          for (let i = 0; i < 4; i++) button('Next ▶').click();
+          await vi.waitFor(() => expect(location.hash).toBe('#S02.1'));
+        }
+        now += 1000;
+        await settle();
+        presenter.dispose();
+        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(false));
+        // A step on in this window, then its notes: the console's clock, and its scene's start.
+        key('ArrowRight');
+        key('n');
+        const line = host.querySelector('.lp-ro-clock')?.textContent ?? '';
+        if (late) expect(line, 'joined after the clock started').toMatch(/^0:03 · this scene 0:03 /);
+        else expect(line, String(storage)).toMatch(/^0:03 · this scene 0:01 /);
+        dispose?.();
+        dispose = null;
+        document.body.replaceChildren();
+        history.replaceState(null, '', '/');
+      }
+    } finally {
+      time.mockRestore();
     }
   });
 

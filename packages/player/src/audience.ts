@@ -122,6 +122,12 @@ export function startAudience(o: AudienceOptions): Audience {
     onChange: (next, prev, reason) => render(next, shown ?? prev, reason),
   });
   stops.push(
+    link.on((msg, from) => {
+      // The console's clock, kept here (and saved where storage takes it), for when the console goes.
+      if (msg.t === 'timing' && from.role === 'presenter' && clock.adopt(msg)) notes?.tick();
+    }),
+  );
+  stops.push(
     link.onPeers(() => {
       // Never leave rehearsal notes open once a real console is connected.
       if (notes?.isOpen && link.alive('presenter')) notes.setOpen(false);

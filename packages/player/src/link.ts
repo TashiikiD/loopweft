@@ -23,6 +23,8 @@
 // cannot answer. A window posts nothing straight to the page that opened it until that page has shown the
 // proof (any page could have opened the file). Every window pings every second, so a reloaded window hears
 // from the other within a second, and then asks it where the show is.
+
+import type { ClockState, SceneEntry } from './clock.ts';
 import { hmacSha256, sameText } from './hmac.ts';
 import type { ShowState } from './show.ts';
 
@@ -34,6 +36,8 @@ export type Payload =
   | { t: 'ping' }
   | { t: 'bye' }
   | { t: 'state'; state: ShowState; reason: 'update' | 'sync' }
+  /** The console's clock and scene start, which an audience window takes up when the console goes. */
+  | { t: 'timing'; clock: ClockState; entry: SceneEntry }
   /** An audience window without its own copy of the project (the Studio's) asks for it. */
   | { t: 'needProject' }
   | { t: 'project'; text: string }
@@ -47,6 +51,7 @@ const KINDS: readonly string[] = [
   'ping',
   'bye',
   'state',
+  'timing',
   'needProject',
   'project',
   'challenge',

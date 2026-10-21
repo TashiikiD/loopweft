@@ -26,6 +26,12 @@ export interface Timing {
   pace: Pace;
 }
 
+/** The clock and the scene's start, as the console hands them to its audience windows. */
+export interface ClockSnapshot {
+  clock: ClockState;
+  entry: SceneEntry;
+}
+
 function sanitizeEntry(value: unknown): SceneEntry | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<SceneEntry>;
@@ -55,13 +61,35 @@ export class PresenterClock {
     this.entry = sanitizeEntry(this.#store.load('sceneEntry')) ?? { sceneId: '', atMs: 0 };
   }
 
-  /** Notes when a new scene comes up, on the clock. */
-  noteScene(pos: Pos): void {
-    if (this.#deck.scenes.length === 0) return;
+  /** Notes when a new scene comes up, on the clock. True when it was a new scene. */
+  noteScene(pos: Pos): boolean {
+    if (this.#deck.scenes.length === 0) return false;
     const scene = sceneAt(this.#deck, pos);
-    if (this.entry.sceneId === scene.id) return;
+    if (this.entry.sceneId === scene.id) return false;
     this.entry = { sceneId: scene.id, atMs: elapsedMs(this.clock, this.#now()) };
     this.#store.save('sceneEntry', this.entry);
+    return true;
+  }
+
+  /** The clock and the scene's start as they stand, to hand to another window. */
+  snapshot(): ClockSnapshot {
+    return { clock: { ...this.clock }, entry: { ...this.entry } };
+  }
+
+  /**
+   * Takes up another window's clock and scene start (the console's), as this window's own, saved: where
+   * storage cannot carry them between windows, the store keeps them, so this window still has them when the
+   * console goes. Something that is not a clock is refused. True when taken up.
+   */
+  adopt(value: unknown): boolean {
+    const v = value && typeof value === 'object' ? (value as Partial<ClockSnapshot>) : {};
+    const clock = sanitizeClock(v.clock);
+    const entry = sanitizeEntry(v.entry);
+    if (!clock || !entry) return false;
+    this.clock = clock;
+    this.entry = entry;
+    this.#save();
+    return true;
   }
 
   /** Starts or pauses the clock. Starting from 0:00 counts this scene from zero. */

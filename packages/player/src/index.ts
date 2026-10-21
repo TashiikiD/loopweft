@@ -139,4 +139,4 @@ export {
   type StoreKey,
   savedSession,
 } from './storage.ts';
-export { PresenterClock, paceText, type Timing } from './timing.ts';
+export { type ClockSnapshot, PresenterClock, paceText, type Timing } from './timing.ts';

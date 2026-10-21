@@ -134,7 +134,9 @@ connected, so they never reach a projector.
 - **The console closes:** open it again from the start page, without clicking Start again. The audience window
   keeps its place meanwhile, and its keys still work. Opened again in the same tab, the console finds it
   by itself; in a new tab, click **Open audience window** once (a new tab has a new join token).
-- **Every window remembers its place** and the clock, in this browser, per presentation.
+- **Every window remembers its place** and the clock, in this browser, per presentation. The console also
+  hands its clock to the audience window, which takes it up when the console goes, even where the browser
+  keeps nothing (a private window).
 - **The console no longer finds the audience window** (it says "No audience window"): click **Open audience
   window** again. The same window opens again, at the same step, and the two find each other.
 

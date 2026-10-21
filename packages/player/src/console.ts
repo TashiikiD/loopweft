@@ -574,19 +574,32 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     address: o.address === false ? null : browserAddress(win),
     now: () => Date.now(),
     onChange: (next, prev, reason) => {
-      clock.noteScene(next.pos);
+      if (clock.noteScene(next.pos)) sendTiming();
       preview?.drive(next, shown ?? prev, reason);
       render(next);
     },
   });
   const dispatch = (cmd: Command) => session.dispatch(cmd);
+  /**
+   * Hands the clock and the scene's start to the audience windows, which take them up if this console goes:
+   * where storage cannot carry them (none, or blocked), this is the only way they get there.
+   */
+  function sendTiming() {
+    link.send({ t: 'timing', ...clock.snapshot() });
+  }
   stops.push(
     link.on((msg) => {
       if (msg.t === 'needProject' && o.projectText !== undefined)
         link.send({ t: 'project', text: o.projectText });
     }),
   );
-  stops.push(link.onPeers(() => renderConnection()));
+  stops.push(
+    link.onPeers(() => {
+      renderConnection();
+      // A window that joins gets the clock as it stands.
+      sendTiming();
+    }),
+  );
 
   function render(state: ShowState) {
     shown = state;
@@ -798,11 +811,13 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
       case 'clockToggle':
         clock.toggle(pos);
         renderTiming();
+        sendTiming();
         return;
       case 'clockReset':
         if (win.confirm('Reset the presenter clock to 0:00?')) {
           clock.reset(pos);
           renderTiming();
+          sendTiming();
         }
         return;
       case 'scrollUp':
