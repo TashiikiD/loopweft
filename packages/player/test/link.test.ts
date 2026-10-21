@@ -282,6 +282,44 @@ describe('the saved place', () => {
     }
   });
 
+  it('lets a newer value saved while this window could not read storage count, and keeps its own over an older one', () => {
+    const clock = (ms: number) => ({ running: false, startedAt: null, accumulatedMs: ms });
+    const shared = new MemoryStorage();
+    let broken = true;
+    const refuse = (): never => {
+      throw new Error('Storage is blocked.');
+    };
+    const flaky: KeyValue = {
+      getItem: (k) => (broken ? refuse() : shared.getItem(k)),
+      setItem: (k, v) => (broken ? refuse() : shared.setItem(k, v)),
+      removeItem: (k) => (broken ? refuse() : shared.removeItem(k)),
+    };
+    // This window never could read storage when it kept its clock; storage comes back, and the console saves
+    // a newer clock before this window reads again: that one counts, and so does the console's reset.
+    const audience = new PresentationStore(SHOW, flaky);
+    audience.save('clock', clock(10_000));
+    broken = false;
+    const presenter = new PresentationStore(SHOW, flaky);
+    presenter.save('clock', clock(60_000));
+    expect(audience.load('clock')).toEqual(clock(60_000));
+    expect(audience.load('clock')).toEqual(clock(60_000));
+    presenter.remove('clock');
+    expect(audience.load('clock')).toBeNull();
+
+    // This window saved a clock, storage was blocked for its next save, and comes back holding the first:
+    // that is this window's own older clock, so the newer one it kept stands.
+    shared.items.clear();
+    const own = new PresentationStore(SHOW, flaky);
+    own.save('clock', clock(5_000));
+    broken = true;
+    own.save('clock', clock(20_000));
+    broken = false;
+    expect(own.load('clock')).toEqual(clock(20_000));
+    // Until another window saves there.
+    presenter.save('clock', clock(90_000));
+    expect(own.load('clock')).toEqual(clock(90_000));
+  });
+
   it('saves nothing that is not JSON, without throwing, and keeps what was saved', () => {
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;

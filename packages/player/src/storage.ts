@@ -40,8 +40,11 @@ export type StoreKey = 'show' | 'clock' | 'sceneEntry' | 'presenter' | 'audience
 interface Kept {
   /** What the window saved, as JSON. */
   text: string;
-  /** What storage held under that name since (undefined while it could not be read). */
-  under: string | null | undefined;
+  /**
+   * What storage held under that name when the save failed: what was read then, or, if storage could not be
+   * read, what this window last saw there (null for nothing, or never seen).
+   */
+  under: string | null;
 }
 
 /**
@@ -55,6 +58,8 @@ export class PresentationStore {
   readonly id: string;
   readonly #storage: KeyValue | null;
   readonly #kept = new Map<StoreKey, Kept>();
+  /** What this window last saw in storage under each name, by reading or saving it. */
+  readonly #lastSeen = new Map<StoreKey, string | null>();
 
   constructor(id: string, storage: KeyValue | null = browserStorage()) {
     this.id = id;
@@ -73,7 +78,10 @@ export class PresentationStore {
   /** What storage holds under `name`, or undefined where it cannot be read. */
   #read(name: StoreKey): string | null | undefined {
     try {
-      return this.#storage ? this.#storage.getItem(this.#key(name)) : undefined;
+      if (!this.#storage) return undefined;
+      const raw = this.#storage.getItem(this.#key(name));
+      this.#lastSeen.set(name, raw);
+      return raw;
     } catch {
       return undefined;
     }
@@ -84,8 +92,8 @@ export class PresentationStore {
     const kept = this.#kept.get(name);
     let raw = stored;
     if (kept) {
-      // Unreadable when it was kept: from the first time storage can be read, a change there counts.
-      if (kept.under === undefined) kept.under = stored;
+      // Storage counts again once it holds something other than it did when the save failed: another window
+      // saved or reset it since. (Something there that this window never saw was saved by another.)
       if (stored === undefined || stored === kept.under) raw = kept.text;
       else this.#kept.delete(name);
     }
@@ -108,19 +116,23 @@ export class PresentationStore {
       if (this.#storage) {
         this.#storage.setItem(this.#key(name), text);
         this.#kept.delete(name);
+        this.#lastSeen.set(name, text);
         return;
       }
     } catch {
       // Blocked or full: kept below.
     }
     // Not needed to present (the show runs without it); this window keeps it while it is open.
-    this.#kept.set(name, { text, under: this.#read(name) });
+    const now = this.#read(name);
+    this.#kept.set(name, { text, under: now !== undefined ? now : (this.#lastSeen.get(name) ?? null) });
   }
 
   remove(name: StoreKey): void {
     this.#kept.delete(name);
     try {
-      this.#storage?.removeItem(this.#key(name));
+      if (!this.#storage) return;
+      this.#storage.removeItem(this.#key(name));
+      this.#lastSeen.set(name, null);
     } catch {
       // Nothing stored, or storage blocked: nothing to remove.
     }
