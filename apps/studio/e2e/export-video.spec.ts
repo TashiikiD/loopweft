@@ -50,10 +50,17 @@ async function played(
       });
       const frames: string[] = [];
       for (const t of at) {
+        // The seek, then the frame painted for it: on a slow machine the seek can end before the frame is there
+        // to draw (a frame callback, with a second's grace for a browser that never calls it while paused).
+        const painted = new Promise<void>((ok) => {
+          v.requestVideoFrameCallback(() => ok());
+          setTimeout(ok, 1000);
+        });
         v.currentTime = Math.max(0, t);
         await new Promise<void>((ok) => {
           v.onseeked = () => ok();
         });
+        await painted;
         const canvas = document.createElement('canvas');
         canvas.width = v.videoWidth;
         canvas.height = v.videoHeight;
@@ -207,7 +214,12 @@ test.describe('in the Studio', () => {
       await played(page, cli.bytes, 'video/mp4', [cli.end.seconds - 0.5 / 30]),
     ];
     expect(studio.duration).toBeCloseTo(line.duration, 2);
+    review('video/studio-last.png', studio.frames[0] as Uint8Array);
+    review('video/command-line-last.png', line.frames[0] as Uint8Array);
     const apart = await difference(page, studio.frames[0] as Uint8Array, line.frames[0] as Uint8Array);
+    console.log(
+      `Studio's last frame against the command line's (${process.platform}): ${JSON.stringify(apart)}`,
+    );
     expect(apart.far).toBeLessThan(0.01);
     expect(apart.mean).toBeLessThan(1);
   });
