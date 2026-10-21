@@ -129,7 +129,8 @@ connected, so they never reach a projector.
 - **A frozen or blank audience window:** click it and press Ctrl+R to reload it. It rejoins the console at the
   same step.
 - **The console closes:** open it again from the start page, without clicking Start again. The audience window
-  keeps its place meanwhile, and its keys still work.
+  keeps its place meanwhile, and its keys still work. Opened again in the same tab, the console finds it
+  by itself; in a new tab, click **Open audience window** once (a new tab has a new join token).
 - **Every window remembers its place** and the clock, in this browser, per presentation.
 - **The console no longer finds the audience window** (it says "No audience window"): click **Open audience
   window** again. The same window opens again, at the same step, and the two find each other.
@@ -140,19 +141,24 @@ Each change goes two ways: over the browser's channel for pages of one site (a B
 straight to the windows that opened each other. Every window passes a change on to the others it knows, so
 two audience windows follow either of them.
 
-Only the presentation's own windows can move it. A message from the channel comes from the same site or
-folder. A message posted straight to a window is let in only from the same site, or, for a file opened from
-disk (which has no site of its own), only when it carries proof of the presentation's **join token**. The
-console makes this random token for its browser tab and gives it to the audience window it opens, in that
-window's address (`&join=…`). The token lasts as long as the tab, so a reloaded console or audience window
-still has it. It is never written into a file.
+Only the presentation's own windows can move it. On a site, a message from the channel comes from the same
+site, and one posted straight to a window is let in only from the same site. A file opened from disk has no
+site of its own, and some browsers let every local file share a channel, so there every message, by either
+way, must carry proof of the presentation's **join token**. The console makes this random token for its
+browser tab and gives it to the audience window it opens, in that window's address (`&join=…`). The token
+lasts as long as the tab, so a reloaded console or audience window still has it. It is never written into a
+file. A tab of the file that the console did not open has no token, so it stays apart from the show: open
+the audience window from the console.
 
 The token itself never travels between the windows. Each message carries instead a proof made with it (an
 HMAC-SHA256 of everything the message says), so a page that comes to hold one of the windows, such as a page
-the audience window went on to, can neither learn the token nor make a message of its own. On a file opened
-from disk, a window also sends nothing straight to the page that opened it until that page has shown the
-proof: any page can open a file. Each window tells the others it is there once a second, so a reloaded
-audience window or console finds the other within a second, and then asks where the show is.
+the audience window went on to, can neither learn the token nor make a message of its own. A message once
+read could still be sent again later, so a window acts on another's messages only after that window has
+answered a fresh challenge from it, and only on the ones sent after the answer: a recorded message comes from
+a page that is gone and cannot answer. On a file opened from disk, a window also sends nothing straight to
+the page that opened it until that page has shown the proof: any page can open a file. Each window tells the
+others it is there once a second, so a reloaded audience window or console finds the other within a second,
+and then asks where the show is.
 
 ### Browsers
 

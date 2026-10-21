@@ -99,12 +99,19 @@ for (const name of ['chrome', 'edge'] as const) {
       await page.keyboard.press('PageDown');
       await expect.poll(() => hashOf(audience)).toBe('#S04.2b');
 
-      // The slides alone, from the start page.
+      // The slides alone, in a tab the console did not open: it has no join token, so it stays apart from the
+      // show (the channel the file's tabs share carries nothing it can prove), and its rehearsal notes open.
       const slides = await context.newPage();
       await slides.goto(`${pathToFileURL(file).href}?view=audience&rehearse`);
       await expect(slides.locator('.lw-stage')).toHaveCount(1);
+      const alone = await hashOf(slides);
+      await page.keyboard.press('PageDown');
+      await expect.poll(() => hashOf(audience)).toBe('#S04.2c');
+      await page.waitForTimeout(1500);
+      expect(await hashOf(slides)).toBe(alone);
+      await expect(page.locator('.lp-status .lp-chip.ok')).toHaveText('Audience connected');
       await slides.keyboard.press('n');
-      await expect(slides.locator('.lp-rehearsal')).toBeHidden();
+      await expect(slides.locator('.lp-rehearsal')).toBeVisible();
       expect(errors).toEqual([]);
     } finally {
       await browser.close();

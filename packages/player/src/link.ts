@@ -6,19 +6,23 @@
 // and a change of the show is passed on to the other windows this one knows, so that two audience windows
 // that only know the console both follow either of them.
 //
-// Who may move the show: a BroadcastChannel only carries messages between pages of one origin, so those are
-// trusted. A message posted straight to this window could come from any page holding it, so it is let in only
-// from this window's own origin, or, where the page has no origin of its own (a file opened from disk), when
-// it carries proof of the presentation's join token: a random value the console hands the audience window it
-// opens (in its address), kept for the tab's life, never written into a file. The presentation's id says which
-// windows belong together; anyone can work it out from the project, so it is not a key.
+// Who may move the show. On a site, a BroadcastChannel only carries messages between pages of that site, so
+// those are trusted, and a message posted straight to this window is let in only from its own origin. A file
+// opened from disk has no origin of its own, and some browsers let every local file share a channel, so there
+// every message, by either way, must carry proof of the presentation's join token: a random value the console
+// hands the audience window it opens (in its address), kept for the tab's life, never written into a file. The
+// presentation's id says which windows belong together; anyone can work it out from the project, so it is not
+// a key. A tab of the file that the console did not open has no token: it stays apart from the show.
 //
-// The token itself never travels. On a file opened from disk a message posted straight to a window reaches
-// whatever page that window holds now (one the audience window went on to, say), so each message carries
-// instead an HMAC of what it says, made with the token: a page that reads it can neither learn the token nor
-// make another message. A window posts nothing straight to the page that opened it until that page has shown
-// the proof (any page could have opened the file). Every window pings every second, so a reloaded window
-// hears from the other within a second, and then asks it where the show is.
+// The token itself never travels. A message posted straight to a window reaches whatever page that window
+// holds now (one the audience window went on to, say), so each message carries instead an HMAC of what it
+// says, made with the token: a page that reads it can neither learn the token nor make another message. A
+// message once read could still be sent again later (to a console reloaded with nothing saved, say), so a
+// window acts on another's messages only once that window has answered a challenge of its own, fresh for this
+// page, and only on the ones it numbered after its answer: a recorded message comes from a page gone, which
+// cannot answer. A window posts nothing straight to the page that opened it until that page has shown the
+// proof (any page could have opened the file). Every window pings every second, so a reloaded window hears
+// from the other within a second, and then asks it where the show is.
 import { hmacSha256, sameText } from './hmac.ts';
 import type { ShowState } from './show.ts';
 
@@ -32,7 +36,22 @@ export type Payload =
   | { t: 'state'; state: ShowState; reason: 'update' | 'sync' }
   /** An audience window without its own copy of the project (the Studio's) asks for it. */
   | { t: 'needProject' }
-  | { t: 'project'; text: string };
+  | { t: 'project'; text: string }
+  /** On a file opened from disk: a window asks another (`to`) to show it is there now, with a fresh value. */
+  | { t: 'challenge'; to: string; nonce: string }
+  /** The answer, with the same value: from then on the asking window acts on the other's messages. */
+  | { t: 'answer'; to: string; nonce: string };
+
+const KINDS: readonly string[] = [
+  'hello',
+  'ping',
+  'bye',
+  'state',
+  'needProject',
+  'project',
+  'challenge',
+  'answer',
+];
 
 export interface Envelope {
   lw: 'loopweft-present';
@@ -94,7 +113,7 @@ export function isEnvelope(data: unknown): data is Envelope {
     (e.mac === undefined || typeof e.mac === 'string') &&
     !!e.msg &&
     typeof e.msg === 'object' &&
-    typeof (e.msg as { t?: unknown }).t === 'string'
+    KINDS.includes((e.msg as { t?: unknown }).t as string)
   );
 }
 
@@ -129,8 +148,14 @@ export class Link {
   readonly #listeners = new Set<(msg: Payload, from: { id: string; role: LinkRole }) => void>();
   readonly #peerListeners = new Set<() => void>();
   readonly #token: string;
-  /** This window has no origin of its own (a file opened from disk): direct messages need the proof. */
+  /** This window has no origin of its own (a file opened from disk): every message needs the proof. */
   readonly #opaque: boolean;
+  /**
+   * On a file opened from disk: the windows whose messages this one acts on, each with the number of its
+   * answer (only its later messages count), and the challenge put to each window not yet answered.
+   */
+  readonly #answered = new Map<string, number>();
+  readonly #asked = new Map<string, string>();
   #stops: Array<() => void> = [];
   #seq = 0;
   #started = false;
@@ -181,6 +206,8 @@ export class Link {
     this.#started = false;
     this.#peers.clear();
     this.#seen.clear();
+    this.#answered.clear();
+    this.#asked.clear();
   }
 
   /** A window this one opened (the audience window): it hears every message from now on. */
@@ -247,9 +274,61 @@ export class Link {
 
   /** Whether a message may reach this window: see the top of this file. `origin` is null for the channel's. */
   #admits(data: Envelope, origin: string | null): boolean {
-    if (origin === null) return true;
-    if (!this.#opaque) return origin === this.#host.origin;
-    return this.#token !== '' && typeof data.mac === 'string' && sameText(data.mac, proof(this.#token, data));
+    if (!this.#opaque) return origin === null || origin === this.#host.origin;
+    if (!this.#token || typeof data.mac !== 'string') return false;
+    try {
+      return sameText(data.mac, proof(this.#token, data));
+    } catch {
+      // What it says is not JSON (a cycle, a BigInt): it proves nothing.
+      return false;
+    }
+  }
+
+  /**
+   * On a file opened from disk, whether this window acts on a message: challenges and answers are dealt with
+   * here; anything else counts once its sender has answered this window's challenge, and only if numbered after
+   * the answer. Challenges and answers for other windows are passed on, as changes are.
+   */
+  #answers(data: Envelope, source: unknown): boolean {
+    if (!this.#opaque) return true;
+    const msg = data.msg;
+    if (msg.t === 'challenge' || msg.t === 'answer') {
+      if (typeof msg.to !== 'string' || typeof msg.nonce !== 'string') return false;
+      if (msg.to !== this.id) {
+        this.#post(this.#signed(data), source);
+        return false;
+      }
+      if (msg.t === 'challenge') this.send({ t: 'answer', to: data.id, nonce: msg.nonce });
+      else if (!this.#answered.has(data.id) && this.#asked.get(data.id) === msg.nonce) {
+        this.#asked.delete(data.id);
+        this.#answered.set(data.id, data.seq);
+        // Its messages count from now on, and the ones before were dropped: ask where the show is, and say it.
+        this.send({ t: 'hello' });
+        for (const fn of this.#listeners) fn({ t: 'hello' }, { id: data.id, role: data.from });
+      }
+      return false;
+    }
+    const since = this.#answered.get(data.id);
+    if (since === undefined) {
+      if (msg.t !== 'bye') this.#challenge(data.id);
+      return false;
+    }
+    return data.seq > since;
+  }
+
+  #challenge(id: string): void {
+    let nonce = this.#asked.get(id);
+    if (!nonce) {
+      nonce = `${this.#host.newId()}${this.#host.newId()}`;
+      this.#asked.set(id, nonce);
+    }
+    this.send({ t: 'challenge', to: id, nonce });
+  }
+
+  #forget(id: string): void {
+    this.#seen.delete(id);
+    this.#answered.delete(id);
+    this.#asked.delete(id);
   }
 
   #receive(data: unknown, source: unknown, origin: string | null): void {
@@ -267,9 +346,10 @@ export class Link {
     seen.push(data.seq);
     if (seen.length > REMEMBERED) seen.shift();
     this.#seen.set(data.id, seen);
+    if (!this.#answers(data, source)) return;
 
     if (data.msg.t === 'bye') {
-      this.#seen.delete(data.id);
+      this.#forget(data.id);
       if (this.#peers.delete(data.id)) this.#peersChanged();
       return;
     }
@@ -290,7 +370,7 @@ export class Link {
     for (const [id, p] of this.#peers) {
       if (now - p.seen >= ALIVE_MS) {
         this.#peers.delete(id);
-        this.#seen.delete(id);
+        this.#forget(id);
         changed = true;
       }
     }
@@ -363,7 +443,7 @@ function randomHex(win: Window, bytes: number): string {
 /**
  * This tab's join token for a presentation: the one in its address (an audience window the console opened),
  * else the one this tab already made (it survives a reload), else a new one. Kept in the tab's session
- * storage: another tab of the same file makes its own, and joins over the BroadcastChannel instead.
+ * storage: another tab of the same file makes its own, so it stays apart from the show (it can prove nothing).
  */
 export function joinToken(win: Window, show: string): string {
   const key = `loopweft.join.${show}`;

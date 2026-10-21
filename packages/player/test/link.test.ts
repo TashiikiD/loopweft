@@ -470,6 +470,114 @@ describe('who may move the show', () => {
   });
 });
 
+describe('on a file opened from disk, every message proves itself', () => {
+  const TOKEN = '0123456789abcdef0123456789abcdef';
+
+  /** A console and the audience window it opened, both files from disk, in step. */
+  function fromDisk(channels: boolean) {
+    const browser = new FakeBrowser();
+    browser.channels = channels;
+    const consoleWin = browser.window(null, 'null');
+    const presenter = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+    const audienceWin = browser.window(consoleWin, 'null');
+    presenter.link.addWindow(audienceWin);
+    const audience = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+    browser.advance(1100);
+    consoleWin.run(() => presenter.s.dispatch({ type: 'gotoScene', number: 2 }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+    return { browser, consoleWin, presenter, audienceWin, audience };
+  }
+
+  it('even over the channel, which another local file may share: its changes move nothing, nor travel', () => {
+    const { browser, consoleWin, presenter, audienceWin, audience } = fromDisk(true);
+    // Another file in the same browser on the same channel (its name comes from the project), without the
+    // token or with one of its own.
+    for (const token of [undefined, 'f'.repeat(32)]) {
+      const other = browser.window(null, 'null');
+      const forger = new Link('presenter', SHOW, other.host('*'), { token });
+      const forged = {
+        ...initialShowState(browser.now + 60_000, { s: 9, b: 0 }),
+        writer: 'zzz',
+      };
+      other.run(() => {
+        forger.start();
+        forger.send({ t: 'state', state: forged, reason: 'update' });
+        forger.send({ t: 'ping' });
+      });
+      browser.advance(1100);
+      other.run(() => forger.stop());
+    }
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2, 0));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2, 0));
+    expect(presenter.link.count('presenter')).toBe(0);
+    expect(audience.link.count('presenter')).toBe(1);
+    // The two still move each other.
+    consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2));
+    audienceWin.run(() => audience.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2, 2));
+  });
+
+  it('acts on no message recorded and sent again, even to a console that starts again with nothing saved', () => {
+    for (const channels of [false, true]) {
+      const { browser, consoleWin, presenter, audienceWin, audience } = fromDisk(channels);
+      // The audience window goes on to another page, which records what the console sends.
+      audienceWin.run(() => audience.link.stop());
+      const heard: Envelope[] = [];
+      audienceWin.host('*').listen((data) => heard.push(data as Envelope));
+      consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+      const recorded = heard.filter((e) => e.msg.t === 'state');
+      expect(recorded.length).toBeGreaterThan(0);
+      // The console starts again from the first step (Start again, or nothing saved) in the same tab, with
+      // the same token.
+      consoleWin.run(() => presenter.link.stop());
+      const again = session(browser, consoleWin, 'presenter', new MemoryStorage(), '', TOKEN, '*');
+      expect(posKey(deck, again.s.state.pos)).toBe('S00.1');
+      // The page sends the recorded messages back, unchanged, to the window that opened it.
+      for (const e of [...recorded, ...heard]) audienceWin.run(() => consoleWin.postMessage(e, '*'));
+      browser.advance(1100);
+      expect(posKey(deck, again.s.state.pos)).toBe('S00.1');
+      expect(again.link.count('presenter')).toBe(0);
+      // The audience window comes back: the two find each other and move together.
+      const back = session(browser, audienceWin, 'audience', new MemoryStorage(), '', TOKEN, '*');
+      browser.advance(1100);
+      expect(again.link.count('audience')).toBe(1);
+      consoleWin.run(() => again.s.dispatch({ type: 'gotoScene', number: 4 }));
+      expect(posKey(deck, back.s.state.pos)).toBe(after(4, 0));
+      audienceWin.run(() => back.s.dispatch({ type: 'next' }));
+      expect(posKey(deck, again.s.state.pos)).toBe(after(4));
+    }
+  });
+
+  it('turns away, without throwing, a message whose content cannot be proved (a BigInt, a cycle)', () => {
+    const { browser, consoleWin, presenter, audienceWin, audience } = fromDisk(true);
+    const cyclic: Record<string, unknown> = { t: 'ping' };
+    cyclic.self = cyclic;
+    const probe = (msg: unknown, seq: number) => ({
+      lw: 'loopweft-present',
+      show: SHOW,
+      from: 'audience',
+      id: 'probe',
+      seq,
+      msg,
+      mac: '0'.repeat(64),
+    });
+    const other = browser.window(null, 'null');
+    const channel = browser.openChannel(`loopweft-present-${SHOW}`, other);
+    for (const [i, msg] of [{ t: 'ping', extra: 1n }, cyclic].entries()) {
+      expect(() => other.run(() => consoleWin.postMessage(probe(msg, i + 1), '*'))).not.toThrow();
+      expect(() => other.run(() => channel?.postMessage(probe(msg, i + 10)))).not.toThrow();
+    }
+    expect(presenter.link.count('audience')).toBe(1);
+    expect(audience.link.count('audience')).toBe(0);
+    // A change made properly still arrives.
+    consoleWin.run(() => presenter.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, audience.s.state.pos)).toBe(after(2));
+    audienceWin.run(() => audience.s.dispatch({ type: 'next' }));
+    expect(posKey(deck, presenter.s.state.pos)).toBe(after(2, 2));
+  });
+});
+
 describe('a window that goes on to another page', () => {
   it('leaves that page nothing to move the show with, and still finds the show when it comes back', () => {
     const TOKEN = '0123456789abcdef0123456789abcdef';
