@@ -27,6 +27,7 @@
     "studio": "vite apps/studio",
     "loopweft": "node packages/cli/bin/loopweft.mjs",
     "review:capture": "node tools/capture.ts",
+    "review:exports": "node tools/review-exports.ts",
     "review:diff": "node tools/diff.ts",
     "review:sheets": "node tools/contact-sheet.ts",
     "schema": "node packages/model/scripts/export-schema.ts",

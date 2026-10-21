@@ -66,6 +66,14 @@ still stops the push. Where no words are set, as on CI, it checks nothing and sa
 cannot tell whether any are set (git cannot name a linked worktree's main checkout, or `.local.json` is not
 valid JSON), it stops the push.
 
+### Reviewing the exports
+
+`npm run review:exports` makes a sample of every export of the example with `loopweft export` (the HTML file,
+pictures, drawings, the three PDFs, video and GIF) into `review/phase6/exports/`, and `review/phase6/index.html`,
+a page that shows them with what to check by hand (the PDFs in a reader, the MP4 in a video player and
+PowerPoint, an SVG in PowerPoint and Word). It takes about ten minutes, most of it the whole story as video;
+`--quick` leaves that out, and `--out <folder>` writes elsewhere.
+
 ### Comparing renders with the presentation
 
 `npm run review:capture` takes a still of every step of the example, played by its exported HTML (the site's
