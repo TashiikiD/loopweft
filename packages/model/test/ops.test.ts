@@ -200,7 +200,12 @@ describe('links', () => {
       weight: null,
       rationale: 'Parents.',
     });
-    expect(result).toEqual({ id: 'L2', changed: ['sign', 'weight', 'rationale'] });
+    expect(result).toEqual({
+      id: 'L2',
+      changed: ['sign', 'weight', 'rationale'],
+      removedLoops: [],
+      changedSteps: [],
+    });
     expect(project.links[1]).toMatchObject({ sign: '-', rationale: 'Parents.' });
     expect(project.links[1]).not.toHaveProperty('weight');
   });
@@ -210,11 +215,24 @@ describe('links', () => {
       code: 'delayLabelWithoutDelay',
     });
     const broken = refused(() => setLink(richProject(), 'L4', { to: 'births' }));
-    expect(broken.kind).toBe('invalid');
-    expect(broken.issues[0]).toMatchObject({ code: 'brokenLoop' });
+    expect(broken.kind).toBe('conflict');
+    expect(broken.message).toBe(
+      'Changing L4 breaks 1 named loop through it (B1): its links would no longer close. Change it with cascade to take that name off (then name the new loop with its links), or change the loop first.',
+    );
     expect(refused(() => setLink(richProject(), 'L3', { from: 'births', to: 'population' })).kind).toBe(
       'conflict',
     );
+  });
+
+  it('with cascade, takes the name off the loops a change breaks, to be named again with their new links', () => {
+    const before = richProject();
+    const { project, result, summary } = setLink(before, 'L4', { to: 'births' }, { cascade: true });
+    expect(result.removedLoops).toEqual(['B1']);
+    expect(project.loops.map((l) => l.id)).not.toContain('B1');
+    expect(project.links.find((l) => l.id === 'L4')?.to).toBe('births');
+    expect(summary).toContain('took the name off 1 loop it broke (B1): name the new loop with its links');
+    // A change that keeps the loop closed leaves it named.
+    expect(setLink(before, 'L4', { sign: '+' }, { cascade: true }).result.removedLoops).toEqual([]);
   });
 
   it('refuses to remove a link a loop or the story still uses', () => {

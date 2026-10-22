@@ -347,7 +347,11 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
         '--clear <fields...>',
         'clear these: type, conditional, delay, delayLabel, confidence, weight, rationale',
       )
-      .option('--clear-field <ids...>', 'clear these custom fields'),
+      .option('--clear-field <ids...>', 'clear these custom fields')
+      .option(
+        '--cascade',
+        'when new ends break a named loop through the link, take its name off (then name the new loop with loops add)',
+      ),
   ).action((file: string, id: string, o) => run(() => linkSetCommand(env(), file, id, o))());
   link
     .command('rm <file> <links...>')
@@ -891,9 +895,42 @@ export function today(
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** `help story step set`: commander's help command reaches one level down; this asks the command itself. */
+function nestedHelp(argv: string[]): string[] {
+  const words = argv.filter((a) => a !== '--json');
+  return words[0] === 'help' && words.length > 2 ? [...words.slice(1), '--help'] : argv;
+}
+
+/**
+ * The first option that takes one value but is given more than once (`--up a --up b`), which commander would
+ * read as the last alone, silently. Options that collect (`--line`, `--pulse`) may repeat.
+ */
+function repeatedOption(program: Command, argv: string[]): string | null {
+  let command = program;
+  for (const word of argv) {
+    if (word.startsWith('-')) continue;
+    const sub = command.commands.find((c) => c.name() === word);
+    if (!sub) break;
+    command = sub;
+  }
+  const options = [...command.options, ...program.options];
+  const seen = new Set<string>();
+  for (const arg of argv) {
+    if (!arg.startsWith('-') || arg === '--') continue;
+    const flag = arg.split('=')[0] as string;
+    const option = options.find((o) => o.long === flag || o.short === flag);
+    if (!option || option.parseArg || option.variadic || !(option.required || option.optional)) continue;
+    const name = option.long ?? flag;
+    if (seen.has(name)) return name;
+    seen.add(name);
+  }
+  return null;
+}
+
 /** Runs the command line; resolves to the exit code. */
-export async function main(argv: string[], io: Io = processIo, env?: Env): Promise<number> {
+export async function main(given: string[], io: Io = processIo, env?: Env): Promise<number> {
   let result: CommandResult | undefined;
+  const argv = nestedHelp(given);
   let json = argv.includes('--json');
   const environment = () => (env ??= { today: today() });
   const program = createProgram(io, environment, (handler) => async () => {
@@ -901,6 +938,13 @@ export async function main(argv: string[], io: Io = processIo, env?: Env): Promi
   });
 
   try {
+    const repeated = repeatedOption(program, argv);
+    if (repeated) {
+      throw new OpError(
+        `${repeated} is given more than once, and only one counts: give it once (a list goes in one, comma-separated, e.g. ${repeated} a,b).`,
+        'usage',
+      );
+    }
     await program.parseAsync(argv, { from: 'user' });
     json = program.opts().json === true;
     if (!result) return EXIT.ok;

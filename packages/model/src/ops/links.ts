@@ -59,11 +59,32 @@ export function addLink(project: Project, input: LinkInput): OpOutput<{ id: stri
   return { project: next, result: { id }, summary: `Added link ${describeLink(link)}.` };
 }
 
+/** The named loops through link `id` whose links no longer close into a chain once it is `changed`. */
+function loopsBrokenBy(project: Project, id: string, changed: Link): string[] {
+  const ends = new Map(project.links.map((l) => [l.id, l.id === id ? changed : l]));
+  return project.loops
+    .filter((loop) => loop.links.includes(id))
+    .filter((loop) =>
+      loop.links.some((linkId, i) => {
+        const here = ends.get(linkId);
+        const next = ends.get(loop.links[(i + 1) % loop.links.length] as string);
+        return !here || !next || here.to !== next.from;
+      }),
+    )
+    .map((loop) => loop.id);
+}
+
+/**
+ * Changes a link. A change of its ends that breaks a named loop through it (the loop's links would no longer
+ * close) is refused, unless `cascade`: then those loops lose their names (and their mentions in the story), to
+ * be named again with their new links (`addLoop`), as when a variable is put into the middle of a loop.
+ */
 export function setLink(
   project: Project,
   id: string,
   changes: LinkChanges,
-): OpOutput<{ id: string; changed: string[] }> {
+  options: RemoveOptions = {},
+): OpOutput<{ id: string; changed: string[]; removedLoops: string[]; changedSteps: string[] }> {
   if ('id' in changes) throw new OpError('A link keeps its id.', 'usage');
   const { index, link } = findLink(project, id);
   const candidate: Record<string, unknown> = { ...link };
@@ -80,7 +101,7 @@ export function setLink(
   if (changed.length === 0) {
     return {
       project,
-      result: { id, changed },
+      result: { id, changed, removedLoops: [], changedSteps: [] },
       summary: `Nothing to change: link ${id} already has those values.`,
     };
   }
@@ -91,10 +112,28 @@ export function setLink(
       'conflict',
     );
   }
+  const broken = loopsBrokenBy(project, id, updated);
+  if (broken.length && !options.cascade) {
+    throw new OpError(
+      `Changing ${id} breaks ${plural(broken.length, 'named loop')} through it (${listing(broken)}): its links would no longer close. Change it with cascade to take ${broken.length === 1 ? 'that name' : 'those names'} off (then name the new loop with its links), or change the loop first.`,
+      'conflict',
+    );
+  }
   const next = structuredClone(project);
   next.links[index] = updated;
+  const removed: Removed = { variables: new Set(), links: new Set(), loops: new Set(broken) };
+  next.loops = next.loops.filter((loop) => !removed.loops.has(loop.id));
+  const changedSteps = broken.length ? pruneMentions(next, removed) : [];
   ensureValid(project, next);
-  return { project: next, result: { id, changed }, summary: `Changed link ${id}: ${changed.join(', ')}.` };
+  const unnamed = broken.length
+    ? `; took the name off ${plural(broken.length, 'loop')} it broke (${listing(broken)}): name the new loop with its links`
+    : '';
+  const steps = changedSteps.length ? `; updated ${plural(changedSteps.length, 'story step')}` : '';
+  return {
+    project: next,
+    result: { id, changed, removedLoops: broken, changedSteps },
+    summary: `Changed link ${id}: ${changed.join(', ')}${unnamed}${steps}.`,
+  };
 }
 
 export function removeLink(

@@ -1330,3 +1330,106 @@ describe('meta and theme', () => {
     expect(theme.out).toContain('loopweft (the default)');
   });
 });
+
+describe('what the agent dry run found', () => {
+  it('helps with a command at any depth: help story step set', async () => {
+    const { code, out } = await run('help', 'story', 'step', 'set');
+    expect(code).toBe(0);
+    expect(out).toMatch(/^Usage: loopweft story step set \[options\] <file> <step>/);
+  });
+
+  it('refuses an option that takes one value given twice, rather than keep the last alone', async () => {
+    await run('new', 'twice.loopweft', '--template', 'fixes-that-fail');
+    await run('story', 'scene', 'add', 'twice.loopweft', '--title', 'One');
+    const { code, doc } = await json(
+      'story',
+      'step',
+      'add',
+      'twice.loopweft',
+      'S1',
+      '--label',
+      'Up',
+      '--up',
+      'fix',
+      '--up',
+      'problem_symptom',
+    );
+    expect(code).toBe(2);
+    expect((doc.error as { message: string }).message).toBe(
+      '--up is given more than once, and only one counts: give it once (a list goes in one, comma-separated, e.g. --up a,b).',
+    );
+    // Options that collect may repeat.
+    await run('story', 'step', 'add', 'twice.loopweft', 'S1', '--label', 'Two');
+    expect(
+      (await run('story', 'step', 'set', 'twice.loopweft', 'S1.1', '--pulse', 'L1', '--pulse', 'L3')).code,
+    ).toBe(0);
+    expect(
+      (
+        await run(
+          'story',
+          'step',
+          'add',
+          'twice.loopweft',
+          'S1',
+          '--label',
+          'Up',
+          '--up',
+          'fix,problem_symptom',
+        )
+      ).code,
+    ).toBe(0);
+  });
+
+  it('says what a step id is when given a key (S1.1)', async () => {
+    await run('new', 'ids.loopweft', '--template', 'fixes-that-fail');
+    await run('story', 'scene', 'add', 'ids.loopweft', '--title', 'One');
+    const { code, err } = await run(
+      'story',
+      'step',
+      'add',
+      'ids.loopweft',
+      'S1',
+      '--id',
+      'S1.1',
+      '--label',
+      'A',
+    );
+    expect(code).toBe(2);
+    expect(err).toContain('Leave --id out and the step is numbered for you');
+  });
+
+  it('puts a variable into a named loop: link set --cascade takes the name off, loops add names it again', async () => {
+    await run('new', 'insert.loopweft', '--template', 'fixes-that-fail');
+    await run('var', 'add', 'insert.loopweft', '--label', 'Car trips');
+    const refused = await run('link', 'set', 'insert.loopweft', 'L4', '--from', 'Car trips');
+    expect(refused.code).toBe(2);
+    expect(refused.err).toContain('Changing L4 breaks 1 named loop through it (R2)');
+    const changed = await run('link', 'set', 'insert.loopweft', 'L4', '--from', 'Car trips', '--cascade');
+    expect(changed.code).toBe(0);
+    expect(changed.out).toContain('took the name off 1 loop it broke (R2)');
+    await run(
+      'link',
+      'add',
+      'insert.loopweft',
+      '--from',
+      'unintended_consequence',
+      '--to',
+      'Car trips',
+      '--sign',
+      '+',
+    );
+    const named = await run(
+      'loops',
+      'add',
+      'insert.loopweft',
+      '--links',
+      'L3,L5,L4,L1',
+      '--id',
+      'R2',
+      '--name',
+      'Back again',
+    );
+    expect(named.code).toBe(0);
+    expect(saved('insert.loopweft').loops.map((l) => l.id)).toEqual(['B1', 'R2']);
+  });
+});

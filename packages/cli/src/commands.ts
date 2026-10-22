@@ -536,7 +536,12 @@ export function linkAddCommand(
   return edit(env, file, o, [(p) => addLink(p, input)]);
 }
 
-export function linkSetCommand(env: Env, file: string, id: string, o: LinkOptions): CommandResult {
+export function linkSetCommand(
+  env: Env,
+  file: string,
+  id: string,
+  o: LinkOptions & { cascade?: boolean },
+): CommandResult {
   const project = loadProject(file);
   const current = project.links.find((l) => l.id === id);
   let fields = fieldValues(project, o.field, 'links', current?.fields);
@@ -552,7 +557,7 @@ export function linkSetCommand(env: Env, file: string, id: string, o: LinkOption
   if (Object.keys(changes).length === 0) {
     throw new OpError('Nothing to change: give a field to set (e.g. --sign) or --clear.', 'usage');
   }
-  return edit(env, file, o, [(p) => setLink(p, id, changes)]);
+  return edit(env, file, o, [(p) => setLink(p, id, changes, { cascade: o.cascade === true })]);
 }
 
 export function linkRemoveCommand(

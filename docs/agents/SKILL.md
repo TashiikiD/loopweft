@@ -19,10 +19,13 @@ reference, with examples of what each command prints, is <https://github.com/Tas
 
 ## Running it
 
-- **Where Loopweft is installed**, the command is `loopweft`.
+- **Where Loopweft is installed**, the command is `loopweft`. Check that it runs first: `loopweft --version`.
 - **Inside a copy of the Loopweft repository** (after `npm install`), it is `npx loopweft`. It needs Node 24.
+  If `loopweft` is not found and you are not in such a copy, ask the person where Loopweft is; do not look for
+  it, clone it or install it yourself.
 
-Below, `loopweft` stands for whichever applies. Put `--json` on any command to get exactly one JSON document on
+Below, `loopweft` stands for whichever applies. **Run commands one at a time** and read each answer before the
+next: a chain (`a; b` or `a && b`) hides which one failed, and with `;` the rest go on after a failure. Put `--json` on any command to get exactly one JSON document on
 stdout: `{ "ok": true, … }`, or `{ "ok": false, "error": { "message", "exitCode", "issues" } }`.
 
 | Exit code | Means | What to do |
@@ -40,20 +43,26 @@ Every edit is checked before it is saved, saved whole (never half-written), and 
 These are not suggestions. The person relies on the map being honest about its evidence.
 
 1. **Change maps only through `loopweft` commands.** Never edit a `.loopweft` file's text yourself: the commands
-   check every change and keep the file in its exact form.
+   check every change and keep the file in its exact form. This guide, `loopweft help <command>` and the person's
+   own material are all you need: do not search the computer or read Loopweft's own files.
 2. **Never guess a link's sign.** A sign says which way the effect goes: `+` the effect moves the same way as the
-   cause, `-` the opposite way. Use a sign only when the brief, a source, or the archetype you were asked to use
-   gives it. When none of them says which way, write `?`: Loopweft flags it, and the person decides.
-3. **Never invent evidence.** Add a source only if the person gave it to you, or you found it and confirmed it
+   cause, `-` the opposite way. Take it from the brief, a source, or the archetype you were asked to use. A link
+   you suggest yourself may carry the sign your reasoning gives, with that reasoning in its `rationale`, and it
+   is reported as your suggestion. When neither the material nor clear reasoning settles which way, write `?`:
+   Loopweft flags it, and the person decides.
+3. **Say where every link comes from.** Give each link you add or keep a `Basis` (a custom field; see
+   [step 2](#2-start-from-the-archetype)): `brief`, `archetype`, `source` or `suggestion` (your own). A link
+   marked `suggestion` is a claim of yours, not of the brief or a source: the person can find every one of them,
+   in the Studio's table and inspector, and keep, change or remove it.
+4. **Never invent evidence.** Add a source only if the person gave it to you, or you found it and confirmed it
    with `loopweft source lookup <doi>`. A DOI lookup confirms that a work exists, not what it says: cite it on a
    link only where the person's material or the text you were given supports that link. Never write a page
    number you have not seen in text you were given. When unsure, leave the link uncited (Loopweft flags it)
    rather than cite something weak.
-4. **Check before you export.** Run `loopweft validate <file>`. Export only when it reports 0 errors. Fix every
+5. **Check before you export.** Run `loopweft validate <file>`. Export only when it reports 0 errors. Fix every
    warning you can; list the rest in your report.
-5. **Report when you finish** (see [the report](#the-report)): what you changed, what is still uncited, every
-   `?` sign, which links are your own suggestions rather than from the brief or a source, and the files you
-   exported.
+6. **Report when you finish** (see [the report](#the-report)): what you changed, what is still uncited, every
+   `?` sign, each of your own suggestions one by one, and the files you exported.
 
 **The person may be watching.** If they have the map open in the Loopweft Studio in Chrome or Edge, each change
 you save appears there within a second or two, with a note of what changed, and they can undo it. If they have
@@ -105,6 +114,20 @@ loopweft link list garden.loopweft
 loopweft loops list garden.loopweft
 ```
 
+Then add the `Basis` field (rule 3), and mark the template's links: they come from the archetype.
+
+```bash
+loopweft type field add garden.loopweft --name Basis --kind choice --applies-to links --option brief=Brief --option archetype=Archetype --option source=Source --option 'suggestion=Agent suggestion' --description 'Where the link comes from: the brief, the archetype, a source, or a suggestion of the agent.'
+loopweft link set garden.loopweft L1 --field Basis=archetype
+loopweft link set garden.loopweft L2 --field Basis=archetype
+loopweft link set garden.loopweft L3 --field Basis=archetype
+loopweft link set garden.loopweft L4 --field Basis=archetype
+loopweft link set garden.loopweft L5 --field Basis=archetype
+```
+
+A map that already has a `Basis` field keeps it (`loopweft type field add` refuses a second one). A link the brief
+states outright is `brief`, even when the archetype has it too.
+
 ### 3. Name the variables for the brief
 
 Rename each template variable (its id stays) and say what exactly rises or falls. **Keep the template's signs
@@ -129,7 +152,7 @@ The shorthand adds many links at once, one per line, with new names becoming new
 
 ```text file=more-links.txt
 # One link per line: cause -> effect (sign, details)
-Garden members -> Shortage of plots (+, rationale="Each new member takes up a plot or a place in line.")
+Garden members -> Shortage of plots (+, Basis=suggestion, rationale="Suggested by the agent: each new member takes up a plot or a place in line.")
 ```
 
 ```bash
@@ -141,18 +164,36 @@ In the brackets: the sign (`+`, `-` or `?`), then any of `delay` (or `delay "2 y
 sign is recorded as `?` with a warning. `@group <Category>: A, B` puts variables in a category. Nothing is added
 if any line has an error; every error is reported with its line and column.
 
-This link is not in the brief: it is a suggestion of the agent's (a fair one: members occupy the plots). It goes
-in the report as such.
+This link is not in the brief: it is a suggestion of the agent's (a fair one: members occupy the plots), so its
+`Basis` is `suggestion`, its rationale gives the reasoning, and it goes in the report as such.
 
 One link at a time works too, and a sign is always required:
 
 ```bash
-loopweft link add garden.loopweft --from 'Waiting time for a plot' --to 'Invitations from members' --sign '?' --rationale 'Members may stop inviting friends who would only wait; the brief does not say.'
+loopweft link add garden.loopweft --from 'Waiting time for a plot' --to 'Invitations from members' --sign '?' --field Basis=suggestion --rationale 'Suggested by the agent: members may stop inviting friends who would only wait, or invite them sooner; the brief does not say which.'
 loopweft link list garden.loopweft
 ```
 
-Change a link with `link set` (`--sign`, `--delay`, `--confidence`, `--rationale`, …), turn `+` into `-` with
-`link flip`, remove it with `link rm`.
+Change a link with `link set` (`--sign`, `--delay`, `--confidence`, `--rationale`, `--field`, …), turn `+` into
+`-` with `link flip`, remove it with `link rm`.
+
+**Ids are given for you**: variables take one from their label, links are `L1`, `L2`…, scenes `S1`, `S2`…, and
+steps are numbered in their scene, named from outside it as `S1.2`. Give `--id` only to choose one yourself, and
+never with a dot.
+
+**Putting a variable into a named loop.** A template's loops are named, and a named loop's links must close into
+a chain, so moving one end of a link inside it is refused. `--cascade` makes the change and takes the loop's name
+off; then add the missing link and name the loop again, with its links in order round it (`loops list` shows
+them) and its old id and name:
+
+```bash
+loopweft var add garden.loopweft --label 'Members on the waiting list' --definition 'People who have joined and wait for a plot.'
+loopweft link set garden.loopweft L3 --to 'Members on the waiting list' --cascade
+loopweft link add garden.loopweft --from 'Members on the waiting list' --to 'Waiting time for a plot' --sign + --field Basis=suggestion --rationale 'Suggested by the agent: the more people in line, the longer each waits.'
+loopweft link set garden.loopweft L3 --field Basis=suggestion
+loopweft loops list garden.loopweft
+loopweft loops add garden.loopweft --links L4,L3,L8 --id B2 --name 'The limiting action slows performance' --archetype 'Limits to growth'
+```
 
 ### 5. Check the loops
 
@@ -212,7 +253,7 @@ loopweft story step add garden.loopweft S1 --label 'The whole map'
 loopweft story overlay add garden.loopweft S1.1 caption
 loopweft story step add garden.loopweft S1 --label 'Members bring in members' --base dim --active L1,L2 --up 'Garden members' --name R1 --pulse-loop R1
 loopweft story overlay add garden.loopweft S1.2 caption
-loopweft story step add garden.loopweft S1 --label 'The wait puts people off' --base dim --active L3,L4,L5 --up 'Waiting time for a plot' --name B2 --pulse-loop B2
+loopweft story step add garden.loopweft S1 --label 'The wait puts people off' --base dim --active L3,L4,L5,L8 --up 'Waiting time for a plot' --name B2 --pulse-loop B2
 loopweft story overlay add garden.loopweft S1.3 caption
 loopweft story step add garden.loopweft S1 --label 'Close' --labels all
 loopweft story overlay add garden.loopweft S1.4 statement --line 'More plots, or a shorter wait, would let the garden grow again.' --style closing
@@ -273,17 +314,20 @@ computer and take longer (a whole-story video takes minutes). An export never wr
 End by telling the person, briefly:
 
 1. **What you made or changed**: the file, its variables, links and named loops, and the story's steps.
-2. **Where each link came from**: the brief, a source (with pages), or the archetype; and **your own
-   suggestions**, one by one, so they can keep or remove them.
+2. **Where each link came from**, as its `Basis` says: the brief, a source (with pages), or the archetype; and
+   **your own suggestions**, one by one, with the reasoning, so they can keep or remove them.
 3. **Every `?` sign**, and what would settle it.
 4. **What is uncited**, and any other warning `validate` still shows.
 5. **The files you exported**, and where they are.
 
-For the worked example: "garden.loopweft: the Limits to growth archetype, renamed for the garden (4 variables, 5
-links from the archetype, R1 and B2 named). My suggestions: L6, Garden members → Shortage of plots (+). One
-unknown sign: L7, Waiting time → Invitations (?): the brief does not say whether members stop inviting. No
-sources were given, so all 7 links are uncited. Story: 1 scene, 4 steps. Exported garden.html. `validate`: 0
-errors, 8 warnings (7 uncited links, 1 unknown sign)."
+For the worked example: "garden.loopweft: the Limits to growth archetype, renamed for the garden, with one
+variable added (5 variables, 8 links; R1 and B2 named, B2 named again once the waiting list was in it). From the
+archetype: L1, L2, L4, L5. My suggestions (Basis: suggestion): L3, Garden members → Members on the waiting list
+(+), which replaced the archetype's link from members straight to the waiting time; L6, Garden members →
+Shortage of plots (+); L8, Members on the waiting list → Waiting time (+). One unknown sign, also my
+suggestion: L7, Waiting time → Invitations (?): the brief does not say whether members stop inviting. No sources
+were given, so all 8 links are uncited. Story: 1 scene, 4 steps. Exported garden.html. `validate`: 0 errors, 9
+warnings (8 uncited links, 1 unknown sign)."
 
 ## More
 

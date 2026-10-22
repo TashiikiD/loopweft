@@ -179,6 +179,9 @@ const EXAMPLES: Record<string, Example[]> = {
         'Each birth adds a person.',
       ],
     },
+    // New ends that break the named loop R1 through L1: refused, then with --cascade.
+    { args: ['link', 'set', PROJECT, 'L1', '--from', 'Fertility'], code: 2 },
+    { args: ['link', 'set', PROJECT, 'L1', '--from', 'Fertility', '--cascade'] },
   ],
   'link rm': [{ args: ['link', 'rm', PROJECT, 'L5'] }],
   'link flip': [{ args: ['link', 'flip', PROJECT, 'L4', '--dry-run'] }],

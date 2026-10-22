@@ -13,11 +13,15 @@ describe('the message for an agent', () => {
     const text = starterText('garden.loopweft', true);
     expect(text).toContain('Please help me with a Loopweft map, the file garden.loopweft.');
     expect(text).toContain('`npx loopweft`');
-    expect(text).toContain('First run `loopweft guide` and follow it.');
-    expect(text).toContain('write ? when neither my brief nor a source says');
+    expect(text).toContain('Check that it runs first: `loopweft --version`.');
+    expect(text).toContain('do not look for it, clone it or install it yourself');
+    expect(text).toContain('Then run `loopweft guide` and follow it.');
+    expect(text).toContain('do not search the computer');
+    expect(text).toContain('when nothing settles it, write ?');
+    expect(text).toContain('in its Basis field: brief, archetype, source, or suggestion');
     expect(text).toContain('never write a page number you have not seen');
     expect(text).toContain('Run `loopweft validate` before any export');
-    expect(text).toContain('which links are your own suggestions');
+    expect(text).toContain('each of your own suggestions one by one');
     expect(text).toContain('I will see your changes as you save them.');
     expect(text.endsWith('What I would like:\n')).toBe(true);
     expect(starterText('garden.loopweft', false)).not.toContain('I will see your changes');

@@ -1111,6 +1111,7 @@ loopweft link set <file> <link> [options]
 | `--sign <sign>` | +, - or ? |
 | `--clear <fields...>` | Clear these: type, conditional, delay, delayLabel, confidence, weight, rationale. |
 | `--clear-field <ids...>` | Clear these custom fields. |
+| `--cascade` | When new ends break a named loop through the link, take its name off (then name the new loop with loops add). |
 | `--type <id>` | A link type id. |
 | `--conditional` | The effect holds only under some conditions. |
 | `--delay [label]` | The effect takes notably long (optionally how long, e.g. "5 yrs"). |
@@ -1137,6 +1138,56 @@ With `--json`:
     "changed": [
       "confidence",
       "rationale"
+    ],
+    "removedLoops": [],
+    "changedSteps": []
+  },
+  "changed": true,
+  "saved": true,
+  "backup": "pop.loopweft.bak"
+}
+```
+
+```console
+$ loopweft link set pop.loopweft L1 --from Fertility
+Changing L1 breaks 1 named loop through it (R1): its links would no longer close. Change it with cascade to take that name off (then name the new loop with its links), or change the loop first.
+[exit 2]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": false,
+  "error": {
+    "message": "Changing L1 breaks 1 named loop through it (R1): its links would no longer close. Change it with cascade to take that name off (then name the new loop with its links), or change the loop first.",
+    "exitCode": 2
+  }
+}
+```
+
+```console
+$ loopweft link set pop.loopweft L1 --from Fertility --cascade
+Changed link L1: from; took the name off 1 loop it broke (R1): name the new loop with its links; updated 1 story step.
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "summary": "Changed link L1: from; took the name off 1 loop it broke (R1): name the new loop with its links; updated 1 story step.",
+  "result": {
+    "id": "L1",
+    "changed": [
+      "from"
+    ],
+    "removedLoops": [
+      "R1"
+    ],
+    "changedSteps": [
+      "S1.2"
     ]
   },
   "changed": true,
@@ -2591,7 +2642,7 @@ Map:
   loop badges: R1
   pulses: L2 → L1
 Overlays (counted from 0, later ones on top):
-  0 caption: 00 · "Growth" · headline "Births feed the population."
+  0 caption: 01 · "Growth" · headline "Births feed the population."
   1 statement (question) · lines "More people, more births." · cites example p. 4
 Sources it draws on: example
 [exit 0]

@@ -42,6 +42,7 @@ import {
   type Scene,
   type SceneChanges,
   type StepChanges,
+  sceneNumbers,
   scriptSegments,
   setAsset,
   setOverlay,
@@ -269,12 +270,12 @@ const quoted = (lines: readonly string[]) => lines.map((l) => `"${l}"`).join(' /
 /**
  * One overlay as lines, with everything it shows: its first line has the overlay's own fields, where it goes
  * and the sources it cites, with their pages; a set of cards has a line for each card. The caption shows its
- * scene's number (its place in the story), title and headline.
+ * scene's number as captions number scenes (the captioned scenes from 1: `sceneNumbers`), title and headline.
  */
 function overlayLines(
   o: Overlay,
   i: number,
-  scene: { index: number; title: string; headline?: string | undefined },
+  scene: { number: number | undefined; title: string; headline?: string | undefined },
 ): string[] {
   const fields = (parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ');
   const place = 'place' in o && o.place ? `place ${o.place}` : undefined;
@@ -284,7 +285,7 @@ function overlayLines(
     case 'caption':
       return [
         fields([
-          `${i} caption: ${String(scene.index).padStart(2, '0')} · "${scene.title}"`,
+          `${i} caption: ${String(scene.number ?? '').padStart(2, '0')} · "${scene.title}"`,
           scene.headline !== undefined && `headline "${scene.headline}"`,
         ]),
       ];
@@ -405,9 +406,11 @@ export function storyShowCommand(file: string, ref: string): CommandResult {
     ...mapLines(step.map).map((l) => `  ${l}`),
     step.overlays.length ? 'Overlays (counted from 0, later ones on top):' : 'Overlays: none',
     ...step.overlays.flatMap((o, i) =>
-      overlayLines(o, i, { index: sceneIndex, title: scene.title, headline: scene.headline }).map(
-        (l) => `  ${l}`,
-      ),
+      overlayLines(o, i, {
+        number: sceneNumbers(project.story.scenes)[sceneIndex],
+        title: scene.title,
+        headline: scene.headline,
+      }).map((l) => `  ${l}`),
     ),
     `Sources it draws on: ${sources.length ? sources.join(', ') : 'none'}`,
     ...(issues.length ? ['Warnings:', ...issues.map((i) => `  ${i.message}`)] : []),
@@ -803,6 +806,12 @@ export function stepAddCommand(
   sceneRef: string,
   o: StepOptions & { label: string },
 ): CommandResult {
+  if (o.id?.includes('.')) {
+    throw new OpError(
+      `--id is the step's own id within its scene, without a dot; "${o.id}" is how a step is named from outside its scene (scene.step). Leave --id out and the step is numbered for you: the third step of S1 is S1.3.`,
+      'usage',
+    );
+  }
   let key = '';
   return edit(env, file, o, [
     (p) => {

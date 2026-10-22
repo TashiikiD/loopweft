@@ -79,7 +79,7 @@ describe('loopweft guide', () => {
 
   it('names only commands that exist', () => {
     const paths = commandNames();
-    const tops = new Set([...paths.map((p) => p.split(' ')[0]), 'help']);
+    const tops = new Set([...paths.map((p) => p.split(' ')[0]), 'help', '--version']);
     const named = [...guide.matchAll(/`loopweft ([a-z-]+)(?: ([a-z]+))?/g)];
     expect(named.length).toBeGreaterThan(10);
     for (const [shown, top = '', sub] of named) {

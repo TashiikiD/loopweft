@@ -52,9 +52,13 @@
 
     <h2>The rules an agent is given</h2>
     <ul>
-      <li>Change maps only through <code>loopweft</code> commands, never by editing the file's text.</li>
-      <li>Never guess a link's sign: write <code>?</code> when neither the brief nor a source says which way it
-        goes. Loopweft flags it, and you decide.</li>
+      <li>Change maps only through <code>loopweft</code> commands, never by editing the file's text, and look
+        nowhere else on your computer: the guide and the command line's own help are all it needs.</li>
+      <li>Never guess a link's sign: take it from your brief, a source or the archetype. A link the agent suggests
+        itself may carry the sign its reasoning gives, with the reasoning written on the link; when nothing settles
+        it, <code>?</code>, which Loopweft flags for you to decide.</li>
+      <li>Say where every link comes from, in its <em>Basis</em> field: your brief, the archetype, a source, or the
+        agent's own suggestion. You can find every suggestion in the Studio's table, and keep, change or remove it.</li>
       <li>Never invent evidence: add only sources you gave it, or ones it confirmed with a DOI lookup; never write a
         page number it has not seen. When unsure, leave a link uncited (Loopweft flags that too).</li>
       <li>Check the map with <code>loopweft validate</code> before exporting, and export only with no errors.</li>
