@@ -13,7 +13,7 @@ export function starterText(file: string, watching: boolean): string {
     "- Never guess a link's sign: take it from my brief, a source or the archetype I name. A link you suggest yourself may carry the sign your reasoning gives, with the reasoning in its rationale; when nothing settles it, write ?.",
     '- Mark where every link comes from in its Basis field: brief, archetype, source, or suggestion (your own). The guide shows how.',
     '- Add only sources I give you or that you confirm with `loopweft source lookup <doi>`, and never write a page number you have not seen. When unsure, leave the link uncited.',
-    '- Run `loopweft validate` before any export, and export only with 0 errors.',
+    '- Run `loopweft validate` before any export. Export only with 0 errors and no warnings but uncited links and ? signs (those are mine to settle); fix every other warning first.',
     '- When you finish, tell me what you changed, each of your own suggestions one by one, every ? sign, what is still uncited, and the files you exported.',
     '',
     ...(watching

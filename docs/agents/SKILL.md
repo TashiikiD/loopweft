@@ -59,8 +59,9 @@ These are not suggestions. The person relies on the map being honest about its e
    link only where the person's material or the text you were given supports that link. Never write a page
    number you have not seen in text you were given. When unsure, leave the link uncited (Loopweft flags it)
    rather than cite something weak.
-5. **Check before you export.** Run `loopweft validate <file>`. Export only when it reports 0 errors. Fix every
-   warning you can; list the rest in your report.
+5. **Check before you export.** Run `loopweft validate <file>`. Export only when it reports 0 errors and no
+   warnings but `uncitedLink` and `unknownSign`: those two are the person's to settle (with sources, or by
+   choosing a sign), so list them in your report. Fix every other warning first; none of them is minor.
 6. **Report when you finish** (see [the report](#the-report)): what you changed, what is still uncited, every
    `?` sign, each of your own suggestions one by one, and the files you exported.
 
@@ -285,8 +286,9 @@ loopweft validate garden.loopweft
 loopweft info garden.loopweft
 ```
 
-`validate` exits 1 when there are errors (each with a code, a path and a message) and lists warnings. Warnings
-do not stop an export, but read every one. The common ones:
+`validate` exits 1 when there are errors (each with a code, a path and a message) and lists warnings. Loopweft
+itself lets you export with warnings, but rule 5 does not: before exporting, fix every warning except
+`uncitedLink` and `unknownSign`, which go in your report. The common ones:
 
 | Warning | Means | What to do |
 |---|---|---|
@@ -297,7 +299,7 @@ do not stop an export, but read every one. The common ones:
 | `pulseOnHiddenLink` | A pulse on a link the step does not show | Show the link, or pulse another |
 | `duplicateLabel` | Two variables with the same name | Rename one |
 
-With 0 errors, export:
+With 0 errors, and no warnings but uncited links and `?` signs, export:
 
 ```bash
 loopweft export garden.loopweft --html

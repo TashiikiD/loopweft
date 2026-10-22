@@ -21,6 +21,7 @@ describe('the message for an agent', () => {
     expect(text).toContain('in its Basis field: brief, archetype, source, or suggestion');
     expect(text).toContain('never write a page number you have not seen');
     expect(text).toContain('Run `loopweft validate` before any export');
+    expect(text).toContain('no warnings but uncited links and ? signs');
     expect(text).toContain('each of your own suggestions one by one');
     expect(text).toContain('I will see your changes as you save them.');
     expect(text.endsWith('What I would like:\n')).toBe(true);
