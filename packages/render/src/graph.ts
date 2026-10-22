@@ -73,7 +73,7 @@ export interface GraphOptions {
   neutral?: string;
 }
 
-/** The drawable map of a project. Variables without a position are placed by the constellation layout. */
+/** The drawable map of a project. Variables without a position are placed automatically (`unplacedPositions`). */
 export function buildGraph(project: Project, options: GraphOptions = {}): Graph {
   const geometry = mapGeometry(project, { refineBends: options.refineBends ?? true });
   const colours = categoryColours(project);

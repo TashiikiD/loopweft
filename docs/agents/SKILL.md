@@ -233,7 +233,9 @@ is `strong`, `moderate` or `weak`, the person's judgement of the support, so lea
 
 ### 7. Lay it out
 
-Template maps come laid out; new variables are placed automatically. To lay the whole map out again:
+Template maps come laid out. A variable you add is placed beside those that already have places, which stay where
+they are; that keeps it in view, but not evenly spaced. So once you have added your variables, lay the whole map out
+again:
 
 ```bash
 loopweft layout garden.loopweft --auto force --seed 1

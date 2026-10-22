@@ -155,14 +155,37 @@ export interface MapGeometry {
 }
 
 /**
- * Where everything is drawn: each variable's position (its own, else from an automatic constellation for
- * those without one) and radius, and each link's bend (set by hand, else chosen) and curve. A link from a
+ * Places for the variables that have none of their own. With none placed, the whole map is laid out as a
+ * constellation. With some placed, the force layout places the others around them, the placed ones held where
+ * they are, so a variable added to a laid-out map lands beside what it links to, not on top of the others (a
+ * layout of the whole map would know nothing of where they are).
+ */
+export function unplacedPositions(project: Project): Record<string, Position> {
+  const own = project.layout.positions;
+  const missing = project.variables.filter((v) => !own[v.id]);
+  if (missing.length === 0) return {};
+  const held = Object.fromEntries(Object.entries(own).map(([id, p]) => [id, { ...p, pinned: true }]));
+  const laid =
+    missing.length === project.variables.length
+      ? autoLayout(project, { kind: 'constellation' }).positions
+      : autoLayout({ ...project, layout: { ...project.layout, positions: held } }, { kind: 'force' })
+          .positions;
+  const out: Record<string, Position> = {};
+  for (const v of missing) {
+    const p = laid[v.id];
+    if (p) out[v.id] = p;
+  }
+  return out;
+}
+
+/**
+ * Where everything is drawn: each variable's position (its own, else from `unplacedPositions` for those
+ * without one) and radius, and each link's bend (set by hand, else chosen) and curve. A link from a
  * variable to itself has no curve and is left out.
  */
 export function mapGeometry(project: Project, options: { refineBends?: boolean } = {}): MapGeometry {
   const shapes = new Map(project.types.roles.map((r) => [r.id, r.shape]));
-  const unplaced = project.variables.some((v) => !project.layout.positions[v.id]);
-  const auto = unplaced ? autoLayout(project, { kind: 'constellation' }).positions : {};
+  const auto = unplacedPositions(project);
   const nodes = new Map<string, MapNode>();
   for (const v of project.variables) {
     const p = project.layout.positions[v.id] ?? auto[v.id];

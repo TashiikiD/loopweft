@@ -74,6 +74,7 @@ export {
   type MapGeometry,
   type MapNode,
   mapGeometry,
+  unplacedPositions,
   variableRadius,
 } from './project.ts';
 export {

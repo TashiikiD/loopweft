@@ -315,7 +315,7 @@ Where things are drawn, in map units. The polycrisis layout fills a 1920 × 1080
 
 | Field | Meaning |
 |---|---|
-| `positions` | By variable id: `x`, `y`, an optional `labelSide` (`above`, `below`, `left`, `right`; left out: placed automatically) and `pinned` (`true`: automatic layouts leave it where it is). A variable without a position is placed automatically. |
+| `positions` | By variable id: `x`, `y`, an optional `labelSide` (`above`, `below`, `left`, `right`; left out: placed automatically) and `pinned` (`true`: automatic layouts leave it where it is). A variable without a position is placed automatically: around those that have positions, which stay put, or, when none has one, in a constellation of the whole map. |
 | `groups` | Visual groups, usually one per category: an `id`, an optional `category` (for the colour), `label`, `halo` (`x`, `y`, `r`: a soft circle behind the group) and `labelAt` (`x`, `y`). |
 | `bends` | By link id: the curve of a link as a fraction of its length, from −1 to 1; positive bends to the left. Links not listed are curved automatically. |
 | `home` | The whole-map view: the map point at the centre of the stage (`x`, `y`) and the `zoom` (stage pixels per map unit). Steps that show the whole map use it, and a step that frames some variables never shows them smaller than it. Left out: the whole map is fitted below the caption band. |

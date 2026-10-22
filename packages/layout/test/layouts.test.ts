@@ -1,3 +1,4 @@
+import { addLink, addVariable, templateById } from '@loopweft/model';
 import { describe, expect, it } from 'vitest';
 import {
   applyAutoLayout,
@@ -6,6 +7,7 @@ import {
   computeForceLayout,
   flowLayout,
   mapGeometry,
+  unplacedPositions,
 } from '../src/index.ts';
 import { example, smallProject } from './helpers.ts';
 
@@ -115,6 +117,36 @@ describe('automatic layouts', () => {
     expect(x('a')).toBeLessThan(x('b'));
     expect(x('b')).toBeLessThan(x('c'));
     expect(x('c')).toBeLessThan(x('d'));
+  });
+});
+
+describe('variables without a place of their own', () => {
+  it('are placed around the placed ones, which stay where they are, not on top of them', () => {
+    // A template map (its variables placed) with three variables added, as an agent added them in a dry run.
+    const template = templateById('fixes-that-fail');
+    if (!template) throw new Error('no template');
+    let project = template.build();
+    const placed = Object.keys(project.layout.positions);
+    expect(placed.length).toBe(project.variables.length);
+    for (const label of ['Traffic volume', 'Vehicle ownership', 'Public pressure'])
+      project = addVariable(project, { label }).project;
+    project = addLink(project, { from: 'traffic_volume', to: placed[0] as string, sign: '+' }).project;
+    const auto = unplacedPositions(project);
+    expect(Object.keys(auto).sort()).toEqual(['public_pressure', 'traffic_volume', 'vehicle_ownership']);
+    const { nodes } = mapGeometry(project);
+    for (const id of placed) expect(nodes.get(id)).toMatchObject(project.layout.positions[id] as object);
+    // Every pair of variables at least a label's height apart: none hidden under another.
+    const all = [...nodes.values()];
+    for (const [i, a] of all.entries())
+      for (const b of all.slice(i + 1)) expect(distance(a, b), `${a.id} and ${b.id}`).toBeGreaterThan(60);
+    expect(unplacedPositions(project)).toEqual(auto);
+  });
+
+  it('are laid out as a constellation when none has a place, and need nothing when all have', () => {
+    const project = smallProject();
+    const bare = { ...project, layout: { ...project.layout, positions: {} } };
+    expect(unplacedPositions(bare)).toEqual(autoLayout(bare, { kind: 'constellation' }).positions);
+    expect(unplacedPositions(example())).toEqual({});
   });
 });
 
