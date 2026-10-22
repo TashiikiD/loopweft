@@ -257,7 +257,7 @@ loopweft story overlay add garden.loopweft S1.2 caption
 loopweft story step add garden.loopweft S1 --label 'The wait puts people off' --base dim --active L3,L4,L5,L8 --up 'Waiting time for a plot' --name B2 --pulse-loop B2
 loopweft story overlay add garden.loopweft S1.3 caption
 loopweft story step add garden.loopweft S1 --label 'Close' --labels all
-loopweft story overlay add garden.loopweft S1.4 statement --line 'More plots, or a shorter wait, would let the garden grow again.' --style closing
+loopweft story overlay add garden.loopweft S1.4 statement --line 'More plots.' --line 'A shorter wait.' --style closing
 loopweft story list garden.loopweft
 ```
 
@@ -275,9 +275,11 @@ Steps are named by scene and step (`S1.2`). The map options most stories need:
 | `--reveal draw\|bloom` | How newly shown things arrive |
 
 Overlays go over the map: `caption` (the scene's number, title and headline), `title`, `statement` (`--line`,
-repeatable; `--style hero|question|closing|title|note`), `cards`, `legend` and `image`. `story show <file> S1.2`
-shows a step in full, with its warnings. Speaker notes: `story scene set <file> S1 --notes "<markdown>"`; write
-them only from what the person gave you.
+repeatable; `--style hero|question|closing|title|note`), `cards`, `legend` and `image`. A statement is large type:
+keep each line to a few words, a closing line most of all (`More plots.`, not a sentence that explains the map);
+the explaining belongs in the captions and the speaker notes. `story show <file> S1.2` shows a step in full, with
+its warnings. Speaker notes: `story scene set <file> S1 --notes "<markdown>"`; write them only from what the person
+gave you.
 
 ### 9. Check, then export
 

@@ -575,7 +575,8 @@
   font-weight: 800;
   letter-spacing: 0.1em;
   line-height: 1.32;
-  white-space: nowrap;
+  /* A short line keeps to one line; a long one wraps inside the statement, split evenly. */
+  text-wrap: balance;
 }
 
 .lw-stage .st-closing .st-line-2 {

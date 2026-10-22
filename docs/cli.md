@@ -750,7 +750,7 @@ With `--json`:
   "file": "pop.loopweft",
   "out": "pop.html",
   "format": "html",
-  "bytes": 1227806,
+  "bytes": 1227805,
   "notes": true,
   "images": [
     {
