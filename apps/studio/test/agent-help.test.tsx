@@ -4,7 +4,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
-import { starterText } from '../src/shell/agent-help.tsx';
+import { starterText } from '../src/shell/agent-text.ts';
 import { memoryRecovery } from '../src/state/recovery.ts';
 import { createStudioStore } from '../src/state/store.ts';
 
