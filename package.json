@@ -31,6 +31,7 @@
     "review:diff": "node tools/diff.ts",
     "review:sheets": "node tools/contact-sheet.ts",
     "schema": "node packages/model/scripts/export-schema.ts",
+    "cli-docs": "node packages/cli/scripts/cli-docs.ts",
     "convert:polycrisis": "node packages/model/scripts/convert-polycrisis.ts"
   },
   "devDependencies": {

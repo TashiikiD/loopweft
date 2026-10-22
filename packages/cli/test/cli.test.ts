@@ -19,25 +19,13 @@ import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { readProject } from '@loopweft/model';
 import { afterAll, describe, expect, it } from 'vitest';
+import { recordedFetch } from '../scripts/recorded-fetch.ts';
 import { commandNames, main, today } from '../src/main.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'loopweft-cli-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 /** The DOI lookup answers from the Crossref and DataCite replies recorded for the model's tests: no network. */
-const FIXTURES = new URL('../../model/test/fixtures/', import.meta.url);
-const recordedFetch = (async (url: string | URL | Request) => {
-  const [, host, encoded] =
-    /^https:\/\/api\.(crossref|datacite)\.org\/(?:works|dois)\/(.*)$/.exec(String(url)) ?? [];
-  const doi = decodeURIComponent(encoded ?? '');
-  const folder = new URL(`${host}/`, FIXTURES);
-  const file = new URL(`${doi.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`, folder);
-  if (!existsSync(file)) return new Response('Resource not found.', { status: 404 });
-  const body = JSON.parse(readFileSync(file, 'utf8')) as { status: unknown; text?: string };
-  if (typeof body.status === 'number') return new Response(body.text ?? '', { status: body.status });
-  return new Response(JSON.stringify(body), { status: 200 });
-}) as typeof fetch;
-
 const env = { today: '2026-10-18', fetch: recordedFetch };
 
 /** Runs one command; paths in its output are shown relative to the temporary folder. */

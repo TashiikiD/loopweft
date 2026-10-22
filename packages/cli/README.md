@@ -7,6 +7,9 @@ here and one edited by hand follow the same rules.
 Inside the repository, run it as `npx loopweft …` (after `npm install`) or `npm run loopweft -- …`. It needs
 Node 24, which runs Loopweft's TypeScript source directly.
 
+This page is the overview. [The full reference](../../docs/cli.md) has every command and option, with examples
+that were really run and what each prints, plainly and with `--json`.
+
 ## Output and exit codes
 
 Add `--json` anywhere on the line: stdout then carries exactly one JSON document, `{ "ok": true, … }` or

@@ -69,14 +69,15 @@ reviews before the next one starts. The file format is specified in [docs/format
 | `npm run test:e2e` | Playwright end-to-end tests of the Studio in this computer's Chrome or Edge (`LOOPWEFT_CHROME` names another; `LOOPWEFT_REVIEW=<folder>` also saves screens there) |
 | `npm run verify` | The full merge gate, with a Markdown summary |
 | `npm run schema` | Regenerates `packages/model/schema/loopweft.v1.schema.json` after a format change |
+| `npm run cli-docs` | Regenerates `docs/cli.md`, the command line's full reference, after a command or its output changes |
 | `npm run studio` | Serves the Studio on this machine (`?example` opens the polycrisis example) |
 | `npm run player` | Serves the presentation player on this machine with the polycrisis example |
 | `npm run loopweft -- <command>` | Runs the `loopweft` command line (`npx loopweft` works too) |
 | `npm run convert:polycrisis -- --deck <folder>` | Rebuilds `examples/polycrisis.loopweft` from the private polycrisis deck |
 | `npm run site` | Builds the GitHub Pages site into `_site/` (`.github/workflows/pages.yml` publishes it) |
 
-Generated files (`packages/model/schema/*.schema.json`, `examples/polycrisis.loopweft`) are not edited by
-hand; tests check that they are current. The polycrisis deck is private, so the test that rebuilds the
+Generated files (`packages/model/schema/*.schema.json`, `examples/polycrisis.loopweft`, `docs/cli.md`) are not
+edited by hand; tests check that they are current. The polycrisis deck is private, so the test that rebuilds the
 example runs only where the deck is (see CONTRIBUTING.md) and is skipped on CI.
 
 ## Layout

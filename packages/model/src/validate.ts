@@ -79,7 +79,14 @@ function fromZod(issue: ZodIssue): Issue[] {
       );
     case 'unrecognized_keys':
       return issue.keys.flatMap((key) =>
-        one('unknownField', `Unknown field "${key}"${didYouMean(key, KNOWN_FIELDS)}.`, [...path, key]),
+        one(
+          'unknownField',
+          // A field of other parts of the format (a caption has no "place") is named as such, not suggested.
+          KNOWN_FIELDS.includes(key)
+            ? `Unknown field "${key}" here: other parts of the format have it, this one does not.`
+            : `Unknown field "${key}"${didYouMean(key, KNOWN_FIELDS)}.`,
+          [...path, key],
+        ),
       );
     case 'invalid_value': {
       const values = issue.values.map(show);

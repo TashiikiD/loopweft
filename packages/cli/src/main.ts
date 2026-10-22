@@ -810,6 +810,16 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
   return program;
 }
 
+/** The command tree as written above, runnable by nothing: for listing and describing the commands. */
+export function describeProgram(): Command {
+  const silent: Io = { out: () => undefined, err: () => undefined };
+  return createProgram(
+    silent,
+    () => ({ today: '' }),
+    () => async () => undefined,
+  );
+}
+
 /** Every runnable command, e.g. `new`, `var add`, `type category add`. */
 export function commandNames(): string[] {
   const names: string[] = [];
@@ -820,15 +830,7 @@ export function commandNames(): string[] {
       else names.push(path.join(' '));
     }
   };
-  const silent: Io = { out: () => undefined, err: () => undefined };
-  walk(
-    createProgram(
-      silent,
-      () => ({ today: '' }),
-      () => async () => undefined,
-    ),
-    [],
-  );
+  walk(describeProgram(), []);
   return names;
 }
 

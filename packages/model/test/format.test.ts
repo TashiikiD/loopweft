@@ -186,6 +186,14 @@ describe('schema errors', () => {
     expect(issue.message).toBe('Unknown field "lable" (did you mean "label"?).');
   });
 
+  it('says when a field belongs elsewhere, rather than suggesting the same name', () => {
+    const issue = firstIssue(parseChanged({ 'variables.0.sign': '+' }));
+    expect(issue.code).toBe('unknownField');
+    expect(issue.message).toBe(
+      'Unknown field "sign" here: other parts of the format have it, this one does not.',
+    );
+  });
+
   it('explains wrong values', () => {
     const sign = firstIssue(parseChanged({ 'links.0.sign': 'plus' }));
     expect(sign).toMatchObject({ code: 'invalidValue', path: ['links', 0, 'sign'] });
