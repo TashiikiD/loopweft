@@ -1,6 +1,7 @@
 // The Loopweft Studio: one window with five workspaces (Map, Sources, Story, Present and Export). It holds
 // one map at a time, saved to a .loopweft file; while it has unsaved changes a copy is kept in the browser,
-// so a crash or a closed tab loses nothing.
+// so a crash or a closed tab loses nothing. When another program (an AI agent using `loopweft`) changes the
+// open file, the map follows it (shell/file-changes.tsx).
 import { createProject, type Project, serializeProject } from '@loopweft/model';
 import { AppShell, Button, Group, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
@@ -13,6 +14,7 @@ import { ImportWizard } from './import/wizard.tsx';
 import { MapWorkspace } from './map/workspace.tsx';
 import { PresentWorkspace } from './present/workspace.tsx';
 import { Providers } from './providers.tsx';
+import { FileChangedBar, useFileWatch } from './shell/file-changes.tsx';
 import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
 import { StatusBar } from './shell/status-bar.tsx';
@@ -143,6 +145,7 @@ export function App({ store: given, recovery: givenRecovery, env = 'default', lo
       <StudioContext.Provider value={store}>
         <LookupContext.Provider value={lookup ?? crossrefLookup}>
           <Shortcuts store={store} />
+          <FileWatch />
           <AppShell header={{ height: 56 }} padding={0}>
             <AppShell.Header>
               <Header
@@ -155,6 +158,7 @@ export function App({ store: given, recovery: givenRecovery, env = 'default', lo
             </AppShell.Header>
             <AppShell.Main className="lw-main">
               {offer && <RecoveryOffer copy={offer} onDone={() => setOffer(null)} />}
+              <FileChangedBar />
               <Workspace />
               <StatusBar />
             </AppShell.Main>
@@ -180,5 +184,11 @@ function Shortcuts({ store }: { store: StudioStore }) {
     ['mod+O', () => void openFile(store)],
     ['Escape', () => store.getState().select({ variables: [], links: [], loop: null })],
   ]);
+  return null;
+}
+
+/** Live reload: the open map follows changes other programs make to its file (Chrome, Edge). */
+function FileWatch() {
+  useFileWatch();
   return null;
 }

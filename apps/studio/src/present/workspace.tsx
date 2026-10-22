@@ -170,6 +170,11 @@ export function PresentWorkspace() {
   const show = useMemo(() => presentationId(serializeProject(project)), [project]);
   const [open, setOpen] = useState<{ mode: Mode; presentation: Presentation } | null>(null);
   const [, setTick] = useState(0);
+  // Changes to the file wait while a presentation is open (state/watch.ts).
+  useEffect(() => {
+    store.getState().setPresenting(open !== null);
+    return () => store.getState().setPresenting(false);
+  }, [store, open]);
 
   const saved = deck.scenes.length > 0 ? savedSession(deck, new PresentationStore(show), Date.now()) : null;
   const rehearsed =

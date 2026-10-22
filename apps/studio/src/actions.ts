@@ -5,6 +5,7 @@ import { createProject, type Project, templateById } from '@loopweft/model';
 import { notifications } from '@mantine/notifications';
 import exampleText from '../../../examples/polycrisis.loopweft?raw';
 import { refused } from './context.tsx';
+import { sameMap } from './state/changes.ts';
 import { pickFile, readMap, saveMap, today } from './state/files.ts';
 import { type FileRef, hasUnsavedWork, type StudioStore } from './state/store.ts';
 
@@ -72,10 +73,32 @@ export async function openFile(store: StudioStore): Promise<void> {
   }
 }
 
+/**
+ * True when the open map's file still holds what the Studio last read from it or wrote to it, or the person
+ * agrees to replace what another program (an AI agent, say) has written there since.
+ */
+async function mayReplace(store: StudioStore): Promise<boolean> {
+  const { file, saved } = store.getState();
+  if (!file?.handle || !saved) return true;
+  let text: string;
+  try {
+    text = await (await file.handle.getFile()).text();
+  } catch {
+    // Gone, or no longer readable: there is nothing there to lose.
+    return true;
+  }
+  const read = readMap(text, file.name);
+  if (read.ok && sameMap(read.project, saved)) return true;
+  return window.confirm(
+    `${file.name} has changed since the Studio last read it: another program (an AI agent, say) saved it. Replace those changes with this map?`,
+  );
+}
+
 /** Saves the open map: to its own file when the browser allows it, else as a download. */
 export async function saveFile(store: StudioStore, options: { as?: boolean } = {}): Promise<boolean> {
   const { project, file } = store.getState();
   try {
+    if (!options.as && !(await mayReplace(store))) return false;
     const saved = await saveMap(project, file, { today: today(), ...(options.as ? { as: true } : {}) });
     if (!saved) return false;
     store.getState().markSaved(saved.project, saved.file);

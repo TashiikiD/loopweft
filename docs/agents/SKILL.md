@@ -55,6 +55,11 @@ These are not suggestions. The person relies on the map being honest about its e
    `?` sign, which links are your own suggestions rather than from the brief or a source, and the files you
    exported.
 
+**The person may be watching.** If they have the map open in the Loopweft Studio in Chrome or Edge, each change
+you save appears there within a second or two, with a note of what changed, and they can undo it. If they have
+unsaved changes of their own, the Studio asks them which version to keep and merges nothing, so ask them to
+save before you start, and tell them when you have finished.
+
 ## Building a map from a brief
 
 A worked example. The brief: *"Use the Limits to growth archetype. Our community garden grew quickly because

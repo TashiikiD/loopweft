@@ -55,6 +55,13 @@ export interface StudioState {
   source: string | null;
   /** The step chosen in the Story workspace, "<scene id>.<step id>", or a scene alone (its id). */
   story: string | null;
+  /** True while a presentation or a rehearsal is open over the Studio: changes to the file wait. */
+  presenting: boolean;
+  /**
+   * The file's own version, when the file changed on disk while the map had unsaved changes: the person
+   * chooses which to keep. `what` says what the file's version changes.
+   */
+  conflict: { project: Project; what: string } | null;
   /** Runs one operation as one undoable step and returns its output; an OpError leaves everything as it was. */
   edit<R>(run: (project: Project) => OpOutput<R>, label?: string): OpOutput<R>;
   /** Several operations as one undoable step, e.g. removing everything selected. */
@@ -69,6 +76,16 @@ export interface StudioState {
   open(project: Project, file: FileRef | null, options?: { saved?: boolean; fresh?: boolean }): void;
   /** After a save: the project as written (with its new `modified` date) and where. */
   markSaved(project: Project, file: FileRef): void;
+  /**
+   * The file changed on disk and now holds `project`: the map becomes it, as one undoable step (Undo goes
+   * back to the map as it was, unsaved), and it counts as saved, since the file holds it.
+   */
+  reload(project: Project, label: string): void;
+  /** The file changed on disk while the map has unsaved changes: holds its version for the person to choose. */
+  fileChanged(project: Project, what: string): void;
+  /** The person keeps their own version: the file's is let go (Save asks before it replaces the file). */
+  keepMine(): void;
+  setPresenting(presenting: boolean): void;
   select(selection: Partial<Selection>): void;
   /** Asks the canvas to show the whole map. */
   requestFit(): void;
@@ -132,6 +149,8 @@ export function createStudioStore(
       workspace: 'map',
       source: null,
       story: null,
+      presenting: false,
+      conflict: null,
 
       edit(run, label) {
         const out = run(get().project);
@@ -182,6 +201,7 @@ export function createStudioStore(
           selection: NOTHING,
           source: null,
           story: null,
+          conflict: null,
           generation: get().generation + 1,
         });
       },
@@ -190,6 +210,39 @@ export function createStudioStore(
         const state = get();
         const shared = share(state.project, written);
         set({ project: shared, saved: shared, file: nextFile });
+      },
+
+      reload(next, label) {
+        const state = get();
+        const shared = share(state.project, next);
+        const changed = shared !== state.project;
+        set({
+          project: shared,
+          saved: shared,
+          conflict: null,
+          ...(changed
+            ? {
+                past: [...state.past, { project: state.project, label, selection: state.selection }].slice(
+                  -HISTORY_LIMIT,
+                ),
+                future: [],
+                selection: valid(state.selection, shared),
+                fresh: false,
+              }
+            : {}),
+        });
+      },
+
+      fileChanged(next, what) {
+        set({ conflict: { project: next, what } });
+      },
+
+      keepMine() {
+        set({ conflict: null });
+      },
+
+      setPresenting(presenting) {
+        set({ presenting });
       },
 
       select(selection) {
