@@ -83,6 +83,23 @@
       (<code>.claude/skills/loopweft/SKILL.md</code>) and Codex (<code>AGENTS.md</code>) find it by themselves.
     </p>
 
+    <h2>Keep the agent to its folder</h2>
+    <p>
+      Loopweft tells an agent to work only with its guide, the command line and what you give it, but it cannot
+      stop an agent from looking further: many agents can read any file your account can. In Loopweft's own trials,
+      one agent listed file names across a whole user folder, and another read files it was never pointed to.
+    </p>
+    <ul>
+      <li>Give the agent a folder of its own, holding only the map and anything you want it to use, such as a
+        source's text. Start the agent in that folder.</li>
+      <li>Keep personal files, notes and other projects somewhere else.</li>
+      <li>Use the agent's own limits. Claude Code asks before it reads or changes anything outside the folder it
+        was started in: say no to anything you did not expect. Codex's sandbox keeps its changes to its folder, but
+        it can still read elsewhere. For other agents, look in their settings for a sandbox or a way to approve
+        each step.</li>
+      <li>Read what the agent did: its report, and its list of commands if it shows one.</li>
+    </ul>
+
     <div class="panel">
       <strong>For agents:</strong> the guide is <a href="SKILL.md">SKILL.md</a> (the same text as
       <code>loopweft guide</code> prints), and every command, with examples of what it prints, is in
