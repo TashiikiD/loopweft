@@ -74,6 +74,16 @@ a page that shows them with what to check by hand (the PDFs in a reader, the MP4
 PowerPoint, an SVG in PowerPoint and Word). It takes about ten minutes, most of it the whole story as video;
 `--quick` leaves that out, and `--out <folder>` writes elsewhere.
 
+### The agent dry run
+
+`npm run review:agent -- --agent claude|codex|agy` gives a fresh AI agent what a person would give it (the Studio's
+"Copy agent instructions" message and a short brief, by default the Phase 7 checkpoint's), in an empty folder outside
+the repository with `loopweft` on its PATH, and keeps everything it did in `review/phase7/run1/<agent>/`: the prompt,
+the agent's own event stream and a readable transcript, its folder afterwards, `loopweft validate` of the map, and a
+summary. `--brief <file>` gives another brief, `--model` another model, `--out` another folder. It uses the agent's
+own account. Claude Code is held to `loopweft` commands and file tools in its folder; Codex and Antigravity (`agy`)
+cannot be held to anything, so their transcripts are the record of what they ran and read.
+
 ### Comparing renders with the presentation
 
 `npm run review:capture` takes a still of every step of the example, played by its exported HTML (the site's

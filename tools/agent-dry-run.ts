@@ -3,12 +3,14 @@
 // review. It has the guide (`loopweft guide`) and the command line, and nothing else of Loopweft: it runs outside
 // the repository, with no memory or settings of earlier sessions.
 //
-//   node tools/agent-dry-run.ts --agent claude|codex [--model <model>] [--brief <file>] [--out review/phase7/run1]
+//   node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--out review/phase7/run1]
 //
 // - Claude Code runs as `claude -p` with only `loopweft` commands, and reading and writing files in its folder,
 //   allowed (no web, no other shell commands, no user settings, plugins or MCP servers).
 // - Codex runs as `codex exec` in its workspace-write sandbox; it cannot be held to `loopweft` commands alone, so
 //   the transcript shows every command it ran.
+// - Antigravity runs as `agy -p` with its terminal sandbox; it runs whatever it chooses without asking (and has
+//   web and browser tools), so here too the transcript is the record.
 //
 // Writes <out>/<agent>/: prompt.md (what the agent was given), transcript.jsonl (the agent's own event stream),
 // transcript.md (the same, readable), work/ (its folder afterwards: the map, the HTML, anything else it made),
@@ -38,9 +40,9 @@ const option = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const agent = option('agent');
-if (agent !== 'claude' && agent !== 'codex') {
+if (agent !== 'claude' && agent !== 'codex' && agent !== 'agy') {
   process.stderr.write(
-    'Usage: node tools/agent-dry-run.ts --agent claude|codex [--model <model>] [--brief <file>] [--out <folder>]\n',
+    'Usage: node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--out <folder>]\n',
   );
   process.exit(2);
 }
@@ -65,9 +67,12 @@ const bin = join(base, 'bin');
 mkdirSync(work);
 mkdirSync(bin);
 const cli = join(root, 'packages/cli/bin/loopweft.mjs');
-writeFileSync(join(bin, 'loopweft'), `#!/bin/sh\nexec node "${cli.replace(/\\/g, '/')}" "$@"\n`);
+// Node by its full path: an agent's sandboxed terminal may not have Node on its PATH (Antigravity's did not).
+const node = process.execPath;
+const slashed = (path: string) => path.replace(/\\/g, '/');
+writeFileSync(join(bin, 'loopweft'), `#!/bin/sh\nexec "${slashed(node)}" "${slashed(cli)}" "$@"\n`);
 chmodSync(join(bin, 'loopweft'), 0o755);
-writeFileSync(join(bin, 'loopweft.cmd'), `@node "${cli}" %*\r\n`);
+writeFileSync(join(bin, 'loopweft.cmd'), `@"${node}" "${cli}" %*\r\n`);
 const env: NodeJS.ProcessEnv = { ...process.env };
 // Windows names it Path; a second key of another case would leave which one wins to chance.
 const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH';
@@ -78,56 +83,77 @@ delete env.LOOPWEFT_PRIVATE_WORDS;
 
 writeFileSync(join(out, 'prompt.md'), prompt);
 
-const command =
-  agent === 'claude'
-    ? {
-        file: 'claude',
-        args: [
-          '-p',
-          '--output-format',
-          'stream-json',
-          '--verbose',
-          '--permission-mode',
-          'default',
-          '--allowedTools',
-          'Bash(loopweft:*)',
-          'Read',
-          'Write',
-          'Edit',
-          'Glob',
-          'Grep',
-          '--disallowedTools',
-          'WebFetch',
-          'WebSearch',
-          '--setting-sources',
-          'project',
-          '--strict-mcp-config',
-          '--no-session-persistence',
-          ...(model ? ['--model', model] : []),
-        ],
-      }
-    : {
-        file: 'codex',
-        args: [
-          'exec',
-          '--json',
-          '--sandbox',
-          'workspace-write',
-          '--skip-git-repo-check',
-          '--ephemeral',
-          '-C',
-          work,
-          ...(model ? ['--model', model] : []),
-          '-',
-        ],
-      };
+/** How each agent is started: its program, its arguments, whether the prompt goes in on stdin, and whether
+ * Windows needs a shell to find it (an npm command shim). */
+interface Launch {
+  file: string;
+  args: string[];
+  stdin: boolean;
+  shell: boolean;
+}
+const windows = process.platform === 'win32';
+const LAUNCH: Record<'claude' | 'codex' | 'agy', () => Launch> = {
+  claude: () => ({
+    stdin: true,
+    shell: windows,
+    file: 'claude',
+    args: [
+      '-p',
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--permission-mode',
+      'default',
+      '--allowedTools',
+      'Bash(loopweft:*)',
+      'Read',
+      'Write',
+      'Edit',
+      'Glob',
+      'Grep',
+      '--disallowedTools',
+      'WebFetch',
+      'WebSearch',
+      '--setting-sources',
+      'project',
+      '--strict-mcp-config',
+      '--no-session-persistence',
+      ...(model ? ['--model', model] : []),
+    ],
+  }),
+  codex: () => ({
+    stdin: true,
+    shell: windows,
+    file: 'codex',
+    args: [
+      'exec',
+      '--json',
+      '--sandbox',
+      'workspace-write',
+      '--skip-git-repo-check',
+      '--ephemeral',
+      '-C',
+      work,
+      ...(model ? ['--model', model] : []),
+      '-',
+    ],
+  }),
+  // agy takes the prompt as an argument; started without a shell, nothing has to quote it.
+  agy: () => ({
+    stdin: false,
+    shell: false,
+    file: 'agy',
+    args: ['-p', prompt, '--output-format', 'stream-json', '--sandbox', ...(model ? ['--model', model] : [])],
+  }),
+};
+const command = LAUNCH[agent]();
 
 const started = Date.now();
 const events: string[] = [];
 const code = await new Promise<number>((done) => {
-  // The prompt goes in on stdin (both agents read it there), so no shell has to quote it.
-  const child = spawn(command.file, command.args, { cwd: work, env, shell: process.platform === 'win32' });
-  child.stdin.end(prompt);
+  // Claude Code and Codex read the prompt on stdin, so no shell has to quote it.
+  const child = spawn(command.file, command.args, { cwd: work, env, shell: command.shell });
+  child.stdin.end(command.stdin ? prompt : '');
   let pending = '';
   child.stdout.on('data', (chunk: Buffer) => {
     pending += chunk.toString('utf8');
@@ -165,6 +191,8 @@ process.stdout.write(`${agent}: exit ${code} after ${seconds} s; written to ${ou
 
 /** The agent's event stream as a readable transcript: what it said, every command and what it printed. */
 function readable(lines: string[], who: string): string {
+  /** agy streams what it says in pieces, by step. */
+  const said = new Map<number, string>();
   const md: string[] = [`# Dry run: ${who}`, '', '## Prompt', '', '```text', prompt.trimEnd(), '```', ''];
   const block = (text: string, max = 60) => {
     const all = text.trimEnd().split('\n');
@@ -180,7 +208,8 @@ function readable(lines: string[], who: string): string {
       continue;
     }
     if (who === 'claude') md.push(...claudeEvent(event, block));
-    else md.push(...codexEvent(event, block));
+    else if (who === 'codex') md.push(...codexEvent(event, block));
+    else md.push(...agyEvent(event, block, said));
   }
   return `${md.join('\n')}\n`;
 }
@@ -248,4 +277,48 @@ function codexEvent(event: Record<string, unknown>, block: Block): string[] {
   if (event.type === 'thread.started' || event.type === 'turn.started' || event.type === 'item.started')
     return [];
   return [`*${String(event.type)}:* ${JSON.stringify(event).slice(0, 400)}`, ''];
+}
+
+function agyEvent(event: Record<string, unknown>, block: Block, said: Map<number, string>): string[] {
+  if (event.event === 'init') {
+    const init = event.init as { permission_mode?: string; tools?: string[] };
+    return [`*Permission mode: ${init.permission_mode}. Tools: ${init.tools?.join(', ')}.*`, ''];
+  }
+  if (event.event === 'result') {
+    const result = event.result as Record<string, unknown>;
+    return [
+      '## Result',
+      '',
+      `*${String(result.status)}, ${Math.round(Number(result.duration_seconds))} s.*`,
+      '',
+    ];
+  }
+  const step = event.step_update as Record<string, unknown> | undefined;
+  if (!step) return [`*${String(event.event)}:* ${JSON.stringify(event).slice(0, 400)}`, ''];
+  const index = Number(step.step_index);
+  if (step.step_type === 'agent_response') {
+    if (typeof step.text_delta === 'string') said.set(index, (said.get(index) ?? '') + step.text_delta);
+    if (step.state !== 'DONE') return [];
+    const text = said.get(index)?.trim();
+    return text ? ['**Agent:**', '', text, ''] : [];
+  }
+  if (step.step_type === 'tool' && step.state === 'DONE') {
+    const info = step.tool_info as { name?: string; parameters?: Record<string, unknown>; output?: string };
+    const parameters = info.parameters ?? {};
+    const shown =
+      typeof parameters.CommandLine === 'string'
+        ? `$ ${parameters.CommandLine}`
+        : JSON.stringify(parameters, null, 2);
+    return [
+      `**${String(info.name)}**`,
+      '',
+      ...block(shown, 200),
+      '',
+      '*Output:*',
+      '',
+      ...block(String(info.output ?? '')),
+      '',
+    ];
+  }
+  return [];
 }
