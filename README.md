@@ -12,7 +12,7 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 7: Agent support**, being built; Phase 8 (the desktop apps) starts after its review.
+**Phase 7: Agent support**, at its checkpoint; Phase 8 (the desktop apps) starts after its review.
 [The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
