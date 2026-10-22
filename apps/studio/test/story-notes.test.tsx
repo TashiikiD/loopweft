@@ -83,6 +83,34 @@ describe('notes and the script', () => {
     expect(screen.getByText(/The script has 2 key marks; its 2 steps need 1/)).toBeTruthy();
   });
 
+  it('puts the cursor after a key mark at once, so a key typed straight after it goes there', async () => {
+    // A key that comes before the next frame (a quick typist, a busy computer): frames are held back here, so
+    // nothing may wait for one. (The cursor used to be put back on the next frame, after such a key had gone in
+    // at the end: "[>] nd the link.A", seen on CI's Mac.)
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    try {
+      const { user, side } = await openStory();
+      await side('Notes');
+      const script = screen.getByRole('textbox', { name: /^Script/ }) as HTMLTextAreaElement;
+      await user.click(script);
+      await user.type(script, 'Alpha beta');
+      // In the middle of the text, where setting the field's text would leave the cursor at the end.
+      script.setSelectionRange(5, 5);
+      await user.click(screen.getByRole('button', { name: 'Insert a key mark [>]' }));
+      expect(script.selectionStart).toBe('Alpha [>]'.length);
+      await user.keyboard('X');
+      for (const frame of frames.splice(0)) frame(0);
+      await user.keyboard('Y');
+      expect(script.value).toBe('Alpha [>]XY beta');
+    } finally {
+      raf.mockRestore();
+    }
+  });
+
   it('puts a key mark where the cursor was when the button is pressed from the keyboard, as one change', async () => {
     const { store, user, side } = await openStory();
     await side('Notes');

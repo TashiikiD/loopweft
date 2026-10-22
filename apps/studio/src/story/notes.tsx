@@ -10,7 +10,7 @@ import {
   setScene,
 } from '@loopweft/model';
 import { Alert, Button, Group, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 import type { Current } from './current.ts';
 
@@ -37,9 +37,21 @@ function DraftText({
   const button = useRef<HTMLButtonElement>(null);
   /** Whether the field has had the cursor: its place (kept when the field loses focus) is where text goes in. */
   const touched = useRef(false);
+  /** Where the cursor goes once an inserted mark is in the field. */
+  const caret = useRef<number | null>(null);
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [value, editing]);
+  // Setting the field's text puts its cursor at the end, so the cursor goes after the mark in the same step, before
+  // the next key can arrive. (Waiting for the next frame let a quick key land at the end, then put the cursor
+  // back in front of it: "[>] nd the link.A".)
+  useLayoutEffect(() => {
+    const el = field.current;
+    if (el && caret.current !== null && el.value === draft) {
+      el.setSelectionRange(caret.current, caret.current);
+      caret.current = null;
+    }
+  }, [draft]);
   const commit = (text: string) => {
     setEditing(false);
     const next = text.replace(/\r\n?/g, '\n').trim();
@@ -91,12 +103,13 @@ function DraftText({
               const after = draft.slice(end);
               const spaced = `${/\s$|^$/.test(before) ? '' : ' '}${insert.text}${/^\s/.test(after) ? '' : ' '}`;
               const next = `${before}${spaced}${after}`;
+              caret.current = at + spaced.length;
               setDraft(next);
               setEditing(true);
               if (!el) return;
-              // Back to the field, the cursor after the mark; the change is kept when the field is left.
+              // Back to the field, the cursor after the mark (put there as the text changes, above); the change is
+              // kept when the field is left.
               el.focus();
-              requestAnimationFrame(() => el.setSelectionRange(at + spaced.length, at + spaced.length));
             }}
           >
             {insert.label}
