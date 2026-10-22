@@ -425,9 +425,12 @@ describe('the contract for agents', () => {
 
   it('has the basic commands of the plan', () => {
     expect(commandNames()).toEqual([
+      'guide',
       'new',
       'info',
       'validate',
+      'meta',
+      'theme',
       'add',
       'import',
       'export',
@@ -1299,3 +1302,31 @@ function inThread(out: string): Promise<{ code: number; err: string }> {
     thread.once('error', fail);
   });
 }
+
+describe('meta and theme', () => {
+  it('show and change what a project says about itself, and how it looks', async () => {
+    await run('new', 'meta.loopweft', '--template', 'fixes-that-fail', '--title', 'Antibiotics');
+    const shown = await json('meta', 'meta.loopweft');
+    expect(shown.code).toBe(0);
+    expect((shown.doc.meta as { title: string }).title).toBe('Antibiotics');
+
+    expect(
+      (await run('meta', 'meta.loopweft', '--description', 'A sketch.', '--author', 'A. Student')).code,
+    ).toBe(0);
+    expect(saved('meta.loopweft').meta).toMatchObject({ description: 'A sketch.', author: 'A. Student' });
+    expect((await run('meta', 'meta.loopweft', '--clear', 'author')).code).toBe(0);
+    expect(saved('meta.loopweft').meta.author).toBeUndefined();
+    expect((await json('meta', 'meta.loopweft', '--clear', 'title')).code).toBe(2);
+    expect((await json('meta', 'meta.loopweft', '--title', '')).code).toBe(1);
+
+    expect((await run('theme', 'meta.loopweft', '--base', 'light', '--palette', 'okabe-ito')).code).toBe(0);
+    expect(saved('meta.loopweft').theme).toMatchObject({ base: 'light', palette: 'okabe-ito' });
+    expect((await json('theme', 'meta.loopweft', '--base', 'sepia')).code).toBe(2);
+    expect((await json('theme', 'meta.loopweft', '--palette', 'rainbow')).code).toBe(1);
+    expect((await run('theme', 'meta.loopweft', '--clear', 'base', 'palette')).code).toBe(0);
+    expect(saved('meta.loopweft').theme.base).toBe('cinematic-dark');
+    expect(saved('meta.loopweft').theme.palette).toBeUndefined();
+    const theme = await run('theme', 'meta.loopweft');
+    expect(theme.out).toContain('loopweft (the default)');
+  });
+});

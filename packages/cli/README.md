@@ -1,8 +1,8 @@
 # @loopweft/cli
 
 `loopweft`, the command line for Loopweft maps: for people, and for AI agents working for people who want
-that. Every command runs the same operations as the Studio (`@loopweft/model`'s `ops`), so a map edited
-here and one edited by hand follow the same rules.
+that; agents start with `loopweft guide`. Every command runs the same operations as the Studio
+(`@loopweft/model`'s `ops`), so a map edited here and one edited by hand follow the same rules.
 
 Inside the repository, run it as `npx loopweft …` (after `npm install`) or `npm run loopweft -- …`. It needs
 Node 24, which runs Loopweft's TypeScript source directly.
@@ -31,9 +31,12 @@ run can be repeated byte for byte).
 
 | Command | Does |
 |---|---|
+| `guide [--install <folder>]` | The guide for AI agents ([docs/agents/SKILL.md](../../docs/agents/SKILL.md)): how to build, check and export a map with these commands, and the rules to keep. `--install` puts it in a folder as a Claude Code skill (`.claude/skills/loopweft/SKILL.md`) and as `AGENTS.md` (Codex and others), never replacing a file already there |
 | `new <file> [--title <t>] [--template <id>] [--force]` | Creates a project: a blank map (it needs `--title`), an archetype or the polycrisis example ([the templates](../../docs/templates.md)) |
 | `info <file>` | Counts, types, named loops, theme, layout and warnings |
 | `validate <file>` | Errors (exit 1) and warnings |
+| `meta <file> [--title] [--description] [--author] [--course] [--clear <fields…>]` | Shows what the project says about itself, or changes it |
+| `theme <file> [--base cinematic-dark\|light\|high-contrast] [--palette <id>] [--clear base palette]` | Shows how the project looks, or changes it |
 | `add <file> --shorthand "<text>"` or `--shorthand-file <f>` | Adds links written in shorthand (see below) |
 | `var list\|add\|set\|rm` | Variables: `add <file> --label <l> [--category] [--role] [--definition] [--map-label] [--size] [--field k=v] [--at x,y]`; `set <file> <variable> … [--clear <fields…>] [--clear-field <ids…>]`; `rm <file> <variables…> [--cascade]` |
 | `link list\|add\|set\|rm\|flip` | Links: `add <file> --from <v> --to <v> --sign <+\|-\|?> [--type] [--conditional] [--delay [label]] [--confidence] [--weight] [--rationale] [--field k=v]`; `flip <file> <link>` turns + into − and back |

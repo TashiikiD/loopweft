@@ -6,7 +6,7 @@
 // Exit codes: 0 ok · 1 the project is invalid (or would become so) · 2 wrong usage · 3 internal error.
 import { readFileSync } from 'node:fs';
 import { HOLD_DEFAULT } from '@loopweft/export';
-import { FRAMES, LEVELS, OpError, PLACES } from '@loopweft/model';
+import { FRAMES, LEVELS, OpError, PALETTE_IDS, PLACES } from '@loopweft/model';
 import { Command, CommanderError } from 'commander';
 import {
   addCommand,
@@ -23,11 +23,13 @@ import {
   loopRemoveCommand,
   loopSetCommand,
   loopsListCommand,
+  metaCommand,
   newCommand,
   pathsCommand,
   rippleCommand,
   TEMPLATE_IDS,
   TYPE_KINDS,
+  themeCommand,
   typeAddCommand,
   typeMoveCommand,
   typeRemoveCommand,
@@ -39,6 +41,7 @@ import {
   varSetCommand,
 } from './commands.ts';
 import { exportCommand } from './export.ts';
+import { guideCommand } from './guide.ts';
 import { importCommand } from './import.ts';
 import {
   citeAddCommand,
@@ -113,12 +116,25 @@ const collect = (value: string, previous: string[] = []) => [...previous, value]
 /** The `loopweft` command tree. Actions hand their handler to `run`, which decides when and how it runs. */
 function createProgram(io: Io, env: () => Env, run: Run): Command {
   const program = new Command('loopweft')
-    .description('Build and check Loopweft causal maps (.loopweft files) from the command line.')
+    .description(
+      'Build and check Loopweft causal maps (.loopweft files) from the command line. AI agents: read `loopweft guide` first.',
+    )
     .version(VERSION)
     .option('--json', 'print one machine-readable JSON document on stdout')
     .showHelpAfterError('(run with --help for usage)')
     .exitOverride()
     .configureOutput({ writeOut: (s) => io.out(s), writeErr: (s) => io.err(s) });
+
+  program
+    .command('guide')
+    .description(
+      'the guide for AI agents: how to build, check and export a map with these commands, and the rules to keep',
+    )
+    .option(
+      '--install <folder>',
+      'put the guide in a folder for agents working there: .claude/skills/loopweft/SKILL.md (Claude Code) and AGENTS.md (Codex and others); a file already there is never replaced',
+    )
+    .action((o) => run(() => guideCommand(o))());
 
   program
     .command('new <file>')
@@ -137,6 +153,31 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .command('validate <file>')
     .description('check a project: errors (exit 1) and warnings')
     .action((file: string) => run(() => validateCommand(file))());
+
+  program
+    .command('meta <file>')
+    .description(
+      'show or change what the project says about itself: its title, description, author and course',
+    )
+    .option('--title <text>', 'the title of the map and its story')
+    .option('--description <text>', 'what the map is and is not, e.g. "a qualitative synthesis, not a model"')
+    .option('--author <text>', 'who made it')
+    .option('--course <text>', 'for which course')
+    .option('--clear <fields...>', 'clear these: description, author, course')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, o) => run(() => metaCommand(env(), file, o))());
+
+  program
+    .command('theme <file>')
+    .description('show or change how the project looks: its base theme and its palette')
+    .option('--base <theme>', 'cinematic-dark (the default), light or high-contrast')
+    .option(
+      '--palette <id>',
+      `the palette for categories without a colour of their own: ${PALETTE_IDS.join(', ')}, or one of the project's own`,
+    )
+    .option('--clear <fields...>', 'clear these: base (back to cinematic-dark), palette (back to loopweft)')
+    .option('--dry-run', DRY_RUN)
+    .action((file: string, o) => run(() => themeCommand(env(), file, o))());
 
   program
     .command('add <file>')

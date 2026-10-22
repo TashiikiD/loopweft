@@ -44,7 +44,9 @@ import {
   setLabelSide,
   setLink,
   setLoop,
+  setMeta,
   setPinned,
+  setTheme,
   setType,
   setVariable,
   signText,
@@ -263,6 +265,66 @@ export function validateCommand(file: string): CommandResult {
     data: { file, valid: result.ok, errors: errors.length, warnings: warnings.length, issues: result.issues },
     ...(result.ok ? {} : { exitCode: 1 }),
   };
+}
+
+// ----- meta, theme -----
+
+const META_FIELDS = ['title', 'description', 'author', 'course', 'created', 'modified'] as const;
+
+/** `meta`: what the project says about itself, or, with options, a change to it. */
+export function metaCommand(
+  env: Env,
+  file: string,
+  o: EditOptions & {
+    title?: string;
+    description?: string;
+    author?: string;
+    course?: string;
+    clear?: string[];
+  },
+): CommandResult {
+  const changes = {
+    ...(o.title !== undefined ? { title: o.title } : {}),
+    ...(o.description !== undefined ? { description: o.description } : {}),
+    ...(o.author !== undefined ? { author: o.author } : {}),
+    ...(o.course !== undefined ? { course: o.course } : {}),
+    ...cleared(o.clear, ['description', 'author', 'course'], 'Projects'),
+  };
+  if (Object.keys(changes).length === 0) {
+    const { meta } = loadProject(file);
+    const lines = META_FIELDS.filter((k) => meta[k] !== undefined).map((k) => `${k.padEnd(12)} ${meta[k]}`);
+    return { text: lines.join('\n'), data: { file, meta } };
+  }
+  return edit(env, file, o, [(p) => setMeta(p, changes)]);
+}
+
+const THEME_BASES = ['cinematic-dark', 'light', 'high-contrast'] as const;
+
+/** `theme`: how the project looks, or, with options, a change to it. */
+export function themeCommand(
+  env: Env,
+  file: string,
+  o: EditOptions & { base?: string; palette?: string; clear?: string[] },
+): CommandResult {
+  const changes = {
+    ...(o.base !== undefined ? { base: oneOf(o.base, THEME_BASES, 'base') } : {}),
+    ...(o.palette !== undefined ? { palette: o.palette } : {}),
+    ...cleared(o.clear, ['base', 'palette'], 'Themes'),
+  };
+  if (Object.keys(changes).length === 0) {
+    const { theme } = loadProject(file);
+    const own = theme.palettes ?? [];
+    const lines = [
+      `base         ${theme.base}`,
+      `palette      ${theme.palette ?? 'loopweft (the default)'}`,
+      ...(own.length ? [`own palettes ${own.map((p) => p.id).join(', ')}`] : []),
+      ...(theme.fonts
+        ? [`fonts        ${[theme.fonts.heading, theme.fonts.body].filter(Boolean).join(', ')}`]
+        : []),
+    ];
+    return { text: lines.join('\n'), data: { file, theme } };
+  }
+  return edit(env, file, o, [(p) => setTheme(p, changes)]);
 }
 
 // ----- add (shorthand) -----

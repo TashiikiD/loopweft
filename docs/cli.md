@@ -100,9 +100,12 @@ $ loopweft story overlay add pop.loopweft S1.2 statement --line 'More people, mo
 
 ## Commands
 
+- [`guide`](#guide): The guide for AI agents: how to build, check and export a map with these commands, and the rules to keep
 - [`new`](#new): Create a project file: an empty map, or one made from a template
 - [`info`](#info): What a project holds: counts, types, named loops, theme, layout and warnings
 - [`validate`](#validate): Check a project: errors (exit 1) and warnings
+- [`meta`](#meta): Show or change what the project says about itself: its title, description, author and course
+- [`theme`](#theme): Show or change how the project looks: its base theme and its palette
 - [`add`](#add): Add links written in shorthand, e.g. "Births -> Population (+)"
 - [`import`](#import): Make a .loopweft file from tables (CSV, TSV, Excel), a Kumu map (its JSON export, a blueprint or its spreadsheet), or a DataViz project
 - [`export`](#export): The project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, as PDF documents (the slides, the speaker notes, the references), or as video (MP4 or WebM) of its story
@@ -118,6 +121,53 @@ $ loopweft story overlay add pop.loopweft S1.2 statement --line 'More people, mo
 - [`references`](#references): The APA reference list, made from the sources (supplements under their work)
 - [`layout`](#layout): Show or change where things are drawn; edits run in the order of the options below
 - [`story list`](#story-list) · [`story show`](#story-show) · [`story scene add`](#story-scene-add) · [`story scene set`](#story-scene-set) · [`story scene rm`](#story-scene-rm) · [`story scene move`](#story-scene-move) · [`story step add`](#story-step-add) · [`story step set`](#story-step-set) · [`story step rm`](#story-step-rm) · [`story step move`](#story-step-move) · [`story step copy`](#story-step-copy) · [`story overlay add`](#story-overlay-add) · [`story overlay set`](#story-overlay-set) · [`story overlay rm`](#story-overlay-rm) · [`story overlay move`](#story-overlay-move) · [`story image add`](#story-image-add) · [`story image set`](#story-image-set) · [`story image rm`](#story-image-rm): The story: scenes of steps, what each step shows, its overlays and images
+
+## `guide`
+
+The guide for AI agents: how to build, check and export a map with these commands, and the rules to keep.
+
+```text
+loopweft guide [options]
+```
+
+| Option | Means |
+|---|---|
+| `--install <folder>` | Put the guide in a folder for agents working there: .claude/skills/loopweft/SKILL.md (Claude Code) and AGENTS.md (Codex and others); a file already there is never replaced. |
+
+```console
+$ loopweft guide
+```
+
+Prints [the guide](agents/SKILL.md) (with `--json`: `{ "ok": true, "guide": "<its text>" }`).
+
+```console
+$ loopweft guide --install maps
+In maps:
+Wrote .claude/skills/loopweft/SKILL.md (for Claude Code).
+Wrote AGENTS.md (for Codex and other agents).
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "folder": "maps",
+  "files": [
+    {
+      "path": ".claude/skills/loopweft/SKILL.md",
+      "for": "Claude Code",
+      "status": "written"
+    },
+    {
+      "path": "AGENTS.md",
+      "for": "Codex and other agents",
+      "status": "written"
+    }
+  ]
+}
+```
 
 ## `new`
 
@@ -329,6 +379,126 @@ With `--json`:
     }
     // … 1 more
   ]
+}
+```
+
+## `meta`
+
+Show or change what the project says about itself: its title, description, author and course.
+
+```text
+loopweft meta <file> [options]
+```
+
+| Option | Means |
+|---|---|
+| `--title <text>` | The title of the map and its story. |
+| `--description <text>` | What the map is and is not, e.g. "a qualitative synthesis, not a model". |
+| `--author <text>` | Who made it. |
+| `--course <text>` | For which course. |
+| `--clear <fields...>` | Clear these: description, author, course. |
+| `--dry-run` | Show what would change, without saving. |
+
+```console
+$ loopweft meta pop.loopweft
+title        Population
+created      2026-01-01
+modified     2026-01-01
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "file": "pop.loopweft",
+  "meta": {
+    "title": "Population",
+    "created": "2026-01-01",
+    "modified": "2026-01-01"
+  }
+}
+```
+
+```console
+$ loopweft meta pop.loopweft --description 'A sketch of population feedback, not a model.'
+Changed the project's description.
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "summary": "Changed the project's description.",
+  "result": {
+    "changed": [
+      "description"
+    ]
+  },
+  "changed": true,
+  "saved": true,
+  "backup": "pop.loopweft.bak"
+}
+```
+
+## `theme`
+
+Show or change how the project looks: its base theme and its palette.
+
+```text
+loopweft theme <file> [options]
+```
+
+| Option | Means |
+|---|---|
+| `--base <theme>` | Cinematic-dark (the default), light or high-contrast. |
+| `--palette <id>` | The palette for categories without a colour of their own: loopweft, okabe-ito, tol-bright, tol-muted, or one of the project's own. |
+| `--clear <fields...>` | Clear these: base (back to cinematic-dark), palette (back to loopweft). |
+| `--dry-run` | Show what would change, without saving. |
+
+```console
+$ loopweft theme pop.loopweft
+base         cinematic-dark
+palette      loopweft (the default)
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "file": "pop.loopweft",
+  "theme": {
+    "base": "cinematic-dark"
+  }
+}
+```
+
+```console
+$ loopweft theme pop.loopweft --base light --palette okabe-ito
+Changed the theme: base, palette.
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "summary": "Changed the theme: base, palette.",
+  "result": {
+    "changed": [
+      "base",
+      "palette"
+    ]
+  },
+  "changed": true,
+  "saved": true,
+  "backup": "pop.loopweft.bak"
 }
 ```
 

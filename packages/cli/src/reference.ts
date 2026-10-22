@@ -21,6 +21,9 @@ interface Example {
 
 const PROJECT = 'pop.loopweft';
 
+/** An empty folder beside the project, made fresh for each run (for `guide --install`). */
+const FOLDER = 'maps';
+
 /** The commands that make the project every example starts from. */
 const SETUP: string[][] = [
   ['new', PROJECT, '--title', 'Population'],
@@ -102,6 +105,24 @@ const DRAWN = 'Drawn in Chrome or Edge, so not run for this page: see [exporting
 
 /** Examples by command (as `commandNames()` names it; `type <kind> …` for the type commands). */
 const EXAMPLES: Record<string, Example[]> = {
+  guide: [
+    {
+      args: ['guide'],
+      run: false,
+      note: 'Prints [the guide](agents/SKILL.md) (with `--json`: `{ "ok": true, "guide": "<its text>" }`).',
+    },
+    { args: ['guide', '--install', FOLDER] },
+  ],
+  meta: [
+    { args: ['meta', PROJECT] },
+    {
+      args: ['meta', PROJECT, '--description', 'A sketch of population feedback, not a model.'],
+    },
+  ],
+  theme: [
+    { args: ['theme', PROJECT] },
+    { args: ['theme', PROJECT, '--base', 'light', '--palette', 'okabe-ito'] },
+  ],
   new: [
     { args: ['new', 'growth.loopweft', '--template', 'limits-to-growth'] },
     { args: ['new', 'blank.loopweft', '--title', 'Water supply'] },
@@ -333,7 +354,9 @@ function setUp(base: string): void {
 
 function copyFolder(from: string, to: string): void {
   mkdirSync(to, { recursive: true });
-  for (const name of readdirSync(from)) copyFileSync(join(from, name), join(to, name));
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.isFile()) copyFileSync(join(from, entry.name), join(to, entry.name));
+  }
 }
 
 /** Runs one command line in a folder; paths in its output are shown relative to that folder. */
@@ -341,8 +364,9 @@ async function runIn(folder: string, args: string[], options: ReferenceOptions) 
   let out = '';
   let err = '';
   const env = { today: options.today ?? '2026-01-01', fetch: options.fetch };
+  mkdirSync(join(folder, FOLDER), { recursive: true });
   const code = await main(
-    args.map((arg) => (FILE_ARG.test(arg) ? join(folder, arg) : arg)),
+    args.map((arg) => (FILE_ARG.test(arg) || arg === FOLDER ? join(folder, arg) : arg)),
     { out: (t) => (out += t), err: (t) => (err += t) },
     env,
   );
@@ -399,6 +423,7 @@ export function commandLine(args: string[]): string {
 
 const MAX_LINES = 30;
 const MAX_ITEMS = 3;
+const MAX_STRING = 300;
 
 /** Plain output, cut after a screenful. */
 function shortText(text: string): string {
@@ -422,6 +447,9 @@ function shortJson(value: unknown, indent = ''): string {
     if (!entries.length) return '{}';
     const shown = entries.map(([k, v]) => `${inner}${JSON.stringify(k)}: ${shortJson(v, inner)}`);
     return `{\n${shown.join(',\n')}\n${indent}}`;
+  }
+  if (typeof value === 'string' && value.length > MAX_STRING) {
+    return `${JSON.stringify(value.slice(0, MAX_STRING))} // … ${value.length - MAX_STRING} more characters`;
   }
   return JSON.stringify(value);
 }
