@@ -14,7 +14,17 @@ test('a click on the middle of a link selects that link, among close neighbours'
     .locator('.lw-edges [data-edge]')
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-edge') as string));
   expect(all).toHaveLength(132);
-  const before = await page.evaluate(() => document.querySelectorAll('.lw-edge .head.minus').length);
+  // Every link's sign, by its id, as its arrowhead draws it: no click may change any of them.
+  const signs = () =>
+    page
+      .locator('.lw-edges .lw-edge')
+      .evaluateAll((els) =>
+        Object.fromEntries(
+          els.map((e) => [e.getAttribute('data-edge'), e.querySelector('.head')?.getAttribute('class')]),
+        ),
+      );
+  const before = await signs();
+  const flipped: string[] = [];
   const missed: string[] = [];
   let tried = 0;
   // Every third link: among them, a dozen whose middles lay under a neighbour's click band before this was fixed.
@@ -55,11 +65,15 @@ test('a click on the middle of a link selects that link, among close neighbours'
       .locator('.lw-edges .lw-edge.selected')
       .evaluateAll((els) => els.map((e) => e.getAttribute('data-edge')));
     if (selected.join() !== id) missed.push(`${id} selected ${selected.join() || 'nothing'}`);
+    const now = await signs();
+    for (const [edge, sign] of Object.entries(now))
+      if (sign !== before[edge]) flipped.push(`clicking ${id} changed ${edge}: ${before[edge]} → ${sign}`);
     await page.keyboard.press('Escape');
   }
   expect(missed).toEqual([]);
   expect(tried).toBeGreaterThan(30);
-  // No sign was flipped on the way.
-  expect(await page.evaluate(() => document.querySelectorAll('.lw-edge .head.minus').length)).toBe(before);
+  // No sign was changed on the way, and nothing went into Undo.
+  expect(flipped).toEqual([]);
+  expect(await signs()).toEqual(before);
   await expect(page.getByRole('button', { name: /^Undo/ })).toHaveAccessibleName('Undo');
 });

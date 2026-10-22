@@ -6,7 +6,10 @@ import { quad } from '@loopweft/layout';
 
 type Pt = { x: number; y: number };
 
-/** How much nearer, in screen pixels, another link's line must be to take a click from the link clicked. */
+/**
+ * How much nearer another link's line must be to take a click from the link clicked: a seventh of the 14-pixel click
+ * band, in the pixels the band is drawn in (the screen's on the Map canvas, the stage's on the Story stage).
+ */
 export const CLEARLY_NEARER = 2;
 export type Curve = { p0: Pt; c: Pt; p1: Pt };
 
@@ -31,12 +34,25 @@ export function distanceToCurve(p: Pt, { p0, c, p1 }: Curve): number {
   return d((lo + hi) / 2);
 }
 
+/** The links whose click targets (elements matching `selector`, carrying `data-edge`) are under the pointer. */
+function linksUnder(doc: Document, clientX: number, clientY: number, selector: string): string[] {
+  return [
+    ...new Set(
+      doc
+        .elementsFromPoint(clientX, clientY)
+        .filter((el) => el.matches(selector))
+        .map((el) => el.closest('[data-edge]')?.getAttribute('data-edge'))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+}
+
 /**
- * The link a click at (`clientX`, `clientY`) means: of the links whose click targets (elements matching
- * `selector`, carrying `data-edge`) are under the pointer, the one whose curve is nearest `at` (the pointer in
- * map units). `fallback` is the link whose target the browser found on top: it keeps the click unless another
- * line is nearer by more than `margin` (map units), so where lines cross, the click goes where it went before.
- * `fallback` too where the browser cannot say what is under the pointer.
+ * The link a click at (`clientX`, `clientY`) means: of the links whose click targets (`selector`) are under the
+ * pointer, the one whose curve is nearest `at` (the pointer in map units). `fallback` is the link whose target
+ * the browser found on top: it keeps the click unless another line is nearer by more than `margin` (map units),
+ * so where lines cross, the click goes where it went before. `fallback` too where the browser cannot say what is
+ * under the pointer. For selecting only: a click that changes the map uses `nearestOtherLink`, with no margin.
  */
 export function nearestLink(
   doc: Document,
@@ -49,19 +65,10 @@ export function nearestLink(
   margin = 0,
 ): string {
   if (typeof doc.elementsFromPoint !== 'function') return fallback;
-  const ids = [
-    ...new Set(
-      doc
-        .elementsFromPoint(clientX, clientY)
-        .filter((el) => el.matches(selector))
-        .map((el) => el.closest('[data-edge]')?.getAttribute('data-edge'))
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
   const own = curves(fallback);
   let best = fallback;
   let distance = own ? distanceToCurve(at, own) - margin : Number.POSITIVE_INFINITY;
-  for (const id of ids) {
+  for (const id of linksUnder(doc, clientX, clientY, selector)) {
     if (id === fallback) continue;
     const curve = curves(id);
     if (!curve) continue;
@@ -74,8 +81,40 @@ export function nearestLink(
   return best;
 }
 
-/** True when the pointer `at` is at least as near `head`'s arrowhead (its end) as it is to `other`'s line. */
-export function headIsNearer(at: Pt, head: Curve | undefined, other: Curve | undefined): boolean {
-  if (!head || !other) return true;
-  return Math.hypot(at.x - head.p1.x, at.y - head.p1.y) <= distanceToCurve(at, other);
+/**
+ * Of the links whose click targets (`selector`) are under the pointer, other than `except`, the one whose curve is
+ * nearest `at` (map units), with how far it is; none is preferred. Null when there is no other.
+ */
+export function nearestOtherLink(
+  doc: Document,
+  clientX: number,
+  clientY: number,
+  selector: string,
+  at: Pt,
+  curves: (id: string) => Curve | undefined,
+  except: string,
+): { id: string; distance: number } | null {
+  if (typeof doc.elementsFromPoint !== 'function') return null;
+  let best: { id: string; distance: number } | null = null;
+  for (const id of linksUnder(doc, clientX, clientY, selector)) {
+    if (id === except) continue;
+    const curve = curves(id);
+    if (!curve) continue;
+    const distance = distanceToCurve(at, curve);
+    if (!best || distance < best.distance) best = { id, distance };
+  }
+  return best;
+}
+
+/**
+ * True when a click at `at` on `head`'s arrowhead flips that link's sign: when the pointer is at least as near
+ * the arrowhead (the link's end) as it is to the line of `rival`, the nearest other link under it (if any).
+ */
+export function arrowheadTakesClick(
+  at: Pt,
+  head: Curve | undefined,
+  rival: { distance: number } | null,
+): boolean {
+  if (!head || !rival) return true;
+  return Math.hypot(at.x - head.p1.x, at.y - head.p1.y) <= rival.distance;
 }

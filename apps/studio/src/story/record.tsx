@@ -26,6 +26,7 @@ import {
 } from '@loopweft/model';
 import { resolveMap, type StoryView } from '@loopweft/render';
 import { Group, SegmentedControl, Text } from '@mantine/core';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEdit } from '../context.tsx';
 import { CLEARLY_NEARER, nearestLink } from '../map/nearest.ts';
@@ -195,6 +196,8 @@ export function RecordLayer({
   brush: Brush;
 }) {
   const edit = useEdit();
+  // Where the pointer went down: a click event's position is cut to whole pixels, the pointer's is not.
+  const down = useRef<{ x: number; y: number } | null>(null);
   const graph = view.map.graph;
   const camera = resolveMap(project, graph, map).camera;
   const levels = resolveLevels(project, map);
@@ -242,19 +245,28 @@ export function RecordLayer({
                 aria-disabled={applies ? undefined : true}
                 aria-label={name}
                 data-edge={e.id}
+                onPointerDown={(event) => {
+                  down.current = { x: event.clientX, y: event.clientY };
+                }}
                 onClick={(event) => {
                   // Where links run close, the one whose line is nearest the pointer, not the one drawn last.
+                  const was = down.current;
+                  const p =
+                    was && Math.hypot(was.x - event.clientX, was.y - event.clientY) < 2
+                      ? was
+                      : { x: event.clientX, y: event.clientY };
                   const m = event.currentTarget.getScreenCTM?.()?.inverse();
-                  const at = m ? new DOMPoint(event.clientX, event.clientY).matrixTransform(m) : e.geom.mid;
+                  const at = m ? new DOMPoint(p.x, p.y).matrixTransform(m) : e.geom.mid;
                   const id = nearestLink(
                     document,
-                    event.clientX,
-                    event.clientY,
+                    p.x,
+                    p.y,
                     '.lw-rec-edge .hit',
                     at,
                     (other) => graph.edges.get(other)?.geom,
                     e.id,
-                    m ? CLEARLY_NEARER * Math.hypot(m.a, m.b) : 0,
+                    // The margin in stage pixels, as the click band's width is.
+                    CLEARLY_NEARER / k,
                   );
                   pick('link', id, event.shiftKey);
                 }}

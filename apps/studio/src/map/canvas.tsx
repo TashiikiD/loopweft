@@ -40,7 +40,7 @@ import {
   removeSelection,
   rounded,
 } from './edit.ts';
-import { CLEARLY_NEARER, headIsNearer, nearestLink } from './nearest.ts';
+import { arrowheadTakesClick, CLEARLY_NEARER, nearestLink, nearestOtherLink } from './nearest.ts';
 import {
   centreOn,
   type Frame,
@@ -513,16 +513,24 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
         CLEARLY_NEARER / view.k,
       );
     // An arrowhead flips its link's sign, unless another link's line passes nearer the pointer than the arrowhead
-    // does: the click is then on that link, and selects it.
-    const head = target.closest('[data-sign]')?.getAttribute('data-sign');
-    const other = head ? nearest(head) : null;
-    const sign =
-      head &&
-      other !== null &&
-      (other === head || headIsNearer(toMap(view, p.x, p.y), curve(head), curve(other)))
-        ? head
-        : null;
+    // does (with no preference for the arrowhead's own link: a flip changes the map): the click is then on that
+    // link, and selects it, changing nothing.
+    const sign = target.closest('[data-sign]')?.getAttribute('data-sign');
     if (sign) {
+      const at = toMap(view, p.x, p.y);
+      const rival = nearestOtherLink(
+        document,
+        event.clientX,
+        event.clientY,
+        '.lw-edge .hit',
+        at,
+        curve,
+        sign,
+      );
+      if (rival && !arrowheadTakesClick(at, curve(sign), rival)) {
+        state.select(choose(state.selection, 'links', rival.id, event.shiftKey));
+        return;
+      }
       const link = state.project.links.find((l) => l.id === sign);
       if (!link) return;
       state.select({ variables: [], links: [link.id], loop: null });

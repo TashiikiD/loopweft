@@ -204,3 +204,82 @@ test('a Map panel list is searched and chosen from after its section opens', asy
   const step = saved.story.scenes.find((s) => s.id === 'S01')?.steps.find((s) => s.id === '4');
   expect(step?.map.labelText).toEqual({ climate_heating: 'CLIMATE', food_insecurity: 'FOOD' });
 });
+
+// A click on the stage goes to the link whose line is nearest the pointer, not to whichever wider click band was
+// drawn last. The record view finds the pointer's place on the map through the stage's own scaling and camera,
+// so this is checked here, in a wide and a narrow window, at points of a link's curve where another link's click
+// band lies too, while every other line is clearly farther (more than the 2 stage pixels, a seventh of the click
+// band, by which another line must be nearer to take a click).
+for (const [width, name] of [
+  [1440, 'a wide window'],
+  [1040, 'a narrow window'],
+] as const) {
+  test(`a click on the stage applies the tool to the link under the pointer, among close neighbours (${name})`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 900 });
+    await openStep(page, 'S04.1');
+    await tool(page, 'Show', 'Focus');
+    const layer = page.getByRole('group', { name: RECORD });
+    const levels = () =>
+      layer
+        .locator('.lw-rec-edge .hit')
+        .evaluateAll((els) =>
+          Object.fromEntries(els.map((e) => [e.getAttribute('data-edge'), e.getAttribute('aria-label')])),
+        );
+    const spots = await page.evaluate(() => {
+      const paths = [...document.querySelectorAll<SVGPathElement>('.lw-record-layer .lw-rec-edge .hit')];
+      const onScreen = (path: SVGPathElement, f: number) => {
+        const p = path.getPointAtLength(path.getTotalLength() * f);
+        return new DOMPoint(p.x, p.y).matrixTransform(path.getScreenCTM() as DOMMatrix);
+      };
+      const lines = paths.map((path) => ({
+        id: path.getAttribute('data-edge') as string,
+        pts: Array.from({ length: 81 }, (_, i) => onScreen(path, i / 80)),
+      }));
+      const away = (q: DOMPoint, pts: DOMPoint[]) =>
+        Math.min(
+          ...pts.map((r, i) => {
+            const n = pts[i + 1] ?? r;
+            const [dx, dy] = [n.x - r.x, n.y - r.y];
+            const t = Math.max(
+              0,
+              Math.min(1, ((q.x - r.x) * dx + (q.y - r.y) * dy) / (dx * dx + dy * dy || 1)),
+            );
+            return Math.hypot(q.x - r.x - t * dx, q.y - r.y - t * dy);
+          }),
+        );
+      // The margin, in screen pixels: 2 stage pixels at the stage's scale, and a little more.
+      const stage = (document.querySelector('.lw-stage') as HTMLElement).getBoundingClientRect();
+      const clear = (2 * stage.width) / 1920 + 0.25;
+      const found: { id: string; x: number; y: number }[] = [];
+      for (const path of paths) {
+        const id = path.getAttribute('data-edge') as string;
+        for (let f = 0.1; f <= 0.9 && found.length < 10; f += 0.02) {
+          const q = onScreen(path, f);
+          const others = lines.filter((l) => l.id !== id);
+          // Another link's click band is under this point, but its line (and every other) is clearly farther.
+          const under = document.elementsFromPoint(q.x, q.y);
+          const shared =
+            under.includes(path) && under.some((el) => el.matches('.lw-rec-edge .hit') && el !== path);
+          if (shared && others.every((l) => away(q, l.pts) > clear)) {
+            found.push({ id, x: q.x, y: q.y });
+            break;
+          }
+        }
+      }
+      return found;
+    });
+    expect(spots.length).toBeGreaterThan(3);
+    const before = await levels();
+    for (const spot of spots) {
+      await page.mouse.click(spot.x, spot.y);
+      const after = await levels();
+      const changed = Object.keys(after).filter((id) => after[id] !== before[id]);
+      expect(changed, `a click on ${spot.id}`).toEqual([spot.id]);
+      await page.keyboard.press('Control+z');
+      await expect.poll(levels).toEqual(before);
+    }
+  });
+}

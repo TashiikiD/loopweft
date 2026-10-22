@@ -98,7 +98,12 @@ describe('citing in the inspector', () => {
     await user.type(within(form).getByRole('textbox', { name: 'Pages' }), '1');
     await user.click(within(form).getByRole('radio', { name: 'Strong' }));
     await user.click(within(form).getByRole('button', { name: 'Cite' }));
-    // Choosing the same source again keeps it chosen; the strength is back to not rated.
+    // Nothing carries over: no source is chosen, so Cite waits, and the same source is never cited twice by mistake.
+    expect((within(form).getByRole('combobox', { name: /^Cite a source/ }) as HTMLInputElement).value).toBe(
+      '',
+    );
+    expect((within(form).getByRole('button', { name: 'Cite' }) as HTMLButtonElement).disabled).toBe(true);
+    // Citing it again, for other pages, is a choice made again; the strength is back to not rated.
     await chooseSource(user, /^Other \(2021\)/);
     expect((within(form).getByRole('radio', { name: 'Not rated' }) as HTMLInputElement).checked).toBe(true);
     await user.type(within(form).getByRole('textbox', { name: 'Pages' }), '2');
