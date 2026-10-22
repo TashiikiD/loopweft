@@ -62,6 +62,8 @@ export interface StudioState {
    * chooses which to keep. `what` says what the file's version changes.
    */
   conflict: { project: Project; what: string } | null;
+  /** True while the "Work with an AI agent" window is open. */
+  agentHelp: boolean;
   /** Runs one operation as one undoable step and returns its output; an OpError leaves everything as it was. */
   edit<R>(run: (project: Project) => OpOutput<R>, label?: string): OpOutput<R>;
   /** Several operations as one undoable step, e.g. removing everything selected. */
@@ -86,6 +88,7 @@ export interface StudioState {
   /** The person keeps their own version: the file's is let go (Save asks before it replaces the file). */
   keepMine(): void;
   setPresenting(presenting: boolean): void;
+  setAgentHelp(open: boolean): void;
   select(selection: Partial<Selection>): void;
   /** Asks the canvas to show the whole map. */
   requestFit(): void;
@@ -151,6 +154,7 @@ export function createStudioStore(
       story: null,
       presenting: false,
       conflict: null,
+      agentHelp: false,
 
       edit(run, label) {
         const out = run(get().project);
@@ -243,6 +247,10 @@ export function createStudioStore(
 
       setPresenting(presenting) {
         set({ presenting });
+      },
+
+      setAgentHelp(agentHelp) {
+        set({ agentHelp });
       },
 
       select(selection) {

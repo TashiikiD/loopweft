@@ -364,6 +364,18 @@ body {
   margin: 4px 0;
 }
 
+/* A link-like button in the empty map's message, which otherwise lets clicks through to the canvas. */
+.lw-link-button {
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mantine-color-anchor);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .lw-canvas-tools {
   position: absolute;
   left: 12px;

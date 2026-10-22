@@ -14,6 +14,7 @@ import { ImportWizard } from './import/wizard.tsx';
 import { MapWorkspace } from './map/workspace.tsx';
 import { PresentWorkspace } from './present/workspace.tsx';
 import { Providers } from './providers.tsx';
+import { AgentHelp } from './shell/agent-help.tsx';
 import { FileChangedBar, useFileWatch } from './shell/file-changes.tsx';
 import { TemplateGallery } from './shell/gallery.tsx';
 import { Header } from './shell/header.tsx';
@@ -164,6 +165,7 @@ export function App({ store: given, recovery: givenRecovery, env = 'default', lo
             </AppShell.Main>
           </AppShell>
           <TemplateGallery opened={dialog === 'new'} onClose={() => setDialog(null)} />
+          <AgentHelp />
           <ImportWizard opened={dialog === 'import'} file={dropped} onClose={() => setDialog(null)} />
         </LookupContext.Provider>
       </StudioContext.Provider>

@@ -700,6 +700,16 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
         <div className="lw-canvas-empty">
           <p>An empty map.</p>
           <p>Double-click to add a variable, or start from a template under File.</p>
+          <p>
+            Or ask an AI agent to build it:{' '}
+            <button
+              type="button"
+              className="lw-link-button"
+              onClick={() => store.getState().setAgentHelp(true)}
+            >
+              Work with an AI agent…
+            </button>
+          </p>
         </div>
       )}
       {naming && (

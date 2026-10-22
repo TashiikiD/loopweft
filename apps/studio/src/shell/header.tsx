@@ -22,6 +22,7 @@ import {
   IconFile,
   IconFolderOpen,
   IconMoon,
+  IconRobot,
   IconSun,
 } from '@tabler/icons-react';
 import { openFile, saveFile, startMap } from '../actions.ts';
@@ -149,6 +150,13 @@ function FileMenu({ onNew, onImport }: { onNew?: () => void; onImport?: () => vo
         <Menu.Divider />
         <Menu.Item onClick={() => void saveFile(store)}>Save (Ctrl+S)</Menu.Item>
         <Menu.Item onClick={() => void saveFile(store, { as: true })}>Save as… (Ctrl+Shift+S)</Menu.Item>
+        <Menu.Divider />
+        <Menu.Item
+          leftSection={<IconRobot size={16} aria-hidden />}
+          onClick={() => store.getState().setAgentHelp(true)}
+        >
+          Work with an AI agent…
+        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );
