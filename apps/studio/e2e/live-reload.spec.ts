@@ -166,3 +166,21 @@ test('a file that stops reading as a map leaves the last good one, until it read
   await expect(label(page, 'Invitations')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/cannot be read now/)).toHaveCount(0);
 });
+
+test('a map dropped on the Studio keeps its file, so it follows the command line too', async ({ page }) => {
+  loopweft('new', 'MAP', '--template', 'limits-to-growth', '--title', 'Garden');
+  await page.goto('/');
+  await expect(page.getByText('An empty map.')).toBeVisible();
+  // A real drop of the real file, as Chrome makes one when a file is dragged from the desktop: it carries a
+  // file handle, which only a drop (or the file chooser) gives.
+  const cdp = await page.context().newCDPSession(page);
+  const data = { items: [], files: [file], dragOperationsMask: 1 };
+  for (const type of ['dragEnter', 'dragOver', 'drop'] as const)
+    await cdp.send('Input.dispatchDragEvent', { type, x: 400, y: 400, data });
+  await expect(page.locator('[data-node="efforts"]')).toBeVisible();
+  await expect(page.getByLabel(/^Save status/)).toHaveAccessibleName('Save status: Saved · garden.loopweft');
+
+  loopweft('var', 'set', 'MAP', 'efforts', '--label', 'Invitations from members');
+  await expect(page.getByText(/Updated from the file/)).toBeVisible({ timeout: 10_000 });
+  await expect(label(page, 'Invitations from members')).toBeVisible();
+});

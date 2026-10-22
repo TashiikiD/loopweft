@@ -11,6 +11,7 @@ import {
 } from '@loopweft/model';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { describeChange, sameMap } from '../src/state/changes.ts';
+import { droppedFile } from '../src/state/files.ts';
 import { createStudioStore, isDirty } from '../src/state/store.ts';
 import { type WatchEvent, watchFile } from '../src/state/watch.ts';
 
@@ -163,5 +164,39 @@ describe('what changed, in words', () => {
     const a = garden();
     expect(sameMap(a, setMeta(a, { modified: '2030-01-01', created: '2020-01-01' }).project)).toBe(true);
     expect(sameMap(a, setMeta(a, { title: 'Other' }).project)).toBe(false);
+  });
+});
+
+describe('a map dropped on the Studio', () => {
+  const dropped = (handle?: () => Promise<FileSystemHandle | null>) => {
+    const asked = vi.fn(handle ?? (async () => null));
+    const item = handle ? { kind: 'file', getAsFileSystemHandle: asked } : { kind: 'file' };
+    const file = new File(['{"dropped": true}'], 'garden.loopweft');
+    return { transfer: { items: [item] } as unknown as DataTransfer, file, asked };
+  };
+
+  it('keeps its file handle, asked for within the drop, so it follows its file as an opened one does', async () => {
+    const { handle } = disk('{"on disk": true}');
+    const { transfer, file, asked } = dropped(async () => handle);
+    const picked = droppedFile(transfer, file);
+    // Asked for at once: the drop's items are emptied when its handler returns.
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(await picked).toEqual({ name: 'garden.loopweft', text: '{"on disk": true}', handle });
+  });
+
+  it('opens as text alone where the browser gives no handle', async () => {
+    const { transfer, file } = dropped();
+    expect(await droppedFile(transfer, file)).toEqual({ name: 'garden.loopweft', text: '{"dropped": true}' });
+    const refused = dropped(async () => {
+      throw new DOMException('No handle', 'NotAllowedError');
+    });
+    expect(await droppedFile(refused.transfer, refused.file)).toEqual({
+      name: 'garden.loopweft',
+      text: '{"dropped": true}',
+    });
+    const gone = disk('');
+    gone.remove();
+    const unreadable = dropped(async () => gone.handle);
+    expect((await droppedFile(unreadable.transfer, unreadable.file)).handle).toBeUndefined();
   });
 });

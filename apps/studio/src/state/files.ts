@@ -57,6 +57,32 @@ export async function pickFile(accept = '.loopweft,application/json'): Promise<P
   return file ? { name: file.name, text: await file.text() } : null;
 }
 
+type DroppedItem = DataTransferItem & { getAsFileSystemHandle?(): Promise<FileSystemHandle | null> };
+
+/**
+ * A file dropped on the page, as File › Open gives it: with its handle where the browser gives one (Chrome,
+ * Edge), so the map follows its file and Save writes back to it; elsewhere, its text alone. The handle is asked
+ * for at once, within the drop: a drop's items are emptied as soon as its handler returns.
+ */
+export function droppedFile(transfer: DataTransfer, file: File): Promise<PickedFile> {
+  const item = [...transfer.items].find((i) => i.kind === 'file') as DroppedItem | undefined;
+  const asked = item?.getAsFileSystemHandle?.() ?? Promise.resolve(null);
+  return asked
+    .catch(() => null)
+    .then(async (handle) => {
+      if (handle?.kind === 'file') {
+        try {
+          const picked = handle as FileSystemFileHandle;
+          const read = await picked.getFile();
+          return { name: read.name, text: await read.text(), handle: picked };
+        } catch {
+          // A handle that cannot be read (taken away again, say): the dropped file itself still can.
+        }
+      }
+      return { name: file.name, text: await file.text() };
+    });
+}
+
 /** A plain file chooser; resolves to the file, or null when nothing was chosen. */
 export function chooseFile(accept: string): Promise<File | null> {
   return new Promise((resolve) => {

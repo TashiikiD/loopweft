@@ -21,6 +21,7 @@ import { Header } from './shell/header.tsx';
 import { StatusBar } from './shell/status-bar.tsx';
 import { crossrefLookup, type Lookup, LookupContext } from './sources/lookup.tsx';
 import { SourcesWorkspace } from './sources/workspace.tsx';
+import { droppedFile } from './state/files.ts';
 import { browserRecovery, type RecoveryCopy, type RecoveryStore, watchRecovery } from './state/recovery.ts';
 import { createStudioStore, hasUnsavedWork, type StudioStore } from './state/store.ts';
 import { StoryWorkspace } from './story/workspace.tsx';
@@ -120,8 +121,9 @@ export function App({ store: given, recovery: givenRecovery, env = 'default', lo
       if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
     };
     const drop = (event: DragEvent) => {
-      const file = event.dataTransfer?.files[0];
-      if (!file) return;
+      const transfer = event.dataTransfer;
+      const file = transfer?.files[0];
+      if (!transfer || !file) return;
       if (/\.(csv|tsv|txt|xlsx|json)$/i.test(file.name)) {
         event.preventDefault();
         setDropped(file);
@@ -130,8 +132,12 @@ export function App({ store: given, recovery: givenRecovery, env = 'default', lo
       }
       if (!/\.loopweft$/i.test(file.name)) return;
       event.preventDefault();
+      // Asked for before anything else: the drop's file handle can only be had during the drop.
+      const picked = droppedFile(transfer, file);
       if (!mayDiscard(store)) return;
-      void file.text().then((text) => openText(store, text, { name: file.name }));
+      void picked.then(({ name, text, handle }) =>
+        openText(store, text, { name, ...(handle ? { handle } : {}) }),
+      );
     };
     window.addEventListener('dragover', over);
     window.addEventListener('drop', drop);
