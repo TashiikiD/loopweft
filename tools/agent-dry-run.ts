@@ -3,7 +3,7 @@
 // review. It has the guide (`loopweft guide`) and the command line, and nothing else of Loopweft: it runs outside
 // the repository, with no memory or settings of earlier sessions.
 //
-//   node tools/agent-dry-run.ts --agent claude|codex [--brief <file>] [--out review/phase7/run1]
+//   node tools/agent-dry-run.ts --agent claude|codex [--model <model>] [--brief <file>] [--out review/phase7/run1]
 //
 // - Claude Code runs as `claude -p` with only `loopweft` commands, and reading and writing files in its folder,
 //   allowed (no web, no other shell commands, no user settings, plugins or MCP servers).
@@ -40,7 +40,7 @@ const option = (name: string) => {
 const agent = option('agent');
 if (agent !== 'claude' && agent !== 'codex') {
   process.stderr.write(
-    'Usage: node tools/agent-dry-run.ts --agent claude|codex [--brief <file>] [--out <folder>]\n',
+    'Usage: node tools/agent-dry-run.ts --agent claude|codex [--model <model>] [--brief <file>] [--out <folder>]\n',
   );
   process.exit(2);
 }
@@ -50,6 +50,8 @@ const BRIEF = `Use the Fixes that fail archetype. Our city keeps adding lanes to
 
 const brief = option('brief') ? readFileSync(resolve(option('brief') as string), 'utf8').trim() : BRIEF;
 const MAP = 'road-lanes.loopweft';
+/** The agent's model; left out, its own default. */
+const model = option('model');
 const prompt = `${starterText(MAP, false)}${brief}\n`;
 
 const out = resolve(root, option('out') ?? 'review/phase7/run1', agent);
@@ -101,6 +103,7 @@ const command =
           'project',
           '--strict-mcp-config',
           '--no-session-persistence',
+          ...(model ? ['--model', model] : []),
         ],
       }
     : {
@@ -114,6 +117,7 @@ const command =
           '--ephemeral',
           '-C',
           work,
+          ...(model ? ['--model', model] : []),
           '-',
         ],
       };
@@ -154,7 +158,7 @@ writeFileSync(
 );
 writeFileSync(
   join(out, 'summary.json'),
-  `${JSON.stringify({ agent, exit: code, seconds, files: readdirSync(work), map: map ?? null }, null, 2)}\n`,
+  `${JSON.stringify({ agent, model: model ?? 'its default', exit: code, seconds, files: readdirSync(work), map: map ?? null }, null, 2)}\n`,
 );
 rmSync(base, { recursive: true, force: true });
 process.stdout.write(`${agent}: exit ${code} after ${seconds} s; written to ${out}\n`);
