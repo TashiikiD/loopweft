@@ -97,7 +97,8 @@ Packages live in `packages/*` as npm workspaces named `@loopweft/<name>`; tests 
 Apps live in `apps/*`: `studio` is the editor, in React and Mantine (published at `/studio/`, with its
 audience window at `/studio/audience.html`; its tests run in jsdom, in the `studio` Vitest project, and its
 end-to-end tests in `apps/studio/e2e`, with Playwright). The site's `/demo/` is the polycrisis example
-exported as one HTML file (`packages/player`). `tools/safari.ts` opens that file in Safari on CI's Mac.
+exported as one HTML file (`packages/player`), and `/agents/` says how AI agents work with Loopweft, beside the
+guide they follow (`docs/agents/SKILL.md`, published as `/agents/SKILL.md`). `tools/safari.ts` opens that file in Safari on CI's Mac.
 
 Every edit to a project is an operation in `@loopweft/model` (`src/ops/`): a project goes in, and
 `{ project, result, summary }` comes out, with the input untouched; an expected failure is an `OpError`

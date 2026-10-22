@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loopweft and AI agents</title>
+  <meta name="description" content="How an AI agent can build and check Loopweft maps with its command line, by the rules Loopweft gives it.">
+  <style>
+    :root {
+      --bg: #0b1016;
+      --panel: #121a23;
+      --text: #e8eef2;
+      --muted: #9fb0bd;
+      --relief: #5ecba9;
+      --harm: #f2b36b;
+      --line: #263341;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 44rem; margin: 0 auto; padding: 3rem 16px; }
+    h1 { font: 600 2.4rem/1.15 Georgia, "Iowan Old Style", "Times New Roman", serif; margin: 1rem 0 0.5rem; }
+    h2 { font: 600 1.4rem/1.3 Georgia, "Iowan Old Style", "Times New Roman", serif; margin: 2.2rem 0 0.5rem; }
+    .tagline { font-size: 1.15rem; color: var(--muted); margin: 0 0 2rem; }
+    .panel { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+    a { color: var(--relief); }
+    code { font-size: 0.9em; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0 0.25em; overflow-wrap: anywhere; }
+    ol, ul { padding-left: 1.3rem; }
+    li { margin: 0.25rem 0; }
+    footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="../">Loopweft</a></p>
+    <h1>Loopweft and AI agents</h1>
+    <p class="tagline">Loopweft has no AI of its own. An AI agent you run yourself can build and check maps with its
+      command line, by rules that keep the evidence honest.</p>
+
+    <p>
+      Loopweft's command line, <code>loopweft</code>, can do everything the Studio does to a map: add variables and
+      links (also as shorthand, <code>Births -&gt; Population (+)</code>), name loops, add sources and cite them, tell a
+      story step by step, check the map and export it. Every command answers in plain words or, with
+      <code>--json</code>, in one JSON document, with exit codes an agent can act on. So an agent that runs commands
+      on your computer, such as Claude Code or Codex, can do the work while you watch the map in the Studio.
+    </p>
+
+    <h2>The rules an agent is given</h2>
+    <ul>
+      <li>Change maps only through <code>loopweft</code> commands, never by editing the file's text.</li>
+      <li>Never guess a link's sign: write <code>?</code> when neither the brief nor a source says which way it
+        goes. Loopweft flags it, and you decide.</li>
+      <li>Never invent evidence: add only sources you gave it, or ones it confirmed with a DOI lookup; never write a
+        page number it has not seen. When unsure, leave a link uncited (Loopweft flags that too).</li>
+      <li>Check the map with <code>loopweft validate</code> before exporting, and export only with no errors.</li>
+      <li>Report at the end: what it changed, which links are its own suggestions, every <code>?</code>, what is still
+        uncited, and the files it made.</li>
+    </ul>
+
+    <h2>How to work with one</h2>
+    <ol>
+      <li>Get the command line. For now it runs inside a copy of
+        <a href="https://github.com/TashiikiD/loopweft">the repository</a> (with Node 24: <code>npm install</code>,
+        then <code>npx loopweft</code>); the desktop apps will install it for you.</li>
+      <li>In <a href="../studio/">the Studio</a>, save your map into a folder of its own, then choose
+        <strong>File › Work with an AI agent…</strong> and <strong>Copy agent instructions</strong>.</li>
+      <li>Open your agent in that folder, paste the message, and say what you would like it to do.</li>
+      <li>Watch: in Chrome or Edge, the open map follows each change the agent saves, with a note of what changed,
+        and Undo goes back. If you have unsaved changes, the Studio asks which version to keep; it never merges.</li>
+      <li>Read the agent's report, and check its changes before you rely on them.</li>
+    </ol>
+    <p>
+      <code>loopweft guide --install &lt;folder&gt;</code> also puts the guide in a folder, where Claude Code
+      (<code>.claude/skills/loopweft/SKILL.md</code>) and Codex (<code>AGENTS.md</code>) find it by themselves.
+    </p>
+
+    <div class="panel">
+      <strong>For agents:</strong> the guide is <a href="SKILL.md">SKILL.md</a> (the same text as
+      <code>loopweft guide</code> prints), and every command, with examples of what it prints, is in
+      <a href="https://github.com/TashiikiD/loopweft/blob/main/docs/cli.md">the command reference</a>.
+    </div>
+
+    <footer>Loopweft is free software under the MIT licence. It sends nothing anywhere: the only network call is the
+      optional DOI lookup, which sends the DOI alone.</footer>
+  </main>
+</body>
+</html>

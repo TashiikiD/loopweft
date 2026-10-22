@@ -21,6 +21,8 @@ const FILES = [
   ['site', '.'],
   // The JSON Schema that `.loopweft` files name in "$schema" (SCHEMA_URL in packages/model/src/schema.ts).
   ['packages/model/schema/loopweft.v1.schema.json', 'schema/v1.json'],
+  // The guide for AI agents, as `loopweft guide` prints it (site/agents/index.html says what it is for).
+  ['docs/agents/SKILL.md', 'agents/SKILL.md'],
 ];
 
 rmSync(out, { recursive: true, force: true });

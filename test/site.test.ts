@@ -29,11 +29,24 @@ describe('the GitHub Pages site', () => {
   });
 
   it('loads nothing from other sites', () => {
-    const page = readFileSync(join(root, 'site/index.html'), 'utf8');
-    // Links are fine; scripts, stylesheets, fonts and images from elsewhere are not (no tracking, works offline).
-    expect(page).not.toMatch(
-      /<script[^>]+src=|<link[^>]+href="https?:|url\(\s*["']?https?:|<img[^>]+src="https?:/i,
+    for (const file of ['site/index.html', 'site/agents/index.html']) {
+      const page = readFileSync(join(root, file), 'utf8');
+      // Links are fine; scripts, stylesheets, fonts and images from elsewhere are not (no tracking, works offline).
+      expect(page, file).not.toMatch(
+        /<script[^>]+src=|<link[^>]+href="https?:|url\(\s*["']?https?:|<img[^>]+src="https?:/i,
+      );
+    }
+  });
+
+  it('publishes the guide for AI agents at agents/, as `loopweft guide` prints it, beside a page about it', () => {
+    expect(readFileSync(join(out, 'agents/SKILL.md'), 'utf8')).toBe(
+      readFileSync(join(root, 'docs/agents/SKILL.md'), 'utf8'),
     );
+    const page = readFileSync(join(out, 'agents/index.html'), 'utf8');
+    expect(page).toContain('<title>Loopweft and AI agents</title>');
+    expect(page).toContain('href="SKILL.md"');
+    expect(page).toContain('href="../studio/"');
+    expect(readFileSync(join(root, 'site/index.html'), 'utf8')).toContain('href="agents/"');
   });
 
   it('publishes the example at demo/ as one HTML file: the same bytes as its export', async () => {

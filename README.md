@@ -12,7 +12,7 @@ no server, no telemetry.
 
 ## Status
 
-**Phase 6: Exports**, at its checkpoint; Phase 7 (agent support) starts after its review.
+**Phase 7: Agent support**, being built; Phase 8 (the desktop apps) starts after its review.
 [The Studio](https://tashiikid.github.io/loopweft/studio/) runs in Chrome or Edge:
 
 - draw a map on the canvas, or edit it as a table or in the link shorthand;
@@ -38,9 +38,14 @@ no server, no telemetry.
   WebM), played frame by frame as the talk plays it; and GIF loops of a scene or some steps;
 - a blank map, the eight system archetypes or the polycrisis example to start from, or an import from
   CSV or Excel tables, Kumu or DataViz;
-- open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes.
+- open and save `.loopweft` files, undo and redo, and a copy kept in the browser in case it closes;
+- working with an AI agent: File › Work with an AI agent… gives a message to paste into an agent that runs
+  commands on your computer (Claude Code, Codex), and the open map follows each change it saves.
 
-The `loopweft` command line does the same edits and makes the same exports ([its commands](packages/cli/README.md)).
+The `loopweft` command line does the same edits and makes the same exports ([its commands](packages/cli/README.md),
+[all of them, with examples](docs/cli.md)). `loopweft guide` prints [the guide for AI agents](docs/agents/SKILL.md):
+how to build, check and export a map with it, and the rules to keep (never guess a sign, never invent evidence,
+check before exporting, report what it did). See [Loopweft and AI agents](https://tashiikid.github.io/loopweft/agents/).
 [The example story](https://tashiikid.github.io/loopweft/demo/) is the polycrisis map exported as one HTML
 file.
 
@@ -63,7 +68,7 @@ Each phase ends with a checkpoint that is reviewed before the next one begins.
 | 4 | Story | Scenes and steps, record view, reveals, pulses, overlays, notes and script, preview, validation |
 | 5 | Present + HTML | Presenter console and audience window; one-file HTML export; a viewing mode that names each variable's category in words, for viewers who cannot tell the colours apart |
 | 6 | Exports | PNG, SVG, PDFs, MP4 and GIF |
-| 7 | Agent support | `loopweft guide`, the full CLI reference, live reload of edited files |
+| 7 | Agent support | `loopweft guide`, the full CLI reference, live reload of edited files, "Copy agent instructions" in the Studio |
 | 8 | Desktop apps | Windows installer and macOS app |
 | 9 | v1.0 | Web app and docs on GitHub Pages, example gallery, release |
 
