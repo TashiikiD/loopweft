@@ -206,6 +206,17 @@ test('loopweft export --png: a step, every step into a new folder, and the whole
     scale: 1,
     categoryWords: false,
   });
+  // TEMPORARY diagnostic: both pictures, when they differ.
+  if (!readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))) {
+    const n = Date.now();
+    review(`mismatch-${n}-cli.png`, new Uint8Array(readFileSync(join(folder, 'talk-S05.6b.png'))));
+    review(`mismatch-${n}-direct.png`, (direct as FileEvent).bytes);
+    review(
+      `mismatch-${n}-all-steps.png`,
+      new Uint8Array(readFileSync(join(folder, 'talk-steps', 'S05.6b.png'))),
+    );
+    console.log(`MISMATCH ${n}`);
+  }
   expect(readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))).toBe(
     true,
   );

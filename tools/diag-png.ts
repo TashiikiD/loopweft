@@ -48,22 +48,30 @@ const where = (a: Uint8Array, b: Uint8Array) =>
     [Buffer.from(a).toString('base64'), Buffer.from(b).toString('base64')] as const,
   );
 
+// How many exports run at once (more than one loads the computer, as a full test run does).
+const together = Number(process.argv[5] ?? 1);
+const draw = async (step: string) => {
+  let bytes: Uint8Array = new Uint8Array();
+  await exportInBrowser(
+    text,
+    { format: 'png', target: { kind: 'step', step }, scale: 1, categoryWords: false },
+    (e) => {
+      bytes = (e as { bytes: Uint8Array }).bytes;
+    },
+  );
+  return bytes;
+};
 for (const step of steps) {
   let first: Uint8Array | null = null;
-  for (let i = 0; i < runs; i++) {
-    let bytes: Uint8Array = new Uint8Array();
-    await exportInBrowser(
-      text,
-      { format: 'png', target: { kind: 'step', step }, scale: 1, categoryWords: false },
-      (e) => {
-        bytes = (e as { bytes: Uint8Array }).bytes;
-      },
-    );
-    writeFileSync(join(out, `${step}-${i}.png`), bytes);
-    const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-    const vs = first ? await where(first, bytes) : 'first';
-    console.log(`${process.platform} ${step} run ${i}: ${hash} ${bytes.length} bytes; ${vs}`);
-    first ??= bytes;
+  for (let i = 0; i < runs; i += together) {
+    const made = await Promise.all(Array.from({ length: together }, () => draw(step)));
+    for (const [k, bytes] of made.entries()) {
+      writeFileSync(join(out, `${step}-${i + k}.png`), bytes);
+      const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
+      const vs = first ? await where(first, bytes) : 'first';
+      console.log(`${process.platform} ${step} run ${i + k}: ${hash} ${bytes.length} bytes; ${vs}`);
+      first ??= bytes;
+    }
   }
 }
 await browser.close();
