@@ -5,6 +5,9 @@
 import { quad } from '@loopweft/layout';
 
 type Pt = { x: number; y: number };
+
+/** How much nearer, in screen pixels, another link's line must be to take a click from the link clicked. */
+export const CLEARLY_NEARER = 2;
 export type Curve = { p0: Pt; c: Pt; p1: Pt };
 
 /** How far a point is from a quadratic curve, in the curve's own units. */
@@ -31,7 +34,9 @@ export function distanceToCurve(p: Pt, { p0, c, p1 }: Curve): number {
 /**
  * The link a click at (`clientX`, `clientY`) means: of the links whose click targets (elements matching
  * `selector`, carrying `data-edge`) are under the pointer, the one whose curve is nearest `at` (the pointer in
- * map units). `fallback` where the browser cannot say what is under the pointer.
+ * map units). `fallback` is the link whose target the browser found on top: it keeps the click unless another
+ * line is nearer by more than `margin` (map units), so where lines cross, the click goes where it went before.
+ * `fallback` too where the browser cannot say what is under the pointer.
  */
 export function nearestLink(
   doc: Document,
@@ -41,6 +46,7 @@ export function nearestLink(
   at: Pt,
   curves: (id: string) => Curve | undefined,
   fallback: string,
+  margin = 0,
 ): string {
   if (typeof doc.elementsFromPoint !== 'function') return fallback;
   const ids = [
@@ -52,9 +58,11 @@ export function nearestLink(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
+  const own = curves(fallback);
   let best = fallback;
-  let distance = Number.POSITIVE_INFINITY;
+  let distance = own ? distanceToCurve(at, own) - margin : Number.POSITIVE_INFINITY;
   for (const id of ids) {
+    if (id === fallback) continue;
     const curve = curves(id);
     if (!curve) continue;
     const here = distanceToCurve(at, curve);

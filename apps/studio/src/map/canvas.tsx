@@ -40,7 +40,7 @@ import {
   removeSelection,
   rounded,
 } from './edit.ts';
-import { headIsNearer, nearestLink } from './nearest.ts';
+import { CLEARLY_NEARER, headIsNearer, nearestLink } from './nearest.ts';
 import {
   centreOn,
   type Frame,
@@ -510,6 +510,7 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
         toMap(view, p.x, p.y),
         curve,
         fallback,
+        CLEARLY_NEARER / view.k,
       );
     // An arrowhead flips its link's sign, unless another link's line passes nearer the pointer than the arrowhead
     // does: the click is then on that link, and selects it.

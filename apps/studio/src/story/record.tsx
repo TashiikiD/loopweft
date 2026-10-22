@@ -28,7 +28,7 @@ import { resolveMap, type StoryView } from '@loopweft/render';
 import { Group, SegmentedControl, Text } from '@mantine/core';
 import { createPortal } from 'react-dom';
 import { useEdit } from '../context.tsx';
-import { nearestLink } from '../map/nearest.ts';
+import { CLEARLY_NEARER, nearestLink } from '../map/nearest.ts';
 
 export type Tool = 'look' | 'show' | 'trend' | 'spread' | 'pulse' | 'frame';
 
@@ -254,6 +254,7 @@ export function RecordLayer({
                     at,
                     (other) => graph.edges.get(other)?.geom,
                     e.id,
+                    m ? CLEARLY_NEARER * Math.hypot(m.a, m.b) : 0,
                   );
                   pick('link', id, event.shiftKey);
                 }}

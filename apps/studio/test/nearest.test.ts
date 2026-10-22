@@ -31,6 +31,9 @@ describe('the link a click means', () => {
     expect(nearestLink(under(['A', 'B']), 0, 0, '.hit', { x: 50, y: 45 }, curves, 'A')).toBe('B');
     expect(nearestLink(under(['B', 'A']), 0, 0, '.hit', { x: 50, y: 4 }, curves, 'B')).toBe('A');
     expect(nearestLink({} as Document, 0, 0, '.hit', { x: 50, y: 4 }, curves, 'B')).toBe('B');
+    // Where lines meet, the link clicked keeps the click unless another is nearer by more than the margin.
+    expect(nearestLink(under(['A', 'B']), 0, 0, '.hit', { x: 1, y: 0.5 }, curves, 'B', 2)).toBe('B');
+    expect(nearestLink(under(['A', 'B']), 0, 0, '.hit', { x: 50, y: 4 }, curves, 'B', 2)).toBe('A');
   });
 
   it('flips a sign at an arrowhead only when no other line passes nearer', () => {
