@@ -707,6 +707,18 @@
   color: var(--lp-text);
 }
 
+/* A scene without a number shows its title: two columns wide, cut short if it is long. */
+.lp-scene-chip.untagged {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.lp-scene-chip.untagged .lp-sc-num {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .lp-sc-time {
   font-variant-numeric: tabular-nums;
   color: var(--lp-faint);

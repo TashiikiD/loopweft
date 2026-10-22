@@ -1,11 +1,13 @@
 // "Work with an AI agent": Loopweft has no AI of its own, but an agent that runs commands on the person's
 // computer (Claude Code, Codex) can work on a map through the `loopweft` command line. This window says how, and
 // gives a short message to paste into the agent: the map's file name, how to run the command line, the guide
-// (`loopweft guide`) and its rules in brief. Copying puts the text on the clipboard; nothing is sent anywhere.
+// (`loopweft guide`) and its rules in brief. A map not saved yet has no file to name, so the window first asks
+// for it to be saved. Copying puts the text on the clipboard; nothing is sent anywhere.
 import { Button, List, Modal, Stack, Text, Textarea } from '@mantine/core';
 import { useRef, useState } from 'react';
+import { saveFile } from '../actions.ts';
 import { useStudio, useStudioStore } from '../context.tsx';
-import { canSaveInPlace, fileNameFor } from '../state/files.ts';
+import { canSaveInPlace } from '../state/files.ts';
 import { starterText } from './agent-text.ts';
 
 /**
@@ -31,10 +33,8 @@ export function AgentHelp() {
   const store = useStudioStore();
   const opened = useStudio((s) => s.agentHelp);
   const file = useStudio((s) => s.file);
-  const title = useStudio((s) => s.project.meta.title);
   const follows = canSaveInPlace();
-  const name = file?.name ?? fileNameFor(title);
-  const text = starterText(name, follows && Boolean(file?.handle));
+  const text = file ? starterText(file.name, follows && Boolean(file.handle)) : '';
   const field = useRef<HTMLTextAreaElement>(null);
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const close = () => {
@@ -54,9 +54,19 @@ export function AgentHelp() {
         </Text>
         <List type="ordered" size="sm" spacing={4}>
           <List.Item>
-            {file?.handle
-              ? `The map is saved as ${file.name}. Keep it in a folder of its own.`
-              : 'Save the map into a folder of its own (File › Save).'}
+            {file ? (
+              `The map is saved as ${file.name}. Keep it in a folder of its own.`
+            ) : (
+              <Stack gap={6} align="flex-start">
+                <span>
+                  Save the map into a folder of its own. The message names its file, so it comes once the map
+                  is saved.
+                </span>
+                <Button size="compact-sm" variant="default" onClick={() => void saveFile(store)}>
+                  Save the map…
+                </Button>
+              </Stack>
+            )}
           </List.Item>
           <List.Item>Open your agent in that folder.</List.Item>
           <List.Item>
@@ -68,17 +78,23 @@ export function AgentHelp() {
               : 'This browser cannot follow the file as the agent changes it (Chrome and Edge can): open the file again (File › Open) to see the changes.'}
           </List.Item>
         </List>
-        <Textarea
-          ref={field}
-          label="The message for the agent"
-          value={text}
-          readOnly
-          autosize
-          minRows={8}
-          maxRows={16}
-          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12 } }}
-        />
-        <Button onClick={() => void copy()} color={copied === 'yes' ? 'teal' : undefined}>
+        {file ? (
+          <Textarea
+            ref={field}
+            label="The message for the agent"
+            value={text}
+            readOnly
+            autosize
+            minRows={8}
+            maxRows={16}
+            styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12 } }}
+          />
+        ) : (
+          <Text size="sm" c="dimmed" role="status">
+            The message for the agent appears here once the map is saved.
+          </Text>
+        )}
+        <Button onClick={() => void copy()} color={copied === 'yes' ? 'teal' : undefined} disabled={!file}>
           {copied === 'yes' ? 'Copied' : 'Copy agent instructions'}
         </Button>
         {copied === 'no' && (

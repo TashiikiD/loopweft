@@ -44,6 +44,16 @@ function open(projectText?: string) {
 }
 
 describe('the presenter console', () => {
+  it('names a scene without a number by its title, so no chip is an empty box', () => {
+    open();
+    // The title page (S00) has no caption, so no number: its chip and its heading show no lone "·".
+    const chip = document.querySelector('.lp-scene-chip') as HTMLElement;
+    expect(chip.classList.contains('untagged')).toBe(true);
+    expect(chip.querySelector('.lp-sc-num')?.textContent).toBe(project.story.scenes[0]?.title);
+    expect((document.querySelector('.lp-scene-num') as HTMLElement).hidden).toBe(true);
+    expect(document.querySelectorAll('.lp-scene-chip.untagged')).toHaveLength(1);
+  });
+
   it('shows the scene, the step, what comes next, and moves with the keys', () => {
     const c = open();
     key('4');

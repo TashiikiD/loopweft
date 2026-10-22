@@ -295,12 +295,17 @@
   color: var(--lp-muted);
 }
 
-/* The Studio's audience window, before the console answers. */
+/* The Studio's audience window, before the console answers. Padding, not a margin: a margin would pass through
+   the page's top edge and add a scrollbar. */
 .lp-waiting {
   max-width: 640px;
-  margin: 30vh auto 0;
-  padding: 0 24px;
+  margin: 0 auto;
+  padding: 30vh 24px 0;
   color: var(--lp-muted);
   font: 18px / 1.5 var(--lp-sans);
   text-align: center;
+}
+
+.lp-waiting a {
+  color: var(--lp-glow);
 }

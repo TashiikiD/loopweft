@@ -40,6 +40,7 @@ import {
   removeSelection,
   rounded,
 } from './edit.ts';
+import { headIsNearer, nearestLink } from './nearest.ts';
 import {
   centreOn,
   type Frame,
@@ -499,7 +500,27 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
       setLinking({ from: handle, to: toMap(view, p.x, p.y), over: null });
       return;
     }
-    const sign = target.closest('[data-sign]')?.getAttribute('data-sign');
+    const curve = (id: string) => graph.edges.get(id)?.geom;
+    const nearest = (fallback: string) =>
+      nearestLink(
+        document,
+        event.clientX,
+        event.clientY,
+        '.lw-edge .hit',
+        toMap(view, p.x, p.y),
+        curve,
+        fallback,
+      );
+    // An arrowhead flips its link's sign, unless another link's line passes nearer the pointer than the arrowhead
+    // does: the click is then on that link, and selects it.
+    const head = target.closest('[data-sign]')?.getAttribute('data-sign');
+    const other = head ? nearest(head) : null;
+    const sign =
+      head &&
+      other !== null &&
+      (other === head || headIsNearer(toMap(view, p.x, p.y), curve(head), curve(other)))
+        ? head
+        : null;
     if (sign) {
       const link = state.project.links.find((l) => l.id === sign);
       if (!link) return;
@@ -522,8 +543,10 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
       gesture.current = { kind: 'move', ids, from: toMap(view, p.x, p.y), moved: false };
       return;
     }
-    const edge = target.closest('[data-edge]')?.getAttribute('data-edge');
-    if (edge) {
+    const hit = target.closest('[data-edge]')?.getAttribute('data-edge');
+    if (hit) {
+      // Where links run close, the one whose line is nearest the pointer, not the one drawn last.
+      const edge = nearest(hit);
       state.select(choose(state.selection, 'links', edge, event.shiftKey));
       return;
     }

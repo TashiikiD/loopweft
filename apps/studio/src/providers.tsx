@@ -1,4 +1,4 @@
-import { createTheme, MantineProvider } from '@mantine/core';
+import { createTheme, Drawer, MantineProvider, Modal, Notification } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { createContext, type ReactNode } from 'react';
 
@@ -9,6 +9,12 @@ const theme = createTheme({
   focusRing: 'auto',
   fontFamily: "'Inter Variable', Inter, 'Segoe UI', system-ui, sans-serif",
   headings: { fontFamily: "'Fraunces Variable', Fraunces, Georgia, serif" },
+  // Every × says what it does: a screen reader would otherwise announce only "button".
+  components: {
+    Modal: Modal.extend({ defaultProps: { closeButtonProps: { 'aria-label': 'Close' } } }),
+    Drawer: Drawer.extend({ defaultProps: { closeButtonProps: { 'aria-label': 'Close' } } }),
+    Notification: Notification.extend({ defaultProps: { closeButtonProps: { 'aria-label': 'Close' } } }),
+  },
 });
 
 export type StudioEnv = 'default' | 'test';

@@ -332,7 +332,7 @@ export function SourceEditor({ source }: { source: Source }) {
         <div style={{ flex: 1 }}>
           <CommitText
             label="DOI"
-            placeholder="10.1017/sus.2024.1"
+            placeholder="10.xxxx/xxxxx"
             value={source.doi ?? ''}
             onCommit={(text) => {
               if (text === null) {

@@ -1,6 +1,6 @@
 // "Work with an AI agent": the window, from the File menu and from an empty map, and the message it copies.
 import { createProject } from '@loopweft/model';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
@@ -42,6 +42,9 @@ describe('the window', () => {
     expect(within(dialog).getByRole('button', { name: 'Copy agent instructions' })).toBeTruthy();
     // jsdom cannot hold a file, as Firefox and Safari cannot: the window says how to see the changes there.
     expect(within(dialog).getByText(/This browser cannot follow the file/)).toBeTruthy();
+    // Its ×, as every dialog's, says what it does.
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Work with an AI agent' })).toBeNull();
   });
 
   it('opens from an empty map, for a map not saved yet', async () => {
@@ -51,6 +54,16 @@ describe('the window', () => {
     await user.click(screen.getByRole('button', { name: 'Work with an AI agent…' }));
     const dialog = screen.getByRole('dialog', { name: 'Work with an AI agent' });
     expect(within(dialog).getByText(/Save the map into a folder of its own/)).toBeTruthy();
+    // No file yet, so no file to name: the message waits until the map is saved, and nothing can be copied.
+    expect(within(dialog).queryByRole('textbox', { name: 'The message for the agent' })).toBeNull();
+    expect(within(dialog).getByText(/appears here once the map is saved/)).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Copy agent instructions' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(within(dialog).getByRole('button', { name: 'Save the map…' })).toBeTruthy();
+    // Saved (here as a download, as Firefox saves), the message names the file.
+    act(() => store.getState().markSaved(store.getState().project, { name: 'water-supply.loopweft' }));
     const message = within(dialog).getByRole('textbox', { name: 'The message for the agent' });
     expect((message as HTMLTextAreaElement).value).toContain('the file water-supply.loopweft.');
   });

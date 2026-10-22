@@ -224,6 +224,20 @@ test('the Studio’s audience window says, as a status, that it is waiting for t
   const waiting = page.getByRole('status');
   await expect(waiting).toHaveText('Waiting for the presenter console in the Studio…');
   await expect(waiting).toHaveText(/Keep the Studio open/, { timeout: 10_000 });
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+});
+
+test('the audience window opened by hand, with no presentation to join, says how to open one', async ({
+  page,
+}) => {
+  await page.goto('/audience.html');
+  const waiting = page.getByRole('status');
+  await expect(waiting).toContainText(
+    'in the Studio, Present, then Open the console, then Open audience window',
+  );
+  await expect(waiting.getByRole('link', { name: 'Open the Studio' })).toHaveAttribute('href', './');
+  // Nothing scrolls: the message sits in the window.
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
 });
 
 test('export asks where to save while the click still counts, however long the player takes to load', async ({

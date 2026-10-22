@@ -28,6 +28,7 @@ import { resolveMap, type StoryView } from '@loopweft/render';
 import { Group, SegmentedControl, Text } from '@mantine/core';
 import { createPortal } from 'react-dom';
 import { useEdit } from '../context.tsx';
+import { nearestLink } from '../map/nearest.ts';
 
 export type Tool = 'look' | 'show' | 'trend' | 'spread' | 'pulse' | 'frame';
 
@@ -240,7 +241,22 @@ export function RecordLayer({
                 tabIndex={onStage && applies ? 0 : -1}
                 aria-disabled={applies ? undefined : true}
                 aria-label={name}
-                onClick={(event) => pick('link', e.id, event.shiftKey)}
+                data-edge={e.id}
+                onClick={(event) => {
+                  // Where links run close, the one whose line is nearest the pointer, not the one drawn last.
+                  const m = event.currentTarget.getScreenCTM?.()?.inverse();
+                  const at = m ? new DOMPoint(event.clientX, event.clientY).matrixTransform(m) : e.geom.mid;
+                  const id = nearestLink(
+                    document,
+                    event.clientX,
+                    event.clientY,
+                    '.lw-rec-edge .hit',
+                    at,
+                    (other) => graph.edges.get(other)?.geom,
+                    e.id,
+                  );
+                  pick('link', id, event.shiftKey);
+                }}
                 onKeyDown={(event) => press(event, 'link', e.id)}
               >
                 <title>{name}</title>

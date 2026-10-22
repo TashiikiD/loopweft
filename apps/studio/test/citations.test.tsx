@@ -89,7 +89,7 @@ describe('citing in the inspector', () => {
     expect(await screen.findByText('Cited T p. 4 on births and L3. L1 already cited it.')).toBeTruthy();
   });
 
-  it('keeps the source chosen for the next citation, but never its strength', async () => {
+  it('starts the next citation afresh: no source chosen, no strength', async () => {
     const { store, user } = renderStudio();
     store.getState().select({ links: ['L2'] });
     await screen.findByText('No source cited yet.');

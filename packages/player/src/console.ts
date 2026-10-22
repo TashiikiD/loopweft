@@ -560,10 +560,11 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
       'button',
       {
         type: 'button',
-        class: 'lp-scene-chip',
+        // A scene without a number (a title page, say) shows its title, so no chip is an empty box.
+        class: `lp-scene-chip${sceneTag(scene) ? '' : ' untagged'}`,
         title: `${scene.title}${scene.targetSeconds > 0 ? ` · ends at ${fmt(scene.clockEnd)}` : ' · untimed'}`,
       },
-      h('span', { class: 'lp-sc-num' }, sceneTag(scene) || '·'),
+      h('span', { class: 'lp-sc-num' }, sceneTag(scene) || scene.title),
       h('span', { class: 'lp-sc-time' }, scene.targetSeconds > 0 ? fmt(scene.clockEnd) : ''),
     );
     chip.addEventListener('click', (e) => {
@@ -648,7 +649,8 @@ export function startConsole(o: ConsoleOptions): PresenterConsole {
     }
     const scene = sceneAt(deck, state.pos);
     const step = stepAt(deck, state.pos);
-    ui.sceneNum.textContent = sceneTag(scene) || '·';
+    ui.sceneNum.textContent = sceneTag(scene);
+    ui.sceneNum.hidden = !sceneTag(scene);
     ui.sceneTitle.textContent = scene.title;
     ui.sceneSub.textContent = `Step ${state.pos.b + 1} of ${scene.steps.length} · ${step.key} · ${step.step.label}`;
     renderCues(state.pos);

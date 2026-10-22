@@ -206,9 +206,11 @@ export function CiteForm({
     if (!out) return;
     if (elements.length > 1 || out.result.skipped.length)
       notifications.show({ message: out.summary, autoClose: 5000 });
+    // The form starts again empty: the source is chosen afresh, so the same one is not cited twice by mistake,
+    // and a strength (a judgement about one citation) never carries over to the next.
+    setSource(null);
     setPages('');
     setNote('');
-    // A strength is a judgement about one citation: it never carries over to the next.
     setStrength('');
     onCited?.();
   };

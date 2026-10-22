@@ -118,7 +118,7 @@ function SourceFields({
       <Group grow align="flex-start">
         <TextInput
           label="DOI"
-          placeholder="10.1017/sus.2024.1"
+          placeholder="10.xxxx/xxxxx"
           value={form.doi}
           onChange={set('doi')}
           error={badDoi ? 'Not a DOI: it starts with 10., a number and a slash.' : undefined}
@@ -218,7 +218,7 @@ function AddSource({ onDone }: { onDone(): void }) {
             <TextInput
               label="DOI"
               description="Bare, or as a doi.org address. Only the DOI is sent: to Crossref, and to DataCite if Crossref has no record."
-              placeholder="10.1017/sus.2024.1"
+              placeholder="10.xxxx/xxxxx"
               value={doi}
               onChange={(event) => setDoi(event.currentTarget.value)}
               onKeyDown={(event) => {
