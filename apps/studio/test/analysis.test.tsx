@@ -60,6 +60,26 @@ describe('the Layout panel', () => {
     expect(store.getState().project.layout.positions.population?.pinned).toBeUndefined();
   });
 
+  it('says where variables without a place are drawn: beside the placed ones, or as a constellation', async () => {
+    const partial = population();
+    delete partial.layout.positions.crowding;
+    await openPanel('Layout', partial);
+    expect(
+      screen.getByText(
+        '3 variables placed, 1 not yet (drawn beside the placed ones until placed); 1 pinned.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('says a map with no places is drawn as a constellation', async () => {
+    const bare = population();
+    bare.layout.positions = {};
+    await openPanel('Layout', bare);
+    expect(
+      screen.getByText('0 variables placed, 4 not yet (drawn as a constellation until placed); none pinned.'),
+    ).toBeTruthy();
+  });
+
   it('takes a seed for the seeded layouts, and only a whole number', async () => {
     const { store, user } = await openPanel('Layout');
     const seed = screen.getByRole('textbox', { name: 'Seed' });

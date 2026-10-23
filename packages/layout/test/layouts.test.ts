@@ -179,6 +179,18 @@ describe('variables without a place of their own', () => {
     });
   }
 
+  it('are given room for as many as there are: 33 beside one placed variable, none on another', () => {
+    const project = anchored({ x: 960, y: 540 }, 33);
+    const auto = unplacedPositions(project);
+    const { nodes } = mapGeometry(project);
+    expect(nodes.get('anchor')).toMatchObject({ x: 960, y: 540 });
+    const all = [...nodes.values()];
+    expect(all).toHaveLength(34);
+    for (const [i, a] of all.entries())
+      for (const b of all.slice(i + 1)) expect(apart(a, b), `${a.id} and ${b.id}`).toBe(true);
+    expect(unplacedPositions(project)).toEqual(auto);
+  });
+
   it('are laid out as a constellation when none has a place, and need nothing when all have', () => {
     const project = smallProject();
     const bare = { ...project, layout: { ...project.layout, positions: {} } };

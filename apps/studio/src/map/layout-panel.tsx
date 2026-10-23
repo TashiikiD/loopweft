@@ -113,8 +113,10 @@ export function LayoutPanel() {
           </Button>
           <Text size="xs" c="dimmed">
             {plural(project.variables.length - unplaced, 'variable')} placed
-            {unplaced ? `, ${unplaced} not yet (drawn by the constellation until placed)` : ''};{' '}
-            {pinned.length ? `${pinned.length} pinned` : 'none pinned'}.
+            {unplaced
+              ? `, ${unplaced} not yet (drawn ${unplaced === project.variables.length ? 'as a constellation' : 'beside the placed ones'} until placed)`
+              : ''}
+            ; {pinned.length ? `${pinned.length} pinned` : 'none pinned'}.
           </Text>
           {pinned.length > 0 && (
             <Button
