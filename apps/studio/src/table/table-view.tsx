@@ -543,8 +543,9 @@ export function TableView({ switcher }: { switcher?: ReactNode }) {
   const [search, setSearch] = useState('');
   return (
     <section className="lw-table" aria-label="Table">
-      <Group className="lw-viewbar" gap="sm" justify="space-between" wrap="nowrap">
-        <Group gap="sm" wrap="nowrap">
+      {/* In a narrow window the bar wraps rather than cutting a button off. */}
+      <Group className="lw-viewbar" gap="sm" justify="space-between" wrap="wrap">
+        <Group gap="sm" wrap="nowrap" miw={0}>
           {switcher}
           <SegmentedControl
             size="xs"
@@ -559,6 +560,8 @@ export function TableView({ switcher }: { switcher?: ReactNode }) {
           <TextInput
             size="xs"
             w={220}
+            miw={120}
+            style={{ flexShrink: 1 }}
             aria-label={`Search the ${shape}`}
             placeholder="Search"
             leftSection={<IconSearch size={14} aria-hidden />}

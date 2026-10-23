@@ -379,7 +379,8 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
   );
 }
 
-export function StoryOutline() {
+/** The outline; `over`: laid over the stage, in a narrow window, and closed by Escape (`onClose`). */
+export function StoryOutline({ over = false, onClose }: { over?: boolean; onClose?: () => void } = {}) {
   const store = useStudioStore();
   const edit = useEdit();
   const scenes = useStudio((s) => s.project.story.scenes);
@@ -410,7 +411,14 @@ export function StoryOutline() {
   return (
     <Flags.Provider value={flags}>
       <FocusAfter.Provider value={focusAfter}>
-        <nav ref={nav} className="lw-outline" aria-label="Story outline">
+        <nav
+          ref={nav}
+          className={`lw-outline${over ? ' over' : ''}`}
+          aria-label="Story outline"
+          onKeyDown={(event) => {
+            if (over && event.key === 'Escape' && !event.defaultPrevented) onClose?.();
+          }}
+        >
           <div className="lw-outline-top">
             <Text size="sm" fw={600}>
               Story

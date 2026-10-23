@@ -6,10 +6,12 @@
 
 import { type Project, sceneNumbers } from '@loopweft/model';
 import { HOLD_SECONDS, playTimes } from '@loopweft/player';
-import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Text, Tooltip } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconChevronLeft,
   IconChevronRight,
+  IconListTree,
   IconPlayerPlay,
   IconPlayerSkipForward,
   IconPlayerStop,
@@ -30,6 +32,10 @@ export function StoryWorkspace() {
   const stage = useRef<StageHandle>(null);
   const [brush, setBrush] = useState<Brush>(LOOK);
   const [playing, setPlaying] = useState(false);
+  // Below 1280 pixels the outline folds behind a Scenes button, laid over the stage when open, so the stage keeps
+  // the window's width.
+  const narrow = useMediaQuery('(max-width: 1279px)') ?? false;
+  const [scenesOpen, setScenesOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The step the playing scene last brought up. */
   const playedTo = useRef<string | null>(null);
@@ -125,10 +131,21 @@ export function StoryWorkspace() {
 
   const recording = brush.tool !== 'look' && !!current?.step && !playing;
   return (
-    <div className="lw-workspace">
-      <StoryOutline />
+    <div className="lw-workspace lw-story-workspace">
+      {narrow ? scenesOpen && <StoryOutline over onClose={() => setScenesOpen(false)} /> : <StoryOutline />}
       <div className="lw-view">
         <div className="lw-viewbar">
+          {narrow && (
+            <Button
+              size="compact-sm"
+              variant={scenesOpen ? 'light' : 'default'}
+              leftSection={<IconListTree size={16} aria-hidden />}
+              aria-expanded={scenesOpen}
+              onClick={() => setScenesOpen((open) => !open)}
+            >
+              Scenes
+            </Button>
+          )}
           <Group gap={2} wrap="nowrap">
             <Tooltip label="Previous step (←)">
               <ActionIcon

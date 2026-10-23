@@ -61,25 +61,29 @@ const HINTS: Record<Tool, string> = {
   frame: 'Click variables to add them to, or take them from, what the camera frames.',
 };
 
-/** The tools above the stage. */
+/**
+ * The tools above the stage: the tool, its options (a row kept even when a tool has none), and its hint (room for
+ * two lines), so choosing a tool never moves the stage under the pointer.
+ */
 export function RecordBar({ brush, onChange }: { brush: Brush; onChange(next: Brush): void }) {
   return (
     <div className="lw-record-bar">
-      <Group gap="xs" wrap="wrap">
-        <SegmentedControl
-          size="xs"
-          value={brush.tool}
-          onChange={(tool) => onChange({ ...brush, tool: tool as Tool })}
-          data={[
-            { value: 'look', label: 'Look' },
-            { value: 'show', label: 'Show' },
-            { value: 'trend', label: 'Trend' },
-            { value: 'spread', label: 'Spread' },
-            { value: 'pulse', label: 'Pulse' },
-            { value: 'frame', label: 'Frame' },
-          ]}
-          aria-label="Record tool"
-        />
+      <SegmentedControl
+        className="lw-record-tools"
+        size="xs"
+        value={brush.tool}
+        onChange={(tool) => onChange({ ...brush, tool: tool as Tool })}
+        data={[
+          { value: 'look', label: 'Look' },
+          { value: 'show', label: 'Show' },
+          { value: 'trend', label: 'Trend' },
+          { value: 'spread', label: 'Spread' },
+          { value: 'pulse', label: 'Pulse' },
+          { value: 'frame', label: 'Frame' },
+        ]}
+        aria-label="Record tool"
+      />
+      <Group gap="xs" wrap="nowrap" className="lw-record-options">
         {brush.tool === 'show' && (
           <SegmentedControl
             size="xs"
@@ -116,7 +120,7 @@ export function RecordBar({ brush, onChange }: { brush: Brush; onChange(next: Br
           />
         )}
       </Group>
-      <Text size="xs" c="dimmed" mt={4}>
+      <Text size="xs" c="dimmed" lineClamp={2} className="lw-record-hint" title={HINTS[brush.tool]}>
         {HINTS[brush.tool]}
       </Text>
     </div>

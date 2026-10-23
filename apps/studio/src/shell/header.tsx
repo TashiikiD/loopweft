@@ -82,12 +82,21 @@ function SaveState() {
     : file
       ? `Saved · ${file.name}`
       : 'Saved';
+  // In a narrow window the badge shrinks to a dot of its colour; its words stay in its name and tooltip.
   return (
-    <output aria-live="polite" aria-label={`Save status: ${label}`}>
-      <Badge variant="light" color={dirty ? 'yellow' : 'gray'} radius="sm" style={{ textTransform: 'none' }}>
-        {label}
-      </Badge>
-    </output>
+    <Tooltip label={label} className="lw-save-tip">
+      <output aria-live="polite" aria-label={`Save status: ${label}`} className="lw-save">
+        <Badge
+          variant="light"
+          color={dirty ? 'yellow' : 'gray'}
+          radius="sm"
+          style={{ textTransform: 'none' }}
+          leftSection={<span className="lw-save-dot" aria-hidden />}
+        >
+          <span className="lw-save-label">{label}</span>
+        </Badge>
+      </output>
+    </Tooltip>
   );
 }
 
@@ -201,7 +210,8 @@ export function Header({ onNew, onImport }: { onNew?: () => void; onImport?: () 
   const workspace = useStudio((s) => s.workspace);
   return (
     <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="md">
-      <Group gap="sm" wrap="nowrap" miw={0}>
+      {/* The title gives way first: it shrinks, cut short with "…", so the tabs never wrap. */}
+      <Group gap="sm" wrap="nowrap" miw={0} style={{ flex: '1 1 auto' }}>
         <Mark />
         <MapTitle />
         <SaveState />
@@ -212,8 +222,9 @@ export function Header({ onNew, onImport }: { onNew?: () => void; onImport?: () 
         variant="pills"
         radius="sm"
         aria-label="Workspaces"
+        style={{ flex: 'none' }}
       >
-        <Tabs.List>
+        <Tabs.List style={{ flexWrap: 'nowrap' }}>
           {WORKSPACES.map((w) =>
             w.ready ? (
               <Tabs.Tab key={w.id} value={w.id}>
@@ -229,7 +240,7 @@ export function Header({ onNew, onImport }: { onNew?: () => void; onImport?: () 
           )}
         </Tabs.List>
       </Tabs>
-      <Group gap="xs" wrap="nowrap">
+      <Group gap="xs" wrap="nowrap" style={{ flex: 'none' }}>
         <FileMenu {...(onNew ? { onNew } : {})} {...(onImport ? { onImport } : {})} />
         <Button
           variant="filled"

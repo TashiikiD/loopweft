@@ -654,6 +654,20 @@ body {
   background: var(--mantine-color-body);
 }
 
+/* In a narrow window, the outline opened over the stage. */
+.lw-story-workspace {
+  position: relative;
+}
+
+.lw-outline.over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  box-shadow: var(--mantine-shadow-lg);
+}
+
 .lw-outline-top {
   flex: none;
   display: flex;
@@ -773,9 +787,31 @@ body {
 /* The record view: its tools, and its click targets over the stage. */
 .lw-record-bar {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 12px 8px;
   border-bottom: 1px solid var(--mantine-color-default-border);
   background: var(--mantine-color-body);
+}
+
+.lw-record-tools {
+  align-self: flex-start;
+}
+
+/* Kept at one control's height, empty or not, and the hint at two lines' height. */
+.lw-record-options {
+  flex: none;
+  height: 32px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.lw-record-hint {
+  flex: none;
+  height: calc(2 * 1.55 * var(--mantine-font-size-xs));
+  line-height: 1.55;
 }
 
 .lw-record-layer {
@@ -949,4 +985,33 @@ body {
 /* The presentation takes the keyboard's focus when it opens; it needs no ring of its own. */
 .lp-overlay:focus {
   outline: none;
+}
+
+/* The save status: a badge with its words, or in a narrow window a dot of its colour (its words in its tooltip). */
+.lw-save {
+  display: inline-flex;
+  flex: none;
+}
+
+.lw-save .mantine-Badge-section {
+  display: none;
+}
+
+.lw-save-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (max-width: 1199px) {
+  .lw-save-label {
+    display: none;
+  }
+
+  .lw-save .mantine-Badge-section {
+    display: flex;
+    margin: 0;
+  }
 }

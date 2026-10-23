@@ -30,12 +30,20 @@ export const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\
 
 export const side = (page: Page) => page.getByRole('complementary', { name: 'Story panel' });
 
-/** Chooses a step in the story outline (by its key, e.g. "S04.1"). */
+/**
+ * Chooses a step in the story outline (by its key, e.g. "S04.1"). In a narrow window, where the outline is folded
+ * behind the Scenes button, it is opened for the choice and closed again, leaving the stage clear.
+ */
 export async function chooseStep(page: Page, key: string) {
-  await page
-    .getByRole('navigation', { name: 'Story outline' })
-    .getByRole('button', { name: new RegExp(`^${literal(key)}\\s`) })
-    .click();
+  const outline = page.getByRole('navigation', { name: 'Story outline' });
+  const folded = !(await outline.isVisible());
+  if (folded) await page.getByRole('button', { name: 'Scenes' }).click();
+  const step = outline.getByRole('button', { name: new RegExp(`^${literal(key)}\\s`) });
+  await step.click();
+  if (folded) {
+    await step.press('Escape');
+    await expect(outline).toBeHidden();
+  }
 }
 
 /** Opens the example's story at a step. */
