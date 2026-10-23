@@ -1,4 +1,4 @@
-import { addLink, addVariable, templateById } from '@loopweft/model';
+import { addLink, addVariable, createProject, templateById } from '@loopweft/model';
 import { describe, expect, it } from 'vitest';
 import {
   applyAutoLayout,
@@ -141,6 +141,43 @@ describe('variables without a place of their own', () => {
       for (const b of all.slice(i + 1)) expect(distance(a, b), `${a.id} and ${b.id}`).toBeGreaterThan(60);
     expect(unplacedPositions(project)).toEqual(auto);
   });
+
+  // A placed variable (anywhere on the map) and new ones linked to it, none of them placed.
+  const anchored = (at: { x: number; y: number }, added: number) => {
+    let project = addVariable(createProject({ title: 'Anchor' }), { label: 'Anchor' }).project;
+    project = { ...project, layout: { ...project.layout, positions: { anchor: { x: at.x, y: at.y } } } };
+    for (let i = 1; i <= added; i++) {
+      project = addVariable(project, { label: `New ${i}` }).project;
+      project = addLink(project, { from: 'anchor', to: `new_${i}`, sign: '+' }).project;
+    }
+    return project;
+  };
+  // Two variables' boxes (the force layout's 150 × 70 for a glyph and its label) do not overlap.
+  const apart = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.abs(a.x - b.x) >= 150 || Math.abs(a.y - b.y) >= 70;
+
+  for (const [where, at] of [
+    ['in the middle of the stage', { x: 960, y: 540 }],
+    ['at negative places', { x: -1000, y: -1000 }],
+    ['beyond the stage', { x: 4000, y: 2600 }],
+  ] as const) {
+    it(`are placed beside a placed variable ${where}, not on it`, () => {
+      for (const added of [1, 2]) {
+        const project = anchored(at, added);
+        const auto = unplacedPositions(project);
+        const { nodes } = mapGeometry(project);
+        expect(nodes.get('anchor')).toMatchObject(at);
+        const fresh = Object.keys(auto).map((id) => nodes.get(id) as { x: number; y: number });
+        expect(fresh).toHaveLength(added);
+        for (const [i, n] of fresh.entries()) {
+          expect(apart(n, at), `new ${i + 1} of ${added} clear of the anchor`).toBe(true);
+          expect(distance(n, at), `new ${i + 1} of ${added} beside the anchor`).toBeLessThan(450);
+          for (const m of fresh.slice(i + 1)) expect(apart(n, m)).toBe(true);
+        }
+        expect(unplacedPositions(project)).toEqual(auto);
+      }
+    });
+  }
 
   it('are laid out as a constellation when none has a place, and need nothing when all have', () => {
     const project = smallProject();

@@ -154,26 +154,42 @@ export interface MapGeometry {
   report: BendReport;
 }
 
+/** Room around the placed variables for those placed beside them, in map units. */
+const ROOM = 360;
+
 /**
  * Places for the variables that have none of their own. With none placed, the whole map is laid out as a
  * constellation. With some placed, the force layout places the others around them, the placed ones held where
  * they are, so a variable added to a laid-out map lands beside what it links to, not on top of the others (a
- * layout of the whole map would know nothing of where they are).
+ * layout of the whole map would know nothing of where they are). The force layout works in a frame of its own,
+ * so it is given one around the placed variables, with room on every side, wherever on the map they are (their
+ * places may be negative or beyond the stage), and only the new places are carried back.
  */
 export function unplacedPositions(project: Project): Record<string, Position> {
   const own = project.layout.positions;
   const missing = project.variables.filter((v) => !own[v.id]);
   if (missing.length === 0) return {};
-  const held = Object.fromEntries(Object.entries(own).map(([id, p]) => [id, { ...p, pinned: true }]));
-  const laid =
-    missing.length === project.variables.length
-      ? autoLayout(project, { kind: 'constellation' }).positions
-      : autoLayout({ ...project, layout: { ...project.layout, positions: held } }, { kind: 'force' })
-          .positions;
   const out: Record<string, Position> = {};
+  if (missing.length === project.variables.length) {
+    const laid = autoLayout(project, { kind: 'constellation' }).positions;
+    for (const v of missing) if (laid[v.id]) out[v.id] = laid[v.id] as Position;
+    return out;
+  }
+  const placed = Object.values(own);
+  const minX = Math.min(...placed.map((p) => p.x));
+  const minY = Math.min(...placed.map((p) => p.y));
+  const width = Math.max(...placed.map((p) => p.x)) - minX + 2 * ROOM;
+  const height = Math.max(...placed.map((p) => p.y)) - minY + 2 * ROOM;
+  const held = Object.fromEntries(
+    Object.entries(own).map(([id, p]) => [id, { x: p.x - minX + ROOM, y: p.y - minY + ROOM, pinned: true }]),
+  );
+  const laid = autoLayout(
+    { ...project, layout: { ...project.layout, positions: held } },
+    { kind: 'force', width, height },
+  ).positions;
   for (const v of missing) {
     const p = laid[v.id];
-    if (p) out[v.id] = p;
+    if (p) out[v.id] = { x: Math.round(p.x + minX - ROOM), y: Math.round(p.y + minY - ROOM) };
   }
   return out;
 }

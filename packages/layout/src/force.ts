@@ -1,7 +1,9 @@
 // Source: DataViz packages/module-cld/src/engine/layout.ts @ efcdbe2 (TashiikiD/DataViz, private), itself ported
 // from cld-generator engine/cldLayout.ts @ 6e477a3 (DataViz's changes: d3-force only, typed simulation nodes,
 // code-unit string ordering, links always carry ids). Copied for Loopweft with minimal local types in place of
-// DataViz's CLD definition; the algorithm is unchanged, and computeForceLayout is its Loopweft name.
+// DataViz's CLD definition; computeForceLayout is its Loopweft name. The algorithm is unchanged but in one respect,
+// marked "Loopweft:" below: with pinned nodes, the movable ones keep the simulation's coordinates around the pins
+// (rather than being fitted to the box on their own), and even one movable node is kept off the pinned ones.
 import { compareStrings } from '@loopweft/model';
 import {
   forceCenter,
@@ -130,7 +132,8 @@ const resolveRectOverlaps = (nodes: CldPositionedNode[], opts: Bounds & { iterat
   const { width, height, padX, padY, nodeW, nodeH, iterations } = opts;
   const hasPinned = nodes.some((n) => n.placement?.pinned === true);
   const movable = nodes.filter((n) => n.placement?.pinned !== true);
-  if (movable.length < 2) return;
+  // Loopweft: one movable node is still kept off the pinned ones (DataViz returned when fewer than two moved).
+  if (movable.length === 0) return;
 
   for (let it = 0; it < iterations; it++) {
     let moved = false;
@@ -383,15 +386,19 @@ export const computeCldLayout = (cld: CldDefinition): CldLayoutResult => {
     const sim = simById.get(n.id);
     const rawX = sim?.x ?? width / 2;
     const rawY = sim?.y ?? height / 2;
-    // Keep pinned nodes in absolute canvas coordinates; normalize the rest to the usable box.
+    // Keep pinned nodes in absolute canvas coordinates. Loopweft: with pins, the rest keep the simulation's
+    // coordinates too, so they stay beside the pins they link to (DataViz fitted them to the box on their own,
+    // which put a single movable node in the middle whatever it linked to); without pins, they are fitted.
     const pinned = n.placement?.pinned === true;
-    const x = pinned ? rawX : offsetX + (rawX - minX) * scale;
-    const y = pinned ? rawY : offsetY + (rawY - minY) * scale;
+    const fit = pinnedIds.size === 0;
+    const x = pinned || !fit ? rawX : offsetX + (rawX - minX) * scale;
+    const y = pinned || !fit ? rawY : offsetY + (rawY - minY) * scale;
     return { ...n, x: clamp(x, padX, width - padX), y: clamp(y, padY, height - padY) };
   });
 
-  // If the simulation collapsed into a tight cluster, expand X/Y independently around the centre.
-  {
+  // If the simulation collapsed into a tight cluster, expand X/Y independently around the centre (Loopweft: only
+  // without pins, as the fit above; with pins, the movable nodes stay where the pins drew them).
+  if (pinnedIds.size === 0) {
     const movable = positionedNodes.filter((n) => n.placement?.pinned !== true);
     const forBounds = movable.length > 0 ? movable : positionedNodes;
     const usedW = Math.max(
