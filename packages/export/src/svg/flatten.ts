@@ -1026,7 +1026,12 @@ class Flattener {
       this.approximate('a radial gradient placed off its shape’s centre, drawn as rings about the centre');
     const stops = this.#svgStops(def);
     if (stops.length === 0) return '';
-    const { rings, exact } = gradientRings(stops, Math.min(1, fadeEnd(stops) ?? 1), Number(s.fillOpacity));
+    // The shape's opacity is solved into the rings, so that laid on each other they match the glow exactly.
+    const { rings, exact } = gradientRings(
+      stops,
+      Math.min(1, fadeEnd(stops) ?? 1),
+      Number(s.fillOpacity) * opacity,
+    );
     if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
     const body = rings.map((ring) => this.#ring(cx, cy, rx * ring.r, ry * ring.r, ring)).join('');
     const outline =
@@ -1039,9 +1044,9 @@ class Flattener {
           })
         : '';
     const filter = this.#filter(s.filter, null, { x: -100000, y: -100000, w: 200000, h: 200000 });
-    const drawn = body + outline;
+    const drawn = body + fadeShapes(outline, opacity);
     if (!drawn) return '';
-    return this.#faded(opacity, drawn, { transform: attrs.transform, filter });
+    return this.#faded(1, drawn, { transform: attrs.transform, filter });
   }
 
   /** The gradients a copied SVG defines, with their colours written out and their ids renamed. */
