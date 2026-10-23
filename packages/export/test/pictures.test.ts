@@ -71,6 +71,21 @@ describe('checkPictureJob', () => {
     ).toThrow(/Only the whole map/);
   });
 
+  it('makes only an SVG drawing for PowerPoint and Word', () => {
+    const job = {
+      format: 'svg',
+      target: { kind: 'step', step: 'S04.2a' },
+      scale: 1,
+      categoryWords: false,
+    } as const;
+    expect(() => checkPictureJob({ ...job, office: true })).not.toThrow();
+    for (const format of ['png', 'jpeg'] as const) {
+      expect(() => checkPictureJob({ ...job, format, office: true })).toThrow(
+        'Only an SVG drawing is made for PowerPoint and Word; a PNG is pixels already.',
+      );
+    }
+  });
+
   it('sizes pictures from the stage', () => {
     expect(pictureSize(1)).toEqual({ width: 1920, height: 1080 });
     expect(pictureSize(2)).toEqual({ width: 3840, height: 2160 });

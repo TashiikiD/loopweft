@@ -11,7 +11,8 @@ import {
   splitTop,
 } from '../src/svg/css.ts';
 import { firstFamily, selectFontFaces, unicodeRanges } from '../src/svg/fonts.ts';
-import { Defs, num, tag } from '../src/svg/writer.ts';
+import { colourAt, fadeEnd, gradientRings, RINGS, ringsOpacityAt } from '../src/svg/rings.ts';
+import { Defs, fadeShapes, num, tag } from '../src/svg/writer.ts';
 
 describe('reading computed CSS', () => {
   it('reads the colours the browser writes', () => {
@@ -170,6 +171,32 @@ describe('writing the drawing', () => {
   });
 });
 
+describe('a group’s opacity on its shapes, for PowerPoint and Word', () => {
+  it('multiplies each shape’s own opacity, leaves groups, stops and fill-opacity alone', () => {
+    const body = [
+      '<g transform="translate(1 2)">',
+      '<circle r="5" fill="#ff0000" fill-opacity="0.2"/>',
+      '<path d="M0 0H1" stroke="#000000" opacity="0.5"/>',
+      '<text x="1" y="2" fill="#ffffff">a &lt;line&gt;</text>',
+      '</g>',
+      '<defs><linearGradient id="s1"><stop offset="0" stop-color="#000000"/></linearGradient></defs>',
+    ].join('');
+    expect(fadeShapes(body, 0.32)).toBe(
+      [
+        '<g transform="translate(1 2)">',
+        '<circle r="5" fill="#ff0000" fill-opacity="0.2" opacity="0.32"/>',
+        '<path d="M0 0H1" stroke="#000000" opacity="0.16"/>',
+        '<text x="1" y="2" fill="#ffffff" opacity="0.32">a &lt;line&gt;</text>',
+        '</g>',
+        '<defs><linearGradient id="s1"><stop offset="0" stop-color="#000000"/></linearGradient></defs>',
+      ].join(''),
+    );
+    // Nested groups multiply, to four decimals; a group drawn fully changes nothing.
+    expect(fadeShapes(fadeShapes('<rect width="1"/>', 0.32), 0.05)).toBe('<rect width="1" opacity="0.016"/>');
+    expect(fadeShapes(body, 1)).toBe(body);
+  });
+});
+
 describe('the fonts a drawing carries', () => {
   const styles = [
     '@font-face { font-family: "Inter Variable"; src: url("data:font/woff2;base64,AAA") format("woff2"); unicode-range: U+0000-00FF, U+0131; }',
@@ -204,5 +231,91 @@ describe('the fonts a drawing carries', () => {
     expect(both).toContain('BBB');
     expect(both).toContain('CCC');
     expect(selectFontFaces(styles, new Map())).toBe('');
+  });
+});
+
+describe('radial gradients as rings, for PowerPoint and Word', () => {
+  // The map's halo: one colour fading from 55% to clear (packages/render/src/map-view.ts).
+  const halo = [
+    { offset: 0, colour: { hex: '#ff8a5b', alpha: 0.55 } },
+    { offset: 1, colour: { hex: '#ff8a5b', alpha: 0 } },
+  ];
+  // A pulse's glow: three stops.
+  const pulse = [
+    { offset: 0, colour: { hex: '#e5484d', alpha: 0.85 } },
+    { offset: 0.45, colour: { hex: '#e5484d', alpha: 0.32 } },
+    { offset: 1, colour: { hex: '#e5484d', alpha: 0 } },
+  ];
+
+  it('lays the rings on each other to the gradient’s opacity in the middle of each band', () => {
+    for (const [stops, opacity] of [
+      [halo, 1],
+      [pulse, 1],
+      [halo, 0.4],
+    ] as const) {
+      const { rings, exact } = gradientRings([...stops], 1, opacity);
+      expect(exact).toBe(true);
+      expect(rings.length).toBeLessThanOrEqual(RINGS);
+      expect(rings.every((r) => r.hex === stops[0]?.colour.hex && r.opacity > 0 && r.opacity < 1)).toBe(true);
+      // Outermost first, each smaller than the one before.
+      expect(rings.map((r) => r.r)).toEqual([...rings.map((r) => r.r)].sort((a, b) => b - a));
+      for (let k = 0; k < RINGS; k++) {
+        const middle = (RINGS - k - 0.5) / RINGS;
+        const want = colourAt([...stops], middle).alpha * opacity;
+        expect(Math.abs(ringsOpacityAt(rings, middle) - want), `band ${k}`).toBeLessThan(0.001);
+      }
+      // Anywhere in a band, between the gradient's opacities at the band's edges.
+      for (let k = 0; k < RINGS; k++) {
+        const [inner, outer] = [(RINGS - k - 1) / RINGS, (RINGS - k) / RINGS];
+        const edges = [inner, outer].map((t) => colourAt([...stops], t).alpha * opacity);
+        for (let t = inner + 0.001; t < outer; t += 0.01) {
+          const got = ringsOpacityAt(rings, t);
+          expect(got, `at ${t.toFixed(3)}`).toBeGreaterThanOrEqual(Math.min(...edges) - 0.001);
+          expect(got, `at ${t.toFixed(3)}`).toBeLessThanOrEqual(Math.max(...edges) + 0.001);
+        }
+      }
+      expect(ringsOpacityAt(rings, 1.01)).toBe(0);
+    }
+  });
+
+  it('solves each ring from the outside in: its own opacity, not the band’s', () => {
+    const { rings } = gradientRings(halo, 1);
+    // The outermost band: 55% × 5% of the way in; each ring's own opacity at most four decimals.
+    expect(rings[0]).toEqual({ r: 1, hex: '#ff8a5b', opacity: 0.0275 });
+    const second = (0.55 * 0.15 - 0.0275) / (1 - 0.0275);
+    expect(rings[1]?.opacity).toBe(Math.round(second * 10000) / 10000);
+    expect(rings.every((r) => Number(r.opacity.toFixed(4)) === r.opacity)).toBe(true);
+  });
+
+  it('stops where the gradient fades out, and knows one that never does', () => {
+    const glow = [
+      { offset: 0, colour: { hex: '#70e2c5', alpha: 0.07 } },
+      { offset: 0.7, colour: { hex: '#000000', alpha: 0 } },
+    ];
+    expect(fadeEnd(glow)).toBe(0.7);
+    const { rings } = gradientRings(glow, 0.7);
+    expect(rings[0]?.r).toBe(0.7);
+    // A transparent stop takes its neighbour's colour, as CSS mixes.
+    expect(rings.every((r) => r.hex === '#70e2c5')).toBe(true);
+    const edges = [
+      { offset: 0.55, colour: { hex: '#000000', alpha: 0 } },
+      { offset: 1, colour: { hex: '#000000', alpha: 0.45 } },
+    ];
+    expect(fadeEnd(edges)).toBeNull();
+  });
+
+  it('says when rings cannot match: growing more opaque outwards, or changing colour', () => {
+    const outwards = [
+      { offset: 0, colour: { hex: '#000000', alpha: 0.1 } },
+      { offset: 0.5, colour: { hex: '#000000', alpha: 0.6 } },
+      { offset: 1, colour: { hex: '#000000', alpha: 0 } },
+    ];
+    expect(gradientRings(outwards, 1).exact).toBe(false);
+    const two = [
+      { offset: 0, colour: { hex: '#ff0000', alpha: 0.5 } },
+      { offset: 0.5, colour: { hex: '#0000ff', alpha: 0.3 } },
+      { offset: 1, colour: { hex: '#0000ff', alpha: 0 } },
+    ];
+    expect(gradientRings(two, 1).exact).toBe(false);
   });
 });

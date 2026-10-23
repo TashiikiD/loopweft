@@ -224,6 +224,38 @@ describe('the Pictures card', () => {
     expect(await screen.findByText(/^Last export: small-map-steps-svg\.zip, 2 drawings of/)).toBeTruthy();
   });
 
+  it('makes an SVG for PowerPoint and Word when asked, and offers it only for SVG', async () => {
+    downloads();
+    const { engine, jobs } = fakeEngine();
+    show(small(), engine);
+    const user = userEvent.setup();
+    expect(screen.queryByRole('switch', { name: /^For PowerPoint and Word/ })).toBeNull();
+    await user.click(screen.getByLabelText(/^SVG: a drawing/));
+    const office = screen.getByRole('switch', { name: /^For PowerPoint and Word/ });
+    expect(office).toHaveProperty('checked', false);
+    expect(
+      screen.getByText(
+        /rings of flat colour and faded parts given their own opacity, which PowerPoint’s Convert to Shape keeps/,
+      ),
+    ).toBeTruthy();
+    await user.click(office);
+    await act(() => user.click(screen.getByRole('button', { name: 'Export SVG…' })));
+    await vi.waitFor(() => expect(jobs).toHaveLength(1));
+    expect(jobs[0]).toEqual({
+      format: 'svg',
+      target: { kind: 'step', step: 'S1.1' },
+      scale: 1,
+      categoryWords: false,
+      office: true,
+    });
+    // Back to PNG: the switch goes, and a PNG is never asked to be "for Office".
+    await user.click(screen.getByLabelText(/^PNG: pixels/));
+    expect(screen.queryByRole('switch', { name: /^For PowerPoint and Word/ })).toBeNull();
+    await act(() => user.click(screen.getByRole('button', { name: 'Export PNG…' })));
+    await vi.waitFor(() => expect(jobs).toHaveLength(2));
+    expect(jobs[1]).not.toHaveProperty('office');
+  });
+
   it('says why a picture could not be made', async () => {
     downloads();
     const { engine } = fakeEngine();

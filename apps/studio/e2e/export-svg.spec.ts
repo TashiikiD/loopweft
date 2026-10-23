@@ -8,7 +8,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { main } from '@loopweft/cli';
-import type { FileEvent } from '@loopweft/export';
+import { type FileEvent, SVG_NOTES as NOTES } from '@loopweft/export';
 import { readProject, stepKey } from '@loopweft/model';
 import { chromium, expect, type Page, test } from '@playwright/test';
 import { findBrowser } from '../../../tools/chrome.ts';
@@ -162,6 +162,62 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
   }
 });
 
+test('for PowerPoint and Word: no radial gradients, glows as rings, close to the PNG, the same every time', async () => {
+  test.setTimeout(300_000);
+  // A plain step, the title (its shading reaches past the stage), a statement on its backdrop, and the map.
+  const keys = ['S04.2a', 'S00.1', 'S01.3'];
+  const job = (step: string) =>
+    ({
+      format: 'svg',
+      target: { kind: 'step', step },
+      scale: 1,
+      categoryWords: false,
+      office: true,
+    }) as const;
+  const browser = await chromium.launch({ executablePath: findBrowser() });
+  try {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+    for (const key of [...keys, 'map']) {
+      const target = key === 'map' ? ({ kind: 'map' } as const) : ({ kind: 'step', step: key } as const);
+      const [office] = await pictures({ ...job(key), target });
+      const [png] = await pictures({ format: 'png', target, scale: 1, categoryWords: false });
+      const svg = decoder.decode((office as FileEvent).bytes);
+      const report = await inspect(page, svg);
+      expect(report, key).toMatchObject({ error: null, root: 'svg', foreign: 0, missing: [], outside: [] });
+      expect(report.texts, `${key}: text stays text`).toBeGreaterThan(0);
+      expect(svg, key).not.toContain('radialGradient');
+      // The halos: rings of flat see-through colour.
+      expect(svg, key).toMatch(/<circle [^>]*fill="#[0-9a-f]{6}" fill-opacity="0\.\d+"\/>/);
+      const notes = (office as FileEvent).notes ?? [];
+      expect(notes, key).toContain(NOTES.office);
+      expect(notes, key).toContain(NOTES.shading);
+      expect(
+        notes.filter((n) => n.startsWith('Drawn approximately')),
+        key,
+      ).toEqual([]);
+      // Only the stage's darkened edges are left out: everything else stays close to the PNG.
+      const drawnBack = await rasterize(page, svg);
+      const { far, mean } = await difference(page, drawnBack, (png as FileEvent).bytes);
+      test.info().annotations.push({
+        type: `office ${key}`,
+        description: `far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}`,
+      });
+      expect(mean, `${key}: mean difference from the PNG`).toBeLessThan(4);
+      review(`svg-office/${key}.svg`, (office as FileEvent).bytes);
+      review(`svg-office/${key}-drawn.png`, drawnBack);
+    }
+  } finally {
+    await browser.close();
+  }
+  // The same bytes again; and the drawing without the option is the plain one, with its radial gradients.
+  const [a] = await pictures(job('S04.2a'));
+  const [b] = await pictures(job('S04.2a'));
+  expect(Buffer.from((a as FileEvent).bytes).equals(Buffer.from((b as FileEvent).bytes))).toBe(true);
+  const [plain] = await pictures({ ...job('S04.2a'), office: false });
+  expect(decoder.decode((plain as FileEvent).bytes)).toContain('<radialGradient');
+  expect((plain as FileEvent).notes).not.toContain(NOTES.office);
+});
+
 test('loopweft export --svg: a step, every step into a new folder, the whole map, with the notes', async () => {
   test.setTimeout(240_000);
   const project = join(folder, 'talk.loopweft');
@@ -199,6 +255,12 @@ test('loopweft export --svg: a step, every step into a new folder, the whole map
   const [, w, h] = /<svg [^>]*width="([\d.]+)" height="([\d.]+)"/.exec(drawn) ?? [];
   expect(Number(w)).toBeLessThanOrEqual(1920);
   expect(Number(h)).toBeLessThan(1080);
+
+  const office = await run('export', project, '--svg', '--step', 'S04.2a', '--for-office', '--json');
+  expect(office.code).toBe(0);
+  expect(JSON.parse(office.out)).toMatchObject({ ok: true, format: 'svg', forOffice: true });
+  expect(JSON.parse(office.out).notes).toContain(NOTES.office);
+  expect(readFileSync(join(folder, 'talk-S04.2a.svg'), 'utf8')).not.toContain('radialGradient');
 });
 
 // Saving goes through a download: the browser's own save dialog (File System Access) cannot be driven.
@@ -239,5 +301,40 @@ test.describe('in the Studio', () => {
     await expect(notes).toContainText('Glows and soft shadows are SVG filters');
     await expect(notes).toContainText('SVG mask');
     review('studio-export-svg.png', new Uint8Array(await page.screenshot()));
+  });
+
+  test('the Export tab draws a step for PowerPoint and Word, and says what that changes', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.goto('/?example');
+    await page.getByRole('tab', { name: 'Export' }).click();
+    const card = page.locator('.mantine-Card-root', {
+      has: page.getByRole('heading', { name: 'Pictures (PNG or SVG)' }),
+    });
+    const office = card.getByRole('switch', { name: /^For PowerPoint and Word/ });
+    await expect(office).toHaveCount(0);
+    await card.getByLabel(/^SVG: a drawing/).check();
+    await expect(card.getByText(/Convert to Shape keeps/)).toBeVisible();
+    await office.check();
+    await choose(page, card.getByRole('combobox', { name: 'Step' }), 'S04.2a · Conflict → energy prices');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      card.getByRole('button', { name: 'Export SVG…' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe(`${STEM}-S04.2a.svg`);
+    const svg = readFileSync((await download.path()) as string, 'utf8');
+    const [cli] = await pictures({
+      format: 'svg',
+      target: { kind: 'step', step: 'S04.2a' },
+      scale: 1,
+      categoryWords: false,
+      office: true,
+    });
+    expect(svg).toBe(decoder.decode((cli as FileEvent).bytes));
+    expect(svg).not.toContain('radialGradient');
+    const notes = card.getByRole('alert').filter({ hasText: 'To know about this drawing' });
+    await expect(notes).toContainText('In Word, keep it as a picture');
+    review('studio-export-svg-office.png', new Uint8Array(await page.screenshot()));
   });
 });

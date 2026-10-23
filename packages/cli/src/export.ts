@@ -52,6 +52,8 @@ export interface ExportCommandOptions {
   trim?: boolean;
   scale?: string;
   categoryWords?: boolean;
+  /** svg: a drawing for PowerPoint and Word (glows as rings of flat colour, which Convert to Shape keeps). */
+  forOffice?: boolean;
   mp4?: boolean;
   webm?: boolean;
   gif?: boolean;
@@ -96,6 +98,8 @@ export async function exportCommand(
   const format = chosen[0] as (typeof FORMATS)[number];
   if (format !== 'pdf' && o.paper !== undefined)
     throw new OpError('--paper is for the PDFs (--pdf).', 'usage');
+  if (format !== 'svg' && o.forOffice !== undefined)
+    throw new OpError('--for-office is for drawings (--svg); a PNG is pixels already.', 'usage');
   if (format === 'mp4' || format === 'webm' || format === 'gif') return videoExport(file, o, format, report);
   for (const option of VIDEO_OPTIONS) {
     if (o[option] !== undefined)
@@ -192,6 +196,7 @@ async function pictureExport(
     target,
     scale: scaleOf(o.scale),
     categoryWords: o.categoryWords === true,
+    ...(o.forOffice ? { office: true } : {}),
   };
   checkPictureJob(job);
   const project = loadProject(file);
@@ -262,7 +267,7 @@ async function pictureExport(
       ...(target.kind === 'map' ? { trim: target.trim === true } : {}),
       files: written,
       bytes: total,
-      ...(format === 'svg' ? { notes: [...notes] } : {}),
+      ...(format === 'svg' ? { forOffice: job.office === true, notes: [...notes] } : {}),
     },
   };
 }

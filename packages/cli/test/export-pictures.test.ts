@@ -51,6 +51,8 @@ describe('loopweft export --png and --svg', () => {
     ],
     [['--svg', '--step', 'S04.2a', '--trim'], '--trim is for the whole map (--map).'],
     [['--svg'], 'Choose what to draw: --step <step> (e.g. S04.2a), --all-steps, or --map (the whole map).'],
+    [['--png', '--map', '--for-office'], '--for-office is for drawings (--svg); a PNG is pixels already.'],
+    [['--html', '--for-office'], '--for-office is for drawings (--svg); a PNG is pixels already.'],
   ])('%j is refused before any drawing', async (options, message) => {
     const result = await run('export', project, ...options);
     expect(result.code).toBe(2);

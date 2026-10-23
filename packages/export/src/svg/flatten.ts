@@ -18,10 +18,12 @@ import {
   parseLength,
   parseShadows,
   type Shadow,
+  type Stop,
   splitTop,
 } from './css.ts';
 import { selectFontFaces } from './fonts.ts';
-import { type Attrs, Defs, escapeText, num, tag } from './writer.ts';
+import { fadeEnd, gradientRings, type Ring } from './rings.ts';
+import { type Attrs, Defs, escapeText, fadeShapes, num, tag } from './writer.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -32,6 +34,12 @@ export interface SvgOptions {
   styles: string;
   /** The drawing's title, e.g. the project's title and the step's key. */
   title: string;
+  /**
+   * For PowerPoint and Word: no radial gradients, which their Convert to Shape turns into solid discs, and no
+   * group opacity, which it drops. Glows are drawn as rings of flat see-through colour instead (shading that
+   * cannot be is left out, and noted), and a group's opacity is put on each of its shapes.
+   */
+  office?: boolean;
 }
 
 export interface SvgDrawing {
@@ -47,6 +55,10 @@ export const NOTES = {
     'Glows and soft shadows are SVG filters: browsers and Inkscape draw them; PowerPoint and Word leave them out.',
   masks:
     'The soft top and bottom edges of the backdrop behind a column of cards are an SVG mask, which PowerPoint and Word leave out (the backdrop then ends sharply).',
+  office:
+    'Made for PowerPoint and Word: its glows are rings of flat see-through colour, and each faded part carries its own opacity, which PowerPoint’s Convert to Shape keeps. In Word, keep it as a picture: Word’s Convert to Shape breaks the text, whatever the drawing.',
+  shading:
+    'Round shading that does not fade out to clear, such as the darkened edges of the stage’s backdrop, is left out (PowerPoint and Word would make it a solid shape): the backdrop shows its plain colour there.',
 } as const;
 
 interface Rect {
@@ -124,12 +136,15 @@ class Flattener {
   readonly #ids = new Map<string, string>();
   /** Backdrops already painted with their stacking context: the element and which of its two. */
   readonly #painted = new Map<Element, Set<string>>();
+  /** For PowerPoint and Word: radial gradients drawn as rings, or left out. */
+  readonly #office: boolean;
 
-  constructor(viewport: Element) {
+  constructor(viewport: Element, office = false) {
     const r = viewport.getBoundingClientRect();
     this.#origin = { x: r.left, y: r.top };
     this.#view = viewport.ownerDocument.defaultView as Window;
     this.#doc = viewport.ownerDocument;
+    this.#office = office;
   }
 
   rectOf(el: Element): Rect {
@@ -139,6 +154,17 @@ class Flattener {
 
   #style(el: Element, pseudo?: string): CSSStyleDeclaration {
     return this.#view.getComputedStyle(el, pseudo);
+  }
+
+  /**
+   * A group for PowerPoint and Word, with `attrs` (a transform, a filter): its opacity is put on each shape in
+   * it, as their Convert to Shape keeps a shape's opacity but drops a group's.
+   */
+  #faded(opacity: number, body: string, attrs: Attrs = {}): string {
+    const inner = fadeShapes(body, opacity);
+    return Object.values(attrs).some((v) => v !== null && v !== undefined && v !== '')
+      ? tag('g', attrs, inner)
+      : inner;
   }
 
   /** Something the drawing could not carry across exactly. */
@@ -190,6 +216,7 @@ class Flattener {
     if (s.overflowX !== 'visible' || s.overflowY !== 'visible')
       body = this.#clip(body, this.#paddingBox(s, rect), this.#radii(s, rect));
     const filter = this.#filter(s.filter, rect);
+    if (this.#office) return this.#faded(opacity, body, { filter });
     const attrs: Attrs = { opacity: opacity < 1 ? opacity : null, filter };
     return attrs.opacity !== null || filter ? tag('g', attrs, body) : body;
   }
@@ -270,6 +297,7 @@ class Flattener {
     let body = this.#box(el, p, rect);
     if (p.maskImage && p.maskImage !== 'none') body = this.#mask(body, p.maskImage, rect);
     const opacity = visibleOpacity(p);
+    if (this.#office) return this.#faded(opacity, body);
     return opacity < 1 ? tag('g', { opacity }, body) : body;
   }
 
@@ -334,11 +362,45 @@ class Flattener {
           this.approximate(`a background (${layer.slice(0, 60)}), left out`);
           continue;
         }
+        if (gradient.kind === 'radial' && this.#office) {
+          out.push(this.#boxRings(gradient, rect, radii));
+          continue;
+        }
         out.push(tag('path', { d: roundedPath(rect, radii), fill: `url(#${this.#gradient(gradient)})` }));
       }
     }
     out.push(this.#border(s, rect, radii));
     return out.join('');
+  }
+
+  /**
+   * A box's radial gradient for PowerPoint and Word: rings, cut to the box where they reach past it, if it fades
+   * out to clear (a glow, the backdrop behind a statement); left out if it does not (the stage's darkened edges).
+   */
+  #boxRings(g: Gradient & { kind: 'radial' }, rect: Rect, radii: Radii): string {
+    const end = fadeEnd(g.stops);
+    if (end === null) {
+      this.notes.add(NOTES.shading);
+      return '';
+    }
+    const { rings, exact } = gradientRings(g.stops, end);
+    if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
+    const body = rings.map((ring) => this.#ring(g.cx, g.cy, g.rx * ring.r, g.ry * ring.r, ring)).join('');
+    const reach = { x: g.rx * end, y: g.ry * end };
+    const inside =
+      g.cx - reach.x >= rect.x &&
+      g.cx + reach.x <= rect.x + rect.w &&
+      g.cy - reach.y >= rect.y &&
+      g.cy + reach.y <= rect.y + rect.h;
+    return body && !inside ? this.#clip(body, rect, radii) : body;
+  }
+
+  /** One ring: a circle, or an ellipse where its radii differ, of flat colour. */
+  #ring(cx: number, cy: number, rx: number, ry: number, ring: Ring): string {
+    const fill: Attrs = { fill: ring.hex, 'fill-opacity': ring.opacity < 1 ? String(ring.opacity) : null };
+    return Math.abs(rx - ry) < 0.005
+      ? tag('circle', { cx, cy, r: rx, ...fill })
+      : tag('ellipse', { cx, cy, rx, ry, ...fill });
   }
 
   #boxShadow(shadow: Shadow, rect: Rect, radii: Radii): string {
@@ -486,7 +548,7 @@ class Flattener {
   /** A CSS mask-image (a gradient) over a box: SVG masks by brightness, so the mask's white fades out. */
   #mask(body: string, maskImage: string, rect: Rect): string {
     const gradient = parseGradient(maskImage, rect.x, rect.y, rect.w, rect.h);
-    if (!gradient) {
+    if (!gradient || (gradient.kind === 'radial' && this.#office)) {
       this.approximate(`a mask (${maskImage.slice(0, 60)}), left out`);
       return body;
     }
@@ -768,6 +830,7 @@ class Flattener {
     if (radii.some((r) => r > 0)) picture = this.#clip(picture, rect, radii);
     out.push(picture);
     const body = out.join('');
+    if (this.#office) return this.#faded(opacity, body);
     return opacity < 1 ? tag('g', { opacity }, body) : body;
   }
 
@@ -781,8 +844,9 @@ class Flattener {
     const rect = this.rectOf(svg);
     if (rect.w === 0 || rect.h === 0) return '';
     const viewBox = svg.getAttribute('viewBox');
-    const inner = [...svg.childNodes].map((n) => this.svgNode(n)).join('');
+    let inner = [...svg.childNodes].map((n) => this.svgNode(n)).join('');
     if (!inner) return '';
+    if (this.#office) inner = fadeShapes(inner, opacity);
     const drawn = tag(
       'svg',
       {
@@ -798,7 +862,7 @@ class Flattener {
           : null,
         preserveAspectRatio: svg.getAttribute('preserveAspectRatio'),
         overflow: s.overflowX === 'visible' ? 'visible' : null,
-        opacity: opacity < 1 ? opacity : null,
+        opacity: opacity < 1 && !this.#office ? opacity : null,
       },
       inner,
     );
@@ -862,6 +926,8 @@ class Flattener {
     if (name === 'svg') {
       this.approximate('an SVG nested in an SVG, drawn as a group');
     }
+    const radial = this.#office && SHAPES.has(name) ? this.#radialFill(s.fill) : null;
+    if (radial) return this.#shapeRings(el, s, attrs, radial, opacity);
     if (SHAPES.has(name)) {
       Object.assign(attrs, this.#svgPaint(s.fill, 'fill'), this.#svgPaint(s.stroke, 'stroke'));
       if (s.fillRule === 'evenodd') attrs['fill-rule'] = 'evenodd';
@@ -897,6 +963,10 @@ class Flattener {
     const filter = this.#filter(s.filter, null, { x: -100000, y: -100000, w: 200000, h: 200000 });
     if (filter) attrs.filter = filter;
     const children = [...el.childNodes].map((n) => this.svgNode(n)).join('');
+    if ((name === 'g' || name === 'svg') && this.#office) {
+      const { opacity: _, ...rest } = attrs;
+      return children ? this.#faded(opacity, children, rest) : '';
+    }
     if (name === 'g' || name === 'svg') return children ? tag('g', attrs, children) : '';
     if (!KNOWN.has(name)) {
       this.approximate(`an SVG ${name}, left out`);
@@ -905,11 +975,82 @@ class Flattener {
     return tag(name, attrs, children || undefined);
   }
 
+  /** The radialGradient a fill refers to, if it does. */
+  #radialFill(fill: string): Element | null {
+    const ref = /^url\("?#([^")]+)"?\)/.exec(fill);
+    const def = ref ? this.#doc.getElementById(ref[1] as string) : null;
+    return def?.localName === 'radialGradient' ? def : null;
+  }
+
+  /** A gradient's stops as the page computes them (their colour may come from the stylesheet). */
+  #svgStops(def: Element): Stop[] {
+    return [...def.children]
+      .filter((c) => c.localName === 'stop')
+      .map((stop) => {
+        const st = this.#style(stop);
+        const colour = parseColour(st.stopColor) ?? { hex: '#000000', alpha: 1 };
+        const at = stop.getAttribute('offset') ?? '0';
+        const offset = at.endsWith('%') ? Number(at.slice(0, -1)) / 100 : Number(at);
+        return {
+          offset: Math.max(0, Math.min(1, offset || 0)),
+          colour: { hex: colour.hex, alpha: colour.alpha * Number(st.stopOpacity) },
+        };
+      });
+  }
+
+  /**
+   * A circle or ellipse filled with a radial gradient (a halo, a group's glow), for PowerPoint and Word: rings of
+   * flat colour, in a group with the shape's own transform, opacity and filter.
+   */
+  #shapeRings(el: SVGElement, s: CSSStyleDeclaration, attrs: Attrs, def: Element, opacity: number): string {
+    const name = el.localName;
+    const n = (a: string) =>
+      typeof attrs[a] === 'number' ? (attrs[a] as number) : attrs[a] ? Number.NaN : 0;
+    const cx = n('cx');
+    const cy = n('cy');
+    const rx = name === 'circle' ? n('r') : n('rx');
+    const ry = name === 'circle' ? n('r') : n('ry');
+    if ((name !== 'circle' && name !== 'ellipse') || [cx, cy, rx, ry].some(Number.isNaN)) {
+      this.approximate(`an SVG ${name} filled with a radial gradient, left out`);
+      return '';
+    }
+    const placed = ['cx', 'cy', 'r', 'fx', 'fy'].some((a) => {
+      const v = def.getAttribute(a);
+      return v !== null && v !== '50%';
+    });
+    if (
+      placed ||
+      def.hasAttribute('gradientTransform') ||
+      (def.getAttribute('gradientUnits') ?? 'objectBoundingBox') !== 'objectBoundingBox'
+    )
+      this.approximate('a radial gradient placed off its shape’s centre, drawn as rings about the centre');
+    const stops = this.#svgStops(def);
+    if (stops.length === 0) return '';
+    const { rings, exact } = gradientRings(stops, Math.min(1, fadeEnd(stops) ?? 1), Number(s.fillOpacity));
+    if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
+    const body = rings.map((ring) => this.#ring(cx, cy, rx * ring.r, ry * ring.r, ring)).join('');
+    const outline =
+      s.stroke !== 'none'
+        ? tag(name, {
+            ...Object.fromEntries(Object.entries(attrs).filter(([a]) => a !== 'transform')),
+            fill: 'none',
+            ...this.#svgPaint(s.stroke, 'stroke'),
+            'stroke-width': parseLength(s.strokeWidth, 0) ?? s.strokeWidth,
+          })
+        : '';
+    const filter = this.#filter(s.filter, null, { x: -100000, y: -100000, w: 200000, h: 200000 });
+    const drawn = body + outline;
+    if (!drawn) return '';
+    return this.#faded(opacity, drawn, { transform: attrs.transform, filter });
+  }
+
   /** The gradients a copied SVG defines, with their colours written out and their ids renamed. */
   #svgDefs(defs: SVGElement): string {
     const out: string[] = [];
     for (const def of defs.children) {
       const name = def.localName;
+      // For PowerPoint and Word, the shapes they fill are drawn as rings instead.
+      if (name === 'radialGradient' && this.#office) continue;
       if (name !== 'radialGradient' && name !== 'linearGradient') {
         this.approximate(`an SVG ${name} definition, left out`);
         continue;
@@ -1022,8 +1163,9 @@ function filterPrimitives(parts: FilterPart[], scale = 1): string {
 
 /** The stage (a `.lw-viewport` laid out by the page) as an SVG drawing. */
 export function drawSvg(viewport: Element, options: SvgOptions): SvgDrawing {
-  const flattener = new Flattener(viewport);
+  const flattener = new Flattener(viewport, options.office === true);
   const body = flattener.html(viewport);
+  if (options.office) flattener.notes.add(NOTES.office);
   const crop = options.crop ?? { x: 0, y: 0, w: STAGE_SIZE.w, h: STAGE_SIZE.h };
   const faces = selectFontFaces(options.styles, flattener.chars);
   const style = faces ? `<style>${escapeText(faces)}</style>` : '';
@@ -1039,7 +1181,7 @@ export function drawSvg(viewport: Element, options: SvgOptions): SvgDrawing {
     tag('g', { 'clip-path': 'url(#stage)' }, body),
     '</svg>\n',
   ].join('');
-  const order = [NOTES.text, NOTES.filters, NOTES.masks];
+  const order = [NOTES.text, NOTES.filters, NOTES.masks, NOTES.office, NOTES.shading];
   const notes = [...flattener.notes].sort((a, b) => {
     const ia = order.indexOf(a as (typeof order)[number]);
     const ib = order.indexOf(b as (typeof order)[number]);

@@ -128,6 +128,8 @@ it as `note:` lines and in `--json` as `notes`. What it can say:
   out. The map then has no glow, and labels lose the soft dark edge that keeps them clear of the links.
 - **The soft top and bottom edges of the backdrop behind a column of cards are an SVG mask**, which PowerPoint
   and Word leave out; there the backdrop ends sharply.
+- **Made for PowerPoint and Word** and **Round shading that does not fade out to clear … is left out**: only in
+  a drawing made for PowerPoint and Word (below).
 - **Drawn approximately: …** names anything the drawing could not carry across exactly, and what it did
   instead. The example has none. A project whose stage shows something Loopweft's own stylesheet never makes
   (another kind of gradient, a turned box) would be told here.
@@ -138,6 +140,32 @@ order. Another system's browser can lay a line of text out a fraction of a pixel
 there may differ in a few numbers (of the example's drawings checked on GitHub's machines, Windows and Linux
 gave the same file for some and not for others). It names
 Loopweft only in its properties (`<metadata>`), and its title is the project's title and the step's key.
+
+### For PowerPoint and Word
+
+PowerPoint and Word draw an SVG well as a picture. Both can also turn it into their own shapes (select it, then
+**Graphics Format › Convert to Shape**), so that each piece can be moved and recoloured there. That conversion
+keeps flat shapes, see-through colour, straight gradients and, in PowerPoint, the text. It does not keep round
+(radial) gradients, which become solid shapes, nor the opacity of a group (tested in Microsoft 365, October
+2026).
+
+- **In PowerPoint**, Convert to Shape ruins the plain drawing: the stage's backdrop becomes a flat bright colour,
+  each variable's halo and each group's glow a solid disc, and the faded part of the map comes back at full
+  strength. Make the drawing **For PowerPoint and Word** instead (a switch under SVG in the Studio, `--for-office`
+  on the command line), and Convert to Shape keeps it: its glows are rings of flat see-through colour (ten for
+  each, matching the glow at the middle of each ring), each faded part carries its own opacity, and the darkened
+  edges of the stage's backdrop, which rings cannot draw, are left out (the backdrop is its plain colour there).
+  As a picture, it looks as the plain drawing does but for those edges.
+- **In Word, keep the drawing as a picture.** Word's Convert to Shape breaks the text whatever the drawing: in a
+  drawing the size of a slide, the text keeps its full size while the shapes shrink to the page, so lines wrap
+  and pile up; in one the size of the page, the text lands in place but is drawn dark, under the background.
+
+```bash
+loopweft export talk.loopweft --svg --step S04.2a --for-office
+```
+
+Its notes say so. The fonts note holds here too: without Inter and Fraunces installed, PowerPoint sets the text in
+other fonts once converted, so a label may run a little wider than its place.
 
 ## The slides (PDF)
 

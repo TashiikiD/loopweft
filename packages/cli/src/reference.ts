@@ -139,6 +139,7 @@ const EXAMPLES: Record<string, Example[]> = {
     { args: ['export', PROJECT, '--pdf', 'references', '--paper', 'a4'] },
     { args: ['export', PROJECT, '--png', '--step', 'S1.2'], run: false, note: DRAWN },
     { args: ['export', PROJECT, '--svg', '--map', '--trim'], run: false, note: DRAWN },
+    { args: ['export', PROJECT, '--svg', '--step', 'S1.2', '--for-office'], run: false, note: DRAWN },
     { args: ['export', PROJECT, '--mp4', '--scene', 'Growth'], run: false, note: DRAWN },
   ],
   'var list': [{ args: ['var', 'list', PROJECT] }],

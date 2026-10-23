@@ -52,6 +52,7 @@ export {
   TRIM_MARGIN,
 } from './pictures.ts';
 export { ExportStage, loadFonts } from './stage.ts';
+export { NOTES as SVG_NOTES } from './svg/flatten.ts';
 export { videoSupport } from './video/encode.ts';
 export { changedRect, GIF_FPS, GIF_HEAD, GIF_SIZE, GIF_WARNING_BYTES, GifWriter } from './video/gif.ts';
 export { Mp4Writer } from './video/mp4.ts';

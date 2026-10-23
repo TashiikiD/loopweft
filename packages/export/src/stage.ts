@@ -150,10 +150,15 @@ export class ExportStage {
     return drawFrame(this.story.stage.viewport, this.#styles, { scale, ...(crop ? { crop } : {}) });
   }
 
-  /** The stage as it is now, as an SVG drawing. */
-  svg(title: string, crop?: Box): SvgDrawing {
+  /** The stage as it is now, as an SVG drawing (for PowerPoint and Word if `office`). */
+  svg(title: string, crop?: Box, office = false): SvgDrawing {
     this.#styles ??= documentStyles(this.#host.ownerDocument);
-    return drawSvg(this.story.stage.viewport, { styles: this.#styles, title, ...(crop ? { crop } : {}) });
+    return drawSvg(this.story.stage.viewport, {
+      styles: this.#styles,
+      title,
+      ...(crop ? { crop } : {}),
+      ...(office ? { office } : {}),
+    });
   }
 
   dispose(): void {

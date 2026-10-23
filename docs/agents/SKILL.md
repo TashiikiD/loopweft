@@ -315,8 +315,9 @@ loopweft export garden.loopweft --html
 `--html` writes one HTML file that opens by double-click, offline: a start page, the slides and the presenter
 console. `--no-notes` leaves the speaker notes out. Other exports: `--pdf notes|references` (no browser needed);
 `--png`, `--svg`, `--pdf slides`, `--mp4`, `--webm` and `--gif`, which are drawn in the Chrome or Edge on the
-computer and take longer (a whole-story video takes minutes). An export never writes over a file unless you add
-`--force`. Exports change nothing in the map.
+computer and take longer (a whole-story video takes minutes). For a drawing someone will edit in PowerPoint
+(Convert to Shape), add `--for-office` to `--svg`. An export never writes over a file unless you add `--force`.
+Exports change nothing in the map.
 
 ## The report
 

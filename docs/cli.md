@@ -734,6 +734,7 @@ loopweft export <file> [options]
 | `--trim` | Png, svg --map: only the map and a margin, not the whole 16:9 stage. |
 | `--scale <n>` | Png: 1 (1920 × 1080, the default) or 2 (3840 × 2160, for print and posters). |
 | `--category-words` | Png, svg, pdf slides, mp4, webm, gif: name each shown variable's category in words, as the C key does. |
+| `--for-office` | Svg: for PowerPoint and Word: glows drawn as rings of flat colour and faded parts given their own opacity, which PowerPoint's Convert to Shape keeps; the backdrop's darkened edges left out. |
 | `--force` | Replace the output file (or files in the folder) if it exists. |
 
 ```console
@@ -794,6 +795,12 @@ Drawn in Chrome or Edge, so not run for this page: see [exporting](export.md).
 
 ```console
 $ loopweft export pop.loopweft --svg --map --trim
+```
+
+Drawn in Chrome or Edge, so not run for this page: see [exporting](export.md).
+
+```console
+$ loopweft export pop.loopweft --svg --step S1.2 --for-office
 ```
 
 Drawn in Chrome or Edge, so not run for this page: see [exporting](export.md).

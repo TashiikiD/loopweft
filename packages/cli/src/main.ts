@@ -272,6 +272,10 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
       '--category-words',
       "png, svg, pdf slides, mp4, webm, gif: name each shown variable's category in words, as the C key does",
     )
+    .option(
+      '--for-office',
+      "svg: for PowerPoint and Word: glows drawn as rings of flat colour and faded parts given their own opacity, which PowerPoint's Convert to Shape keeps; the backdrop's darkened edges left out",
+    )
     .option('--force', 'replace the output file (or files in the folder) if it exists')
     .action((file: string, o) => run(() => exportCommand(file, o, { progress: progressLine(io) }))());
 

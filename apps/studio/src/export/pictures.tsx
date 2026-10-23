@@ -22,6 +22,7 @@ import {
   Radio,
   Select,
   Stack,
+  Switch,
   Text,
   Title,
 } from '@mantine/core';
@@ -84,6 +85,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
   const [scale, setScale] = useState<'1' | '2'>('1');
   const [trim, setTrim] = useState(false);
   const [categoryWords, setCategoryWords] = useState(false);
+  const [office, setOffice] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; key?: string } | null>(null);
   const [made, setMade] = useState<Made | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
       target: target(),
       scale: format === 'png' && scale === '2' ? 2 : 1,
       categoryWords,
+      ...(format === 'svg' && office ? { office: true } : {}),
     };
     let pictures: ReturnType<typeof picturesFor>;
     try {
@@ -242,6 +245,15 @@ export function PicturesCard({ engine }: PicturesCardProps) {
             onChange={(e) => setTrim(e.currentTarget.checked)}
             label="Trim to the map"
             description="Only the map and a margin, not the whole 16:9 screen."
+            disabled={busy}
+          />
+        )}
+        {format === 'svg' && (
+          <Switch
+            checked={office}
+            onChange={(e) => setOffice(e.currentTarget.checked)}
+            label="For PowerPoint and Word"
+            description="Glows drawn as rings of flat colour and faded parts given their own opacity, which PowerPoint’s Convert to Shape keeps; the backdrop’s darkened edges are left out."
             disabled={busy}
           />
         )}

@@ -203,7 +203,7 @@ export class ExportEngine {
         let notes: string[] | undefined;
         if (job.format === 'svg') {
           const what = picture.kind === 'map' ? 'the whole map' : picture.key;
-          const drawing = stage.svg(`${project.meta.title} · ${what}`, crop);
+          const drawing = stage.svg(`${project.meta.title} · ${what}`, crop, job.office === true);
           bytes = new TextEncoder().encode(drawing.svg);
           width = Math.round(crop?.w ?? 1920);
           height = Math.round(crop?.h ?? 1080);
