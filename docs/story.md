@@ -33,8 +33,9 @@ On top of the levels a step can mark:
   way, and where opposing pushes arrive together the variable is ± and the spread stops. On a step that lights
   no links it follows the whole map's links instead (leaving out optional types, as the ripple does) and
   lights the start, what it reaches and the links it crosses, so the marks show. It says which it did, and
-  why when it reaches nothing. Pushes that come back the other way later (round a balancing loop) are named,
-  because the story check will flag them;
+  why when it reaches nothing. Pushes that come back the other way later (round a balancing loop) are named:
+  the story check flags those on lit links, so on the whole map, where the spread lights only the links it
+  crosses, it says which are not lit (light them with Show to have them checked);
 - **loop badges** (R or B, worked out from the signs) and **loop names** beside them. A name needs its
   badge: showing a name shows the badge, hiding the badge hides the name;
 - **pulses**: glows that travel along links, hop after hop (each hop leaves when the one before arrives),

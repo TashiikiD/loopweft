@@ -307,8 +307,14 @@ describe('what a step shows', () => {
     expect(map.variables).toEqual({ base: 'normal', focus: ['deaths', 'population', 'births'] });
     expect(map.links).toEqual({ base: 'dim', focus: ['L4', 'L2'] });
     expect(out.summary).toBe(
-      'Step S1.1: deaths ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, deaths and the 2 links it crossed. L3 would push the other way later, so the story check will flag it.',
+      'Step S1.1: deaths ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, deaths and the 2 links it crossed. L3 would push the other way later; it is not lit, so the story check flags it only once lit with Show (Focus or Active).',
     );
+    // As said: L3, not lit, is not flagged; lit, it is.
+    expect(warnings(out.project, 'trendContradictsSign')).toEqual([]);
+    const lit = setStepLevel(out.project, 'S1.1', 'links', ['L3'], 'focus').project;
+    expect(warnings(lit, 'trendContradictsSign')).toEqual([
+      'Step S1.1: deaths is marked up, but L3 (+) from population (down) implies down.',
+    ]);
   });
 
   it('says why a spread reaches nothing: no lit link leaves the start, or only links it cannot cross', () => {

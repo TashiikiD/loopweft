@@ -346,9 +346,20 @@ export function spreadTrend(
   }
   const reached = spread.reached.length;
   const mark = `${start} ${direction === 'up' ? '▲' : '▼'}`;
-  const note = against.length
-    ? ` ${listing(against)} would push the other way later, so the story check will flag ${against.length === 1 ? 'it' : 'them'}.`
-    : '';
+  // The story check reads only lit links: those it will flag, and those it can flag only once they are lit
+  // (on the whole map, the spread lights the links it crosses, not the later pushes the other way).
+  const litAfter = along === 'lit' ? lit : new Set(crossed);
+  const againstLit = against.filter((id) => litAfter.has(id));
+  const againstUnlit = against.filter((id) => !litAfter.has(id));
+  const them = (ids: string[]) => (ids.length === 1 ? 'it' : 'them');
+  const note = [
+    againstLit.length
+      ? ` ${listing(againstLit)} would push the other way later, so the story check will flag ${them(againstLit)}.`
+      : '',
+    againstUnlit.length
+      ? ` ${listing(againstUnlit)} would push the other way later; ${againstUnlit.length === 1 ? 'it is' : 'they are'} not lit, so the story check flags ${them(againstUnlit)} only once lit with Show (Focus or Active).`
+      : '',
+  ].join('');
   let said: string;
   if (along === 'lit')
     said = reached

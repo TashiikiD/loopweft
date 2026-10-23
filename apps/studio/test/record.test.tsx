@@ -125,7 +125,7 @@ describe('the record view', () => {
     });
     expect(
       await screen.findByText(
-        'Step S1.1: births ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, births and the 2 links it crossed. L4 would push the other way later, so the story check will flag it.',
+        'Step S1.1: births ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, births and the 2 links it crossed. L4 would push the other way later; it is not lit, so the story check flags it only once lit with Show (Focus or Active).',
       ),
     ).toBeTruthy();
   });
