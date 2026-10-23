@@ -115,6 +115,54 @@ export function alignment(graph: Graph, ids: readonly string[], how: Alignment):
   return rounded(moves);
 }
 
+/** What each Line up button lines the variables up to, in the words its tooltip and its messages use. */
+export const LINE_UP: Record<Alignment, string> = {
+  left: 'on the left-most one',
+  centre: 'half way between the left-most and the right-most one',
+  right: 'on the right-most one',
+  top: 'on the top one',
+  middle: 'half way between the top and the bottom one',
+  bottom: 'on the bottom one',
+  across: 'spaced evenly from the left-most to the right-most one',
+  down: 'spaced evenly from the top to the bottom one',
+};
+
+/**
+ * What a Line up press does: the moves, or why it does nothing. A press that would put two variables on one
+ * spot (one drawn over the other, as Left then Top does to two variables) is refused, with the two named; a
+ * press that would move nothing says they are lined up already.
+ */
+export function lineUp(
+  graph: Graph,
+  ids: readonly string[],
+  how: Alignment,
+): { moves: Moves } | { refused: string } {
+  const moves = alignment(graph, ids, how);
+  const at = (id: string) => moves[id] ?? (graph.nodes.get(id) as GraphNode);
+  const moved = Object.keys(moves).filter((id) => {
+    const n = graph.nodes.get(id) as GraphNode;
+    const to = moves[id] as { x: number; y: number };
+    return Math.round(n.x) !== to.x || Math.round(n.y) !== to.y;
+  });
+  if (moved.length === 0) return { refused: `They are lined up ${LINE_UP[how]} already.` };
+  const nodes = ids.map((id) => graph.nodes.get(id)).filter((n): n is GraphNode => n !== undefined);
+  for (const [i, a] of nodes.entries()) {
+    for (const b of nodes.slice(i + 1)) {
+      const touch = a.r + b.r;
+      const before = Math.hypot(a.x - b.x, a.y - b.y);
+      const after = Math.hypot(at(a.id).x - at(b.id).x, at(a.id).y - at(b.id).y);
+      if (after < touch && before >= touch) {
+        const name = (n: GraphNode) => `“${n.label.replace(/\n/g, ' ')}”`;
+        const line = how === 'left' || how === 'centre' || how === 'right' ? 'a row' : 'a column';
+        return {
+          refused: `Lining them up ${LINE_UP[how]} would put ${name(a)} and ${name(b)} on one spot, one hidden under the other: they are in ${line} already. Move one of them first.`,
+        };
+      }
+    }
+  }
+  return { moves };
+}
+
 /** What removing a selection would also take with it: named loops, and story steps that mention it. */
 export function removalImpact(project: Project, variables: readonly string[], links: readonly string[]) {
   const variableSet = new Set(variables);

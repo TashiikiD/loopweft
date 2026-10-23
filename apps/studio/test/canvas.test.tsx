@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
 import {
   alignment,
+  lineUp,
   pinWhereDrawn,
   placeVariable,
   previewMove,
@@ -79,6 +80,26 @@ describe('the canvas helpers', () => {
       b: { x: 600, y: 360 },
     });
     expect(alignment(graph, ['a'], 'left')).toEqual({});
+  });
+
+  it('never lines two variables up on one spot, and says when a press would change nothing', () => {
+    const p = three();
+    // Left lines a and b up on a's x: one above the other.
+    const left = lineUp(buildGraph(p), ['a', 'b'], 'left');
+    expect(left).toEqual({ moves: { a: { x: 200, y: 300 }, b: { x: 200, y: 360 } } });
+    p.layout.positions.b = { x: 200, y: 360 };
+    // Left again changes nothing, and says so.
+    expect(lineUp(buildGraph(p), ['a', 'b'], 'left')).toEqual({
+      refused: 'They are lined up on the left-most one already.',
+    });
+    // Top would put b on a: refused, with both named.
+    expect(lineUp(buildGraph(p), ['a', 'b'], 'top')).toEqual({
+      refused:
+        'Lining them up on the top one would put “A” and “B” on one spot, one hidden under the other: they are in a column already. Move one of them first.',
+    });
+    // Two already on one spot (placed so by hand) do not stop a press that moves them.
+    p.layout.positions.b = { x: 200, y: 300 };
+    expect('moves' in lineUp(buildGraph(p), ['a', 'b', 'c'], 'top')).toBe(true);
   });
 
   it('pins what an automatic layout placed where the canvas draws it', () => {
@@ -263,6 +284,27 @@ describe('editing on the canvas', () => {
     act(() => store.getState().select({ variables: ['a', 'b', 'c'] }));
     await userEvent.setup().click(screen.getByRole('button', { name: 'Top' }));
     expect(Object.values(store.getState().project.layout.positions).map((p) => p.y)).toEqual([280, 280, 280]);
+  });
+
+  it('says why a Line up press does nothing, and never stacks two variables', async () => {
+    const { store } = setup();
+    const user = userEvent.setup();
+    act(() => store.getState().select({ variables: ['a', 'b'] }));
+    await user.click(screen.getByRole('button', { name: 'Left' }));
+    const lined = store.getState().project.layout.positions;
+    expect([lined.a?.x, lined.b?.x]).toEqual([200, 200]);
+    // Top would put one on the other: refused, and the Undo history keeps only the Left.
+    const steps = store.getState().past.length;
+    await user.click(screen.getByRole('button', { name: 'Top' }));
+    expect(screen.getByText(/would put “A” and “B” on one spot/).getAttribute('role')).toBe('status');
+    expect(store.getState().project.layout.positions).toEqual(lined);
+    expect(store.getState().past.length).toBe(steps);
+    // Left again: lined up already.
+    await user.click(screen.getByRole('button', { name: 'Left' }));
+    expect(screen.getByText('They are lined up on the left-most one already.')).toBeTruthy();
+    // Each button says what it lines up to.
+    await user.hover(screen.getByRole('button', { name: 'Right' }));
+    expect(await screen.findByText('Line them up on the right-most one')).toBeTruthy();
   });
 
   it('frames the home view from the canvas', async () => {

@@ -32,13 +32,14 @@ import {
   Switch,
   Text,
   Title,
+  Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 import { CitationsEditor, CiteForm } from '../sources/citations.tsx';
 import { useGraph } from './canvas.tsx';
-import { type Alignment, alignment, pinWhereDrawn } from './edit.ts';
+import { type Alignment, LINE_UP, lineUp, pinWhereDrawn } from './edit.ts';
 import { ChoiceInput, CommitText, FieldInput, NumberValue } from './inputs.tsx';
 
 const fieldsFor = (project: Project, carrier: 'variables' | 'links') =>
@@ -453,10 +454,25 @@ function SeveralInspector({ variables, links }: { variables: string[]; links: st
   const project = useStudio((s) => s.project);
   const graph = useGraph(project);
   const edit = useEdit();
+  // Why the last press did nothing, if it did nothing; cleared when the selection changes.
+  const [refused, setRefused] = useState<{ for: string; text: string } | null>(null);
+  const selected = variables.join(' ');
   const align = (how: Alignment) => {
-    const moves = alignment(graph, variables, how);
-    if (Object.keys(moves).length) edit((p) => moveVariables(p, moves));
+    const out = lineUp(graph, variables, how);
+    if ('refused' in out) {
+      setRefused({ for: selected, text: out.refused });
+      return;
+    }
+    setRefused(null);
+    edit((p) => moveVariables(p, out.moves));
   };
+  const lineButton = (how: Alignment, label: string) => (
+    <Tooltip key={how} label={`Line them up ${LINE_UP[how]}`} multiline maw={260}>
+      <Button size="compact-xs" variant="default" onClick={() => align(how)}>
+        {label}
+      </Button>
+    </Tooltip>
+  );
   const allPinned = variables.every((id) => project.layout.positions[id]?.pinned);
   return (
     <Stack gap="sm">
@@ -471,21 +487,18 @@ function SeveralInspector({ variables, links }: { variables: string[]; links: st
         <>
           <Divider label="Line up" labelPosition="left" />
           <SimpleGrid cols={3} spacing={6}>
-            {ALIGN.map(({ how, label }) => (
-              <Button key={how} size="compact-xs" variant="default" onClick={() => align(how)}>
-                {label}
-              </Button>
-            ))}
+            {ALIGN.map(({ how, label }) => lineButton(how, label))}
           </SimpleGrid>
           {variables.length >= 3 && (
             <Group grow gap={6}>
-              <Button size="compact-xs" variant="default" onClick={() => align('across')}>
-                Space evenly across
-              </Button>
-              <Button size="compact-xs" variant="default" onClick={() => align('down')}>
-                Space evenly down
-              </Button>
+              {lineButton('across', 'Space evenly across')}
+              {lineButton('down', 'Space evenly down')}
             </Group>
+          )}
+          {refused?.for === selected && (
+            <Text size="xs" c="yellow.7" role="status">
+              {refused.text}
+            </Text>
           )}
         </>
       )}
