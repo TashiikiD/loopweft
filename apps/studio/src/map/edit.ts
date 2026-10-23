@@ -14,7 +14,7 @@ import {
   setPinned,
   stepsMentioning,
 } from '@loopweft/model';
-import type { Graph, GraphEdge, GraphNode } from '@loopweft/render';
+import { type Graph, type GraphEdge, type GraphNode, glyphExtent } from '@loopweft/render';
 
 export type Moves = Record<string, { x: number; y: number }>;
 
@@ -146,12 +146,25 @@ export function lineUp(
   });
   if (moved.length === 0) return { refused: `They are lined up ${LINE_UP[how]} already.` };
   const nodes = ids.map((id) => graph.nodes.get(id)).filter((n): n is GraphNode => n !== undefined);
+  // Whether two glyphs, drawn as the canvas draws them (each shape's own reach), overlap with their centres here.
+  const overlap = (
+    a: GraphNode,
+    pa: { x: number; y: number },
+    b: GraphNode,
+    pb: { x: number; y: number },
+  ) => {
+    const ea = glyphExtent(a.shape, a.r);
+    const eb = glyphExtent(b.shape, b.r);
+    return (
+      pa.x - ea.left < pb.x + eb.right &&
+      pb.x - eb.left < pa.x + ea.right &&
+      pa.y - ea.up < pb.y + eb.down &&
+      pb.y - eb.up < pa.y + ea.down
+    );
+  };
   for (const [i, a] of nodes.entries()) {
     for (const b of nodes.slice(i + 1)) {
-      const touch = a.r + b.r;
-      const before = Math.hypot(a.x - b.x, a.y - b.y);
-      const after = Math.hypot(at(a.id).x - at(b.id).x, at(a.id).y - at(b.id).y);
-      if (after < touch && before >= touch) {
+      if (overlap(a, at(a.id), b, at(b.id)) && !overlap(a, a, b, b)) {
         const name = (n: GraphNode) => `“${n.label.replace(/\n/g, ' ')}”`;
         const line = how === 'left' || how === 'centre' || how === 'right' ? 'a row' : 'a column';
         return {

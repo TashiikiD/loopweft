@@ -8,6 +8,7 @@ import {
   cardIcon,
   categoryColours,
   DRAW,
+  glyphExtent,
   moveNode,
   namedLoops,
   resolveMap,
@@ -302,6 +303,44 @@ describe('glyphs and themes', () => {
     }
     expect(shapeGlyph('ring', 13).map((p) => p.attrs.class)).toEqual(['node-ring', 'node-dot']);
     expect(String(shapeGlyph('octagon', 11)[0]?.attrs.points).split(' ')).toHaveLength(8);
+  });
+
+  it('knows how far each glyph reaches, as drawn', () => {
+    for (const shape of [
+      'circle',
+      'ring',
+      'square',
+      'rounded-square',
+      'octagon',
+      'diamond',
+      'triangle',
+      'hexagon',
+    ] as const) {
+      // The drawn glyph's bounds, read from its own description.
+      const part = shapeGlyph(shape, 11)[0] as { tag: string; attrs: Record<string, string | number> };
+      let xs: number[];
+      let ys: number[];
+      if (part.tag === 'polygon') {
+        const pts = String(part.attrs.points)
+          .split(' ')
+          .map((p) => p.split(',').map(Number) as [number, number]);
+        xs = pts.map((p) => p[0]);
+        ys = pts.map((p) => p[1]);
+      } else if (part.tag === 'rect') {
+        const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((k) => Number(part.attrs[k]));
+        xs = [x as number, (x as number) + (w as number)];
+        ys = [y as number, (y as number) + (h as number)];
+      } else {
+        const r = Number(part.attrs.r);
+        xs = [-r, r];
+        ys = [-r, r];
+      }
+      const e = glyphExtent(shape, 11);
+      expect(-Math.min(...xs), shape).toBeCloseTo(e.left, 1);
+      expect(Math.max(...xs), shape).toBeCloseTo(e.right, 1);
+      expect(-Math.min(...ys), shape).toBeCloseTo(e.up, 1);
+      expect(Math.max(...ys), shape).toBeCloseTo(e.down, 1);
+    }
   });
 
   it('colours categories that name none from the palette, in order', () => {

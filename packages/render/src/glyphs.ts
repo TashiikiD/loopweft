@@ -59,6 +59,42 @@ export function shapeGlyph(shape: Shape, r: number): GlyphPart[] {
   }
 }
 
+/**
+ * How far a variable's glyph reaches from its centre (`shapeGlyph`'s drawing, at radius `r`): left and right,
+ * up and down, so that whether two glyphs overlap can be told as the canvas draws them.
+ */
+export function glyphExtent(
+  shape: Shape,
+  r: number,
+): { left: number; right: number; up: number; down: number } {
+  const around = (sides: number, R: number, start: number) => {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i < sides; i++) {
+      const a = start + (i * 2 * Math.PI) / sides;
+      xs.push(R * Math.cos(a));
+      ys.push(R * Math.sin(a));
+    }
+    return { left: -Math.min(...xs), right: Math.max(...xs), up: -Math.min(...ys), down: Math.max(...ys) };
+  };
+  const even = (e: number) => ({ left: e, right: e, up: e, down: e });
+  switch (shape) {
+    case 'rounded-square':
+    case 'square':
+      return even(r * 0.9);
+    case 'octagon':
+      return around(8, r * 1.24, Math.PI / 8);
+    case 'diamond':
+      return around(4, r * 1.3, -Math.PI / 2);
+    case 'triangle':
+      return around(3, r * 1.42, -Math.PI / 2);
+    case 'hexagon':
+      return around(6, r * 1.16, -Math.PI / 2);
+    default:
+      return even(r);
+  }
+}
+
 /** ▲, ▼ and ± badges beside a variable. */
 export const TREND_GLYPH: Record<Trend, string> = {
   up: 'M0 -4.5L4.5 3H-4.5Z',

@@ -38,7 +38,7 @@ export {
   type VisionCheck,
 } from './colour/cvd.ts';
 export { glyph, h, svg, typeset } from './dom.ts';
-export { FLAG_MARK, type GlyphPart, LOOP_ARROW, shapeGlyph, TREND_GLYPH } from './glyphs.ts';
+export { FLAG_MARK, type GlyphPart, glyphExtent, LOOP_ARROW, shapeGlyph, TREND_GLYPH } from './glyphs.ts';
 export {
   buildGraph,
   type Graph,

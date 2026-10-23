@@ -102,6 +102,25 @@ describe('the canvas helpers', () => {
     expect('moves' in lineUp(buildGraph(p), ['a', 'b', 'c'], 'top')).toBe(true);
   });
 
+  it('tells overlap by each glyph’s own shape, as the canvas draws it', () => {
+    const shaped = (shape: 'octagon' | 'square', dx: number) => {
+      const p = three();
+      p.types.roles = [{ id: 'r', name: 'R', shape }];
+      for (const v of p.variables) v.role = 'r';
+      p.layout.positions = { a: { x: 0, y: 0 }, b: { x: dx, y: 100 }, c: { x: 2000, y: 2000 } };
+      return buildGraph(p);
+    };
+    const r = buildGraph(three()).nodes.get('a')?.r as number;
+    // Octagons reach past the radius (by a fifth or so): side by side within that, Top would overlap them.
+    expect(lineUp(shaped('octagon', 2 * r + 2), ['a', 'b'], 'top')).toMatchObject({
+      refused: expect.stringContaining('on one spot'),
+    });
+    // Squares stay within it: side by side just over their width apart, Top leaves them clear.
+    expect(lineUp(shaped('square', 2 * r - 2), ['a', 'b'], 'top')).toMatchObject({
+      moves: expect.any(Object),
+    });
+  });
+
   it('pins what an automatic layout placed where the canvas draws it', () => {
     const p = three();
     delete p.layout.positions.c;
