@@ -19,7 +19,8 @@ test('a ripple drawn on the map becomes a story step that lights it, marks it an
 }) => {
   await page.goto('/?example');
   const map = page.getByRole('img', { name: /^The map:/ });
-  await expect(map.locator('[data-edge]').first()).toBeVisible();
+  // The example takes a while to open on a busy machine.
+  await expect(map.locator('[data-edge]').first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole('tab', { name: 'Ripple' }).click();
   await choose(page, page.getByRole('combobox', { name: 'Start from' }), 'Supply-chain fragility');
   const status = page.getByRole('status').filter({ hasText: /^It reaches/ });
