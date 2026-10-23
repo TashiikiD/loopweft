@@ -17,6 +17,10 @@ import {
 } from '../src/index.ts';
 import { example, exampleText, MemoryStorage } from './helpers.ts';
 
+// The windows talk through real messages: on a busy machine an answer can take longer than vi.waitFor's
+// default second, so a wait gives them up to ten.
+const PATIENCE = { timeout: 10_000 };
+
 const project = example();
 const SHOW = presentationId(exampleText());
 
@@ -180,7 +184,7 @@ describe('the audience window', () => {
     // A console joins, keeps the clock (a minute in, scene 03 entered at 1:00) and moves the show there.
     const presenter = new Link('presenter', SHOW, browserHost(window));
     presenter.start();
-    await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(true));
+    await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(true), PATIENCE);
     const scene = audience.deck.scenes[3]?.id as string;
     store.save('clock', { running: false, startedAt: null, accumulatedMs: 60_000 });
     store.save('sceneEntry', { sceneId: scene, atMs: 60_000 });
@@ -189,10 +193,10 @@ describe('the audience window', () => {
       state: { ...initialShowState(Date.now() + 1000, { s: 3, b: 0 }), writer: presenter.id },
       reason: 'update',
     });
-    await vi.waitFor(() => expect(location.hash).toBe('#S03.1'));
+    await vi.waitFor(() => expect(location.hash).toBe('#S03.1'), PATIENCE);
     // The console closes; this window steps on and opens its notes.
     presenter.stop();
-    await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(false));
+    await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(false), PATIENCE);
     key('ArrowRight');
     expect(store.load('sceneEntry')).toEqual({ sceneId: scene, atMs: 60_000 });
     key('n');
@@ -277,19 +281,19 @@ describe('the audience window', () => {
         }
         const { host, audience } = open(true, storage);
         presenter ??= startTheConsole();
-        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(true));
+        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(true), PATIENCE);
         if (!late) {
           button('Next ▶').click();
           button('▶ Start clock').click();
           now += 2000;
           // Scene 02 comes up at 0:02 on the console's clock.
           for (let i = 0; i < 4; i++) button('Next ▶').click();
-          await vi.waitFor(() => expect(location.hash).toBe('#S02.1'));
+          await vi.waitFor(() => expect(location.hash).toBe('#S02.1'), PATIENCE);
         }
         now += 1000;
         await settle();
         presenter.dispose();
-        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(false));
+        await vi.waitFor(() => expect(audience.session?.link.alive('presenter')).toBe(false), PATIENCE);
         // A step on in this window, then its notes: the console's clock, and its scene's start.
         key('ArrowRight');
         key('n');
