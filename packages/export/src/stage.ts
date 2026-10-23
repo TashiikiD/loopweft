@@ -145,8 +145,14 @@ export class ExportStage {
   }
 
   /** The stage as it is now, drawn onto a canvas. */
-  frame(scale: number, crop?: Box): Promise<HTMLCanvasElement> {
+  async frame(scale: number, crop?: Box): Promise<HTMLCanvasElement> {
     this.#styles ??= documentStyles(this.#host.ownerDocument);
+    // TEMPORARY diagnostic: wait for the page to paint the stage first.
+    const wait = Number(new URLSearchParams(location.search).get('wait') || 0);
+    if (wait > 0) {
+      for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => setTimeout(r, wait));
+    }
     return drawFrame(this.story.stage.viewport, this.#styles, { scale, ...(crop ? { crop } : {}) });
   }
 
