@@ -3,7 +3,10 @@
 // review. It has the guide (`loopweft guide`) and the command line, and nothing else of Loopweft: it runs outside
 // the repository, with no memory or settings of earlier sessions.
 //
-//   node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--out review/phase7/run1]
+//   node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--map <name>.loopweft]
+//     [--out review/phase7/run1]
+//
+// --map names the map file the instructions give the agent (the Phase 7 brief's road-lanes.loopweft by default).
 //
 // - Claude Code runs as `claude -p` with only `loopweft` commands, and reading and writing files in its folder,
 //   allowed (no web, no other shell commands, no user settings, plugins or MCP servers).
@@ -42,7 +45,7 @@ const option = (name: string) => {
 const agent = option('agent');
 if (agent !== 'claude' && agent !== 'codex' && agent !== 'agy') {
   process.stderr.write(
-    'Usage: node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--out <folder>]\n',
+    'Usage: node tools/agent-dry-run.ts --agent claude|codex|agy [--model <model>] [--brief <file>] [--map <name>.loopweft] [--out <folder>]\n',
   );
   process.exit(2);
 }
@@ -51,7 +54,11 @@ if (agent !== 'claude' && agent !== 'codex' && agent !== 'agy') {
 const BRIEF = `Use the Fixes that fail archetype. Our city keeps adding lanes to its main roads to ease traffic congestion. Congestion eases for a while, but the extra road space draws more people to drive, and after a few years the roads are as congested as before. Make a map of this with about 5 to 8 variables, and a short presentation of 3 to 5 steps: the whole map, each loop, and a closing step. Export it as one HTML file. I have no sources for this yet.`;
 
 const brief = option('brief') ? readFileSync(resolve(option('brief') as string), 'utf8').trim() : BRIEF;
-const MAP = 'road-lanes.loopweft';
+const MAP = option('map') ?? 'road-lanes.loopweft';
+if (!/^[^\\/]+\.loopweft$/.test(MAP)) {
+  process.stderr.write('--map is a file name ending in .loopweft, without a folder.\n');
+  process.exit(2);
+}
 /** The agent's model; left out, its own default. */
 const model = option('model');
 const prompt = `${starterText(MAP, false)}${brief}\n`;
