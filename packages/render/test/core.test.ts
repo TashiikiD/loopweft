@@ -75,10 +75,13 @@ describe('the drawable graph', () => {
 });
 
 describe('named loops', () => {
-  it('reads R or B from the signs, and shows the archetype’s short name', () => {
+  it('reads R or B from the signs, and keeps the loop’s name and its archetype apart', () => {
     expect([...loops.values()].filter((l) => l.type === 'B').map((l) => l.id)).toEqual(['B1', 'B2']);
-    expect(loops.get('R9')).toMatchObject({ type: 'R', shortName: 'Crisis Deferral' });
-    expect(loops.get('R1')?.shortName).toBe('Food insecurity and livelihoods');
+    expect(loops.get('R9')).toMatchObject({
+      type: 'R',
+      name: 'Crisis deferral',
+      archetype: 'Crisis Deferral (Policy Resistance)',
+    });
     const r1 = loops.get('R1');
     const [a, b] = (r1?.nodes ?? []).map((id) => graph.nodes.get(id));
     expect(r1?.at).toEqual({ x: ((a?.x ?? 0) + (b?.x ?? 0)) / 2, y: ((a?.y ?? 0) + (b?.y ?? 0)) / 2 });

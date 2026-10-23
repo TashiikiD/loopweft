@@ -12,9 +12,8 @@ export interface NamedLoop {
   links: string[];
   /** Each link's cause, in loop order. */
   nodes: string[];
+  /** The system archetype it follows, if the project says: in the badge's tooltip, not on the stage. */
   archetype?: string;
-  /** What shows beside the badge: the archetype's short name (before any bracket), else the loop's name. */
-  shortName: string;
   /** Where the badge sits: the middle of its variables (null when none of them is drawn). */
   at: { x: number; y: number } | null;
 }
@@ -45,7 +44,6 @@ export function namedLoops(project: Project, graph: Graph): Map<string, NamedLoo
       links: [...loop.links],
       nodes,
       ...(loop.archetype ? { archetype: loop.archetype } : {}),
-      shortName: (loop.archetype ?? loop.name).replace(/\s*\(.*\)\s*$/, ''),
       at,
     });
   }

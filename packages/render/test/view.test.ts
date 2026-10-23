@@ -201,6 +201,21 @@ describe('the map view', () => {
     expect(opacity(badge)).toBe(1);
   });
 
+  it('names a loop by its own name beside its badge; its archetype is in the badge’s tooltip', () => {
+    const { host } = mapView();
+    // R10 and R14 follow one archetype; their names tell them apart.
+    const names = [...host.querySelectorAll('.map-loop-name')].map((el) => el.textContent);
+    expect(names).toContain('Deepening divides');
+    expect(names).toContain('Divides erode cooperation');
+    expect(names).not.toContain('Deepening Divides');
+    expect(q(host, '.loop-badge[data-id="R10"] > title')?.textContent).toBe(
+      'R10: Deepening divides (Deepening Divides (Success to the Successful))',
+    );
+    expect(q(host, '.loop-badge[data-id="R1"] > title')?.textContent).toBe(
+      'R1: Food insecurity and livelihoods',
+    );
+  });
+
   it('keeps soft pulses wandering a held step, and stops them on the next step', () => {
     const { clock, view } = mapView();
     view.apply(stepAt(project, 'S00.1').map, 'instant');

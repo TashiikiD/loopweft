@@ -298,13 +298,17 @@ export class MapView {
         svg('path', { d: LOOP_ARROW.head, class: 'loop-head' }),
         text,
       );
-      g.appendChild(body);
+      // Its id, name and archetype, for whoever points at it.
+      const tip = svg('title');
+      tip.textContent = `${loop.id}: ${loop.name}${loop.archetype ? ` (${loop.archetype})` : ''}`;
+      g.append(tip, body);
       badgeLayer.appendChild(g);
       this.#badges.set(loop.id, { g, body, arc, at: loop.at });
 
+      // The loop's own name, not its archetype: two loops of one archetype must not read alike.
       const name = hidden(document.createElement('div'));
       name.className = `map-loop-name loop-${loop.type === '?' ? 'unknown' : loop.type}`;
-      name.textContent = loop.shortName;
+      name.textContent = loop.name;
       this.#labelLayer.appendChild(name);
       this.#loopNames.set(loop.id, name);
     }
