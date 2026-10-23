@@ -52,7 +52,8 @@ export class BrowserExporter {
     try {
       chrome = await Chrome.launch(executable);
       const page = await ChromePage.open(chrome);
-      await page.goto(pathToFileURL(file).href);
+      // TEMPORARY diagnostic: LW_FRAME_WAIT (ms) holds each frame back until the page has painted.
+      await page.goto(`${pathToFileURL(file).href}?wait=${process.env.LW_FRAME_WAIT ?? ''}`);
       return new BrowserExporter(chrome, page, folder);
     } catch (error) {
       await chrome?.close();

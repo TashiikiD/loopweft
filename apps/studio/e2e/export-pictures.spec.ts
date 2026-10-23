@@ -206,6 +206,25 @@ test('loopweft export --png: a step, every step into a new folder, and the whole
     scale: 1,
     categoryWords: false,
   });
+  // TEMPORARY diagnostic: both pictures' fingerprints every time, and both pictures when they differ.
+  {
+    const { createHash } = await import('node:crypto');
+    const fp = (b: Uint8Array) => createHash('sha256').update(b).digest('hex').slice(0, 16);
+    console.log(
+      `S05.6b fingerprints (${process.platform}): cli ${fp(readFileSync(join(folder, 'talk-S05.6b.png')))}, direct ${fp((direct as FileEvent).bytes)}, all-steps ${fp(readFileSync(join(folder, 'talk-steps', 'S05.6b.png')))}`,
+    );
+  }
+
+  if (!readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))) {
+    const n = Date.now();
+    review(`mismatch-${n}-cli.png`, new Uint8Array(readFileSync(join(folder, 'talk-S05.6b.png'))));
+    review(`mismatch-${n}-direct.png`, (direct as FileEvent).bytes);
+    review(
+      `mismatch-${n}-all-steps.png`,
+      new Uint8Array(readFileSync(join(folder, 'talk-steps', 'S05.6b.png'))),
+    );
+    console.log(`MISMATCH ${n}`);
+  }
   expect(readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))).toBe(
     true,
   );
