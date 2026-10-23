@@ -518,7 +518,8 @@ function Trends({
         ))}
       </Group>
       <Text size="xs" c="dimmed">
-        The Spread tool marks trends for you: it follows the signs of the lit links.
+        The Spread tool marks trends for you: it follows the signs of the lit links, or of the whole map when
+        the step lights none. The Map’s Ripple panel makes a whole step from a ripple.
       </Text>
     </Stack>
   );

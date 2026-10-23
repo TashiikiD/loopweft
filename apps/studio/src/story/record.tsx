@@ -2,7 +2,8 @@
 // stage; a click on a variable or a link applies it to the step, as one undoable edit:
 // - Show: put it at a level (hidden … active) or back to the step's base level;
 // - Trend: ▲, ▼ or ± on a variable, or none;
-// - Spread: a what-if ▲/▼ from a variable, spread by sign along the lit links;
+// - Spread: a what-if ▲/▼ from a variable, spread by sign along the lit links, or the whole map's when the
+//   step lights none (lighting what it reaches); it says which, and why when it reaches nothing;
 // - Pulse: each link clicked is the next hop (Shift adds it to the last hop);
 // - Frame: a variable clicked joins (or leaves) what the camera frames.
 // While a tool is on, hidden variables and links are drawn as dashed outlines so they can be clicked too. Every
@@ -26,6 +27,7 @@ import {
 } from '@loopweft/model';
 import { resolveMap, type StoryView } from '@loopweft/render';
 import { Group, SegmentedControl, Text } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEdit } from '../context.tsx';
@@ -56,7 +58,8 @@ const HINTS: Record<Tool, string> = {
   look: 'Choose a tool, then click variables and links on the stage.',
   show: 'Click variables and links to put them at this level (Base: back to the step’s base level).',
   trend: 'Click variables to mark them.',
-  spread: 'Click a variable: it rises (or falls), and the change spreads by sign along the lit links.',
+  spread:
+    'Click a variable: it rises (or falls), and the change spreads by sign along the lit links (Focus or Active), or the whole map’s if none is lit, lighting what it reaches.',
   pulse: 'Click links in the order the pulse travels; Shift-click adds a link to the last hop.',
   frame: 'Click variables to add them to, or take them from, what the camera frames.',
 };
@@ -212,7 +215,9 @@ export function RecordLayer({
   });
   const pick = (kind: 'variable' | 'link', id: string, shift: boolean) => {
     const run = pickEdit(brush, stepKey, map, { kind, id, shift });
-    if (run) edit(run);
+    const out = run ? edit(run) : null;
+    // Spread says what it followed and what it reached, or why it reached nothing.
+    if (out && brush.tool === 'spread') notifications.show({ message: out.summary, autoClose: 10000 });
   };
   // From the keyboard: Tab reaches each target, Enter or Space applies the tool (Shift as with a click).
   const press = (event: React.KeyboardEvent, kind: 'variable' | 'link', id: string) => {

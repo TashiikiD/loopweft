@@ -668,6 +668,11 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     command
       .option('--map <json>', 'replace the whole map state with this JSON object (applied first)')
       .option('--map-file <file>', 'read that JSON from a file')
+      .option(
+        '--ripple <variable=up|down>',
+        'show what if it rises or falls: it and what the change reaches lit, the rest faded, ▲/▼/± marks and pulses hop by hop (applied after --map; a new step also shows the scene’s caption if its other steps do)',
+      )
+      .option('--ripple-optional', 'let --ripple follow links of optional types too')
       .option('--hide-map', 'hide the whole map')
       .option('--show-map', 'show the map again')
       .option('--opacity <n>', 'the map’s opacity, 0 to 1')
@@ -684,7 +689,10 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
       .option('--down <variables>', 'mark ▼ falling')
       .option('--mixed <variables>', 'mark ± where opposing influences meet')
       .option('--clear-trend <variables>', 'take their trends away')
-      .option('--spread <variable=up|down>', 'mark a rise or fall and spread it by sign along the lit links')
+      .option(
+        '--spread <variable=up|down>',
+        'mark a rise or fall and spread it by sign along the lit links (Focus or Active); on a step that lights none, along the whole map, lighting what it reaches',
+      )
       .option('--badge <loops>', 'show these loops’ R/B badges')
       .option('--name <loops>', 'show these loops’ names (and badges)')
       .option('--hide-name <loops>', 'hide these loops’ names')

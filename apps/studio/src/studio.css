@@ -326,6 +326,47 @@ body {
   stroke-dasharray: 4 3;
 }
 
+/* A ripple drawn by the Map's Ripple panel: what it reaches and crosses lit and marked, the rest faded. */
+.lw-canvas svg.rippling .lw-node:not(.lit),
+.lw-canvas svg.rippling .lw-edge:not(.lit),
+.lw-canvas svg.rippling .lw-label:not(.lit) {
+  opacity: 0.22;
+}
+
+.lw-edge.lit .line {
+  stroke-width: 3.5;
+  opacity: 1;
+}
+
+.lw-trend circle {
+  fill: var(--lw-ink);
+  stroke-width: 2;
+}
+
+.lw-trend.up circle {
+  stroke: var(--lw-harm);
+}
+
+.lw-trend.up path {
+  fill: var(--lw-harm);
+}
+
+.lw-trend.down circle {
+  stroke: var(--lw-relief);
+}
+
+.lw-trend.down path {
+  fill: var(--lw-relief);
+}
+
+.lw-trend.mixed circle {
+  stroke: var(--lw-mixed);
+}
+
+.lw-trend.mixed path {
+  fill: var(--lw-mixed);
+}
+
 .lw-node .pin {
   fill: var(--lw-glow);
   stroke: var(--lw-ink);

@@ -28,10 +28,13 @@ element at a level takes it off any other list; putting it "back to the base" ta
 On top of the levels a step can mark:
 
 - **trends**: ▲ up, ▼ down or ± mixed on variables. *Spread by sign* sets them for you: choose a variable
-  and a direction, and the change spreads along the links the step lights, as the ripple spreads it
-  ([loops and ripples](analysis.md#ripples)): a + link carries it the same way, a − link the other way, and
-  where opposing pushes arrive together the variable is ± and the spread stops. Pushes that come back the
-  other way later (round a balancing loop) are named, because the story check will flag them;
+  and a direction, and the change spreads along the links the step lights (at Focus or Active), as the ripple
+  spreads it ([loops and ripples](analysis.md#ripples)): a + link carries it the same way, a − link the other
+  way, and where opposing pushes arrive together the variable is ± and the spread stops. On a step that lights
+  no links it follows the whole map's links instead (leaving out optional types, as the ripple does) and
+  lights the start, what it reaches and the links it crosses, so the marks show. It says which it did, and
+  why when it reaches nothing. Pushes that come back the other way later (round a balancing loop) are named,
+  because the story check will flag them;
 - **loop badges** (R or B, worked out from the signs) and **loop names** beside them. A name needs its
   badge: showing a name shows the badge, hiding the badge hides the name;
 - **pulses**: glows that travel along links, hop after hop (each hop leaves when the one before arrives),
@@ -83,7 +86,8 @@ Every edit is one of `@loopweft/model`'s operations, the same in the Studio and 
 |---|---|
 | `addScene`, `setScene`, `removeScene`, `moveScene` | Scenes |
 | `addStep`, `setStep`, `removeStep`, `moveStep`, `copyStep` | Steps |
-| `setStepLevel`, `setStepBase`, `setStepTrend`, `spreadTrend`, `setStepLoops`, `addPulseHop`, `pulseRoundLoop`, `setStepMap` | What a step's map shows |
+| `setStepLevel`, `setStepBase`, `setStepTrend`, `spreadTrend`, `setStepRipple`, `setStepLoops`, `addPulseHop`, `pulseRoundLoop`, `setStepMap` | What a step's map shows |
+| `addRippleStep` | A new step that shows a ripple |
 | `addOverlay`, `setOverlay`, `removeOverlay`, `moveOverlay` | A step's overlays (counted from 0) |
 | `addAsset`, `setAsset`, `removeAsset` | Embedded images |
 
@@ -97,7 +101,8 @@ the audience will see it, drawn by the same renderer as the audience window) and
   marks a step or scene the checks flag. As with an image's last overlay, removing steps also removes the
   images no other step shows (undo brings them back).
 - **Record view:** choose a tool above the stage and click variables and links: *Show* puts them at a level
-  or back to the base, *Trend* marks ▲ ▼ ±, *Spread* marks a what-if by sign along the lit links, *Pulse*
+  or back to the base, *Trend* marks ▲ ▼ ±, *Spread* marks a what-if by sign along the lit links (or the
+  whole map's, on a step that lights none), *Pulse*
   adds hops in the order clicked (Shift adds to the last hop), *Frame* chooses what the camera frames. While
   a tool is on, hidden things show as dashed outlines so they can be clicked back. From the keyboard, Tab
   reaches what the tool applies to on the stage (links for Pulse, variables for Trend, Spread and Frame, both

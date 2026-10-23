@@ -2892,6 +2892,8 @@ loopweft story step add <file> <scene> --label <label> [options]
 | `--last` | Make it the last step. |
 | `--map <json>` | Replace the whole map state with this JSON object (applied first). |
 | `--map-file <file>` | Read that JSON from a file. |
+| `--ripple <variable=up\|down>` | Show what if it rises or falls: it and what the change reaches lit, the rest faded, ▲/▼/± marks and pulses hop by hop (applied after --map; a new step also shows the scene’s caption if its other steps do). |
+| `--ripple-optional` | Let --ripple follow links of optional types too. |
 | `--hide-map` | Hide the whole map. |
 | `--show-map` | Show the map again. |
 | `--opacity <n>` | The map’s opacity, 0 to 1. |
@@ -2908,7 +2910,7 @@ loopweft story step add <file> <scene> --label <label> [options]
 | `--down <variables>` | Mark ▼ falling. |
 | `--mixed <variables>` | Mark ± where opposing influences meet. |
 | `--clear-trend <variables>` | Take their trends away. |
-| `--spread <variable=up\|down>` | Mark a rise or fall and spread it by sign along the lit links. |
+| `--spread <variable=up\|down>` | Mark a rise or fall and spread it by sign along the lit links (Focus or Active); on a step that lights none, along the whole map, lighting what it reaches. |
 | `--badge <loops>` | Show these loops’ R/B badges. |
 | `--name <loops>` | Show these loops’ names (and badges). |
 | `--hide-name <loops>` | Hide these loops’ names. |
@@ -2986,6 +2988,44 @@ With `--json`:
 }
 ```
 
+```console
+$ loopweft story step add pop.loopweft S1 --label 'If births rise' --ripple Births=up
+Added step S1.3 ("If births rise"), step 3 of 3 in scene S1.
+Step S1.3: the ripple of births ▲: 2 variables lit and marked (2 ▲), pulses along 2 links in 2 hops, the rest faded. It shows the scene's caption.
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "summary": "Added step S1.3 (\"If births rise\"), step 3 of 3 in scene S1. Step S1.3: the ripple of births ▲: 2 variables lit and marked (2 ▲), pulses along 2 links in 2 hops, the rest faded. It shows the scene's caption.",
+  "result": [
+    {
+      "key": "S1.3",
+      "id": "3",
+      "index": 2
+    },
+    {
+      "key": "S1.3",
+      "reached": [
+        "population",
+        "deaths"
+      ],
+      "links": [
+        "L1",
+        "L3"
+      ],
+      "hops": 2
+    }
+  ],
+  "changed": true,
+  "saved": true,
+  "backup": "pop.loopweft.bak"
+}
+```
+
 ### `story step set`
 
 Change a step (S05.3): its label, timing and cue, and what its map shows.
@@ -3002,6 +3042,8 @@ loopweft story step set <file> <step> [options]
 | `--clear <fields...>` | Clear these: at, cue. |
 | `--map <json>` | Replace the whole map state with this JSON object (applied first). |
 | `--map-file <file>` | Read that JSON from a file. |
+| `--ripple <variable=up\|down>` | Show what if it rises or falls: it and what the change reaches lit, the rest faded, ▲/▼/± marks and pulses hop by hop (applied after --map; a new step also shows the scene’s caption if its other steps do). |
+| `--ripple-optional` | Let --ripple follow links of optional types too. |
 | `--hide-map` | Hide the whole map. |
 | `--show-map` | Show the map again. |
 | `--opacity <n>` | The map’s opacity, 0 to 1. |
@@ -3018,7 +3060,7 @@ loopweft story step set <file> <step> [options]
 | `--down <variables>` | Mark ▼ falling. |
 | `--mixed <variables>` | Mark ± where opposing influences meet. |
 | `--clear-trend <variables>` | Take their trends away. |
-| `--spread <variable=up\|down>` | Mark a rise or fall and spread it by sign along the lit links. |
+| `--spread <variable=up\|down>` | Mark a rise or fall and spread it by sign along the lit links (Focus or Active); on a step that lights none, along the whole map, lighting what it reaches. |
 | `--badge <loops>` | Show these loops’ R/B badges. |
 | `--name <loops>` | Show these loops’ names (and badges). |
 | `--hide-name <loops>` | Hide these loops’ names. |
@@ -3071,6 +3113,39 @@ With `--json`:
       "cue"
     ]
   },
+  "changed": true,
+  "saved": true,
+  "backup": "pop.loopweft.bak"
+}
+```
+
+```console
+$ loopweft story step set pop.loopweft S1.2 --ripple Deaths=down
+Step S1.2: the ripple of deaths ▼: 2 variables lit and marked (2 ▲), pulses along 2 links in 2 hops, the rest faded.
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "summary": "Step S1.2: the ripple of deaths ▼: 2 variables lit and marked (2 ▲), pulses along 2 links in 2 hops, the rest faded.",
+  "result": [
+    null,
+    {
+      "key": "S1.2",
+      "reached": [
+        "population",
+        "births"
+      ],
+      "links": [
+        "L4",
+        "L2"
+      ],
+      "hops": 2
+    }
+  ],
   "changed": true,
   "saved": true,
   "backup": "pop.loopweft.bak"

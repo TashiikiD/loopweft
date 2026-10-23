@@ -1,7 +1,7 @@
 // What a step's map shows: the edits behind the Studio's record view and `loopweft story step set`. Each one
 // changes one step's map state and nothing else; the pure helpers (withLevel, withTrend…) are what they
 // share, so both front ends make the same state from the same request.
-import { ripple } from '../ripple.ts';
+import { type RippleDirection, type RippleOptions, type RippleResult, ripple } from '../ripple.ts';
 import {
   LEVELS,
   type Level,
@@ -10,11 +10,12 @@ import {
   MapStateSchema,
   type Project,
   type Scene,
+  type Step,
   type Trend,
 } from '../schema.ts';
 import { resolveLevels } from '../story.ts';
 import { findLoop } from './loops.ts';
-import { resolveStep } from './story.ts';
+import { addStep, resolveStep, type StepInput, setStep, type Where } from './story.ts';
 import {
   ensureValid,
   findLink,
@@ -290,24 +291,43 @@ export function pulseRoundLoop(
   );
 }
 
+/** Why a ripple from `start` over `project`'s links reached no other variable, in a few words. */
+function whyNoFurther(project: Project, start: string, spread: RippleResult, links: string): string {
+  const out = project.links.filter((l) => l.from === start && l.to !== start);
+  if (out.length === 0) return `no ${links} leaves ${start} for another variable`;
+  const unknown = out.filter((l) => spread.unknownLinks.includes(l.id)).map((l) => l.id);
+  const optional = out.filter((l) => spread.optionalLinks.includes(l.id)).map((l) => l.id);
+  const kinds = [
+    unknown.length ? `of unknown sign (${listing(unknown)}), which it does not cross` : '',
+    optional.length ? `of optional types (${listing(optional)}), left out` : '',
+  ].filter(Boolean);
+  return `the ${links}s that leave ${start} are ${kinds.join(', or ')}`;
+}
+
 /**
- * A what-if ▲/▼ on one step: the chosen variable rises (or falls), and the change spreads by sign along the
- * links the step lights, as the ripple spreads it (docs/analysis.md): a + link carries it the same way, a −
- * link the other way; where opposing pushes meet at once the variable is ± and the spread stops there. Every
- * variable it reaches is marked; other trends stay. Pushes that arrive later the other way (round a
- * balancing loop, including back into the start) are named, since the story check will flag them.
+ * A what-if ▲/▼ on one step: the chosen variable rises (or falls), and the change spreads by sign, as the
+ * ripple spreads it (docs/analysis.md): a + link carries it the same way, a − link the other way; where
+ * opposing pushes meet at once the variable is ± and the spread stops there. On a step that lights links
+ * (Focus or Active), it follows those; on a step that lights none, it follows the whole map's links (leaving
+ * out optional types, as the ripple does) and lights the start, what it reaches and the links it crosses, so
+ * the marks show. Every variable it reaches is marked; other trends stay. The summary says which links it
+ * followed, and why when it reaches nothing. Pushes that arrive later the other way (round a balancing loop,
+ * including back into the start) are named, since the story check will flag them.
  */
 export function spreadTrend(
   project: Project,
   ref: string,
   variableRef: string,
   direction: 'up' | 'down',
-): OpOutput<{ key: string; trends: Record<string, Trend>; against: string[] }> {
+): OpOutput<{ key: string; trends: Record<string, Trend>; against: string[]; along: 'lit' | 'map' }> {
   const { step, key } = resolveStep(project, ref);
   const start = resolveVariable(project, variableRef).variable.id;
-  const lit = new Set(resolveLevels(project, step.map).litLinks);
-  const along: Project = { ...project, links: project.links.filter((l) => lit.has(l.id)) };
-  const spread = ripple(along, start, direction, { includeOptional: true });
+  const litLinks = resolveLevels(project, step.map).litLinks;
+  const along: 'lit' | 'map' = litLinks.length ? 'lit' : 'map';
+  const lit = new Set(litLinks);
+  const over: Project =
+    along === 'lit' ? { ...project, links: project.links.filter((l) => lit.has(l.id)) } : project;
+  const spread = ripple(over, start, direction, { includeOptional: along === 'lit' });
   const trends: Record<string, Trend> = { [start]: direction };
   for (const r of spread.reached) trends[r.variable] = r.trend;
   // Pushes the other way: later ones into variables reached, and feedback that brings the change back to the
@@ -318,16 +338,116 @@ export function spreadTrend(
       ...spread.feedback.filter((f) => f.trend !== direction).map((f) => f.link),
     ]),
   ];
-  const merged = { ...(step.map.trends ?? {}), ...trends };
-  const reached = Object.keys(trends).length - 1;
+  const changes: MapChanges = { trends: { ...(step.map.trends ?? {}), ...trends } };
+  const crossed = [...new Set(spread.hops.flat())];
+  if (along === 'map') {
+    changes.variables = withLevel(step.map.variables, Object.keys(trends), 'focus') ?? null;
+    if (crossed.length) changes.links = withLevel(step.map.links, crossed, 'focus') ?? null;
+  }
+  const reached = spread.reached.length;
+  const mark = `${start} ${direction === 'up' ? '▲' : '▼'}`;
   const note = against.length
     ? ` ${listing(against)} would push the other way later, so the story check will flag ${against.length === 1 ? 'it' : 'them'}.`
     : '';
-  const out = setStepMap(
+  let said: string;
+  if (along === 'lit')
+    said = reached
+      ? `${mark}, spread by sign along the lit links to ${plural(reached, 'variable')}.`
+      : `${mark}, but the spread along the lit links reaches no other variable: ${whyNoFurther(over, start, spread, 'lit link')}. Light the links it should follow with Show (Focus or Active), or spread on a step that lights none to follow the whole map.`;
+  else
+    said = reached
+      ? `${mark}; the step lit no links, so the spread followed the whole map by sign to ${plural(reached, 'variable')}, and lit them, ${start} and the ${plural(crossed.length, 'link')} it crossed.`
+      : `${mark}, lit; the step lit no links, so the spread followed the whole map, but reaches no other variable: ${whyNoFurther(over, start, spread, 'link')}.`;
+  const out = setStepMap(project, ref, changes, `Step ${key}: ${said}${note}`);
+  return { project: out.project, result: { key, trends, against, along }, summary: out.summary };
+}
+
+export interface RippleStepOptions extends RippleOptions {
+  /** Show the scene's caption, when the step shows none and another step of its scene does. */
+  caption?: boolean;
+}
+
+/**
+ * Makes a step show a ripple (docs/analysis.md): the start lit most (active), the variables the change reaches
+ * and the links it crosses lit (focus), the rest faded (variables dim, links ghost, as the example's steps
+ * fade them), ▲/▼/± on each, and pulses along it hop by hop, in order. It replaces what the step's map
+ * lights, its trends and its pulses; its camera, labels and the rest stay. It stops where the ripple stops: at
+ * a link of unknown sign, and where opposing pushes meet. Directions only, never amounts or timing.
+ */
+export function setStepRipple(
+  project: Project,
+  ref: string,
+  startRef: string,
+  direction: RippleDirection,
+  options: RippleStepOptions = {},
+): OpOutput<{ key: string; reached: string[]; links: string[]; hops: number }> {
+  const { scene, step, key } = resolveStep(project, ref);
+  const spread = ripple(project, startRef, direction, options);
+  const { start } = spread;
+  const reached = spread.reached.map((r) => r.variable);
+  const crossed = [...new Set(spread.hops.flat())];
+  const trends: Record<string, Trend> = { [start]: direction };
+  for (const r of spread.reached) trends[r.variable] = r.trend;
+  const count = (t: Trend) => spread.reached.filter((r) => r.trend === t).length;
+  const marks = (['up', 'down', 'mixed'] as const)
+    .filter((t) => count(t))
+    .map((t) => `${count(t)} ${t === 'up' ? '▲' : t === 'down' ? '▼' : '±'}`)
+    .join(', ');
+  const stops = [
+    spread.unknownLinks.length
+      ? `not crossed: ${plural(spread.unknownLinks.length, 'link')} of unknown sign (${listing(spread.unknownLinks)})`
+      : '',
+    spread.optionalLinks.length
+      ? `left out: ${plural(spread.optionalLinks.length, 'link')} of optional types (${listing(spread.optionalLinks)})`
+      : '',
+  ].filter(Boolean);
+  const arrow = direction === 'up' ? '▲' : '▼';
+  const said = reached.length
+    ? `the ripple of ${start} ${arrow}: ${plural(reached.length, 'variable')} lit and marked (${marks}), pulses along ${plural(crossed.length, 'link')} in ${plural(spread.hops.length, 'hop')}, the rest faded`
+    : `${start} ${arrow} lit, the rest faded; the change reaches no other variable`;
+  let out = setStepMap(
     project,
     ref,
-    { trends: merged },
-    `Step ${key}: ${start} ${direction === 'up' ? '▲' : '▼'}, spread by sign along the lit links to ${plural(reached, 'variable')}.${note}`,
+    {
+      variables: { base: 'dim', ...(reached.length ? { focus: reached } : {}), active: [start] },
+      links: { base: 'ghost', ...(crossed.length ? { focus: crossed } : {}) },
+      trends,
+      pulses: spread.hops.length ? { hops: spread.hops } : null,
+    },
+    `Step ${key}: ${said}${stops.length ? `; ${stops.join('; ')}` : ''}.`,
   );
-  return { project: out.project, result: { key, trends, against }, summary: out.summary };
+  const captioned = (s: Step) => s.overlays.some((o) => o.type === 'caption');
+  if (options.caption && !captioned(step) && scene.steps.some((s) => s.id !== step.id && captioned(s))) {
+    const shown = setStep(out.project, key, { overlays: [{ type: 'caption' }, ...step.overlays] });
+    out = { ...out, project: shown.project, summary: `${out.summary} It shows the scene's caption.` };
+  }
+  return {
+    project: out.project,
+    result: { key, reached, links: crossed, hops: spread.hops.length },
+    summary: out.summary,
+  };
+}
+
+/**
+ * A new step that shows a ripple (`setStepRipple`), with the scene's caption if its other steps show one: at
+ * the end of the scene unless `where` says otherwise, labelled by the change unless a label is given.
+ */
+export function addRippleStep(
+  project: Project,
+  sceneRef: string,
+  startRef: string,
+  direction: RippleDirection,
+  input: Omit<StepInput, 'label' | 'map' | 'overlays'> & { label?: string } = {},
+  where?: Where,
+  options: RippleOptions = {},
+): OpOutput<{ key: string; reached: string[]; links: string[]; hops: number }> {
+  const variable = resolveVariable(project, startRef).variable;
+  const label =
+    input.label ?? `${variable.label.replace(/\n/g, ' ')} ${direction === 'up' ? 'rises' : 'falls'}`;
+  const added = addStep(project, sceneRef, { ...input, label, map: {} }, where);
+  const shown = setStepRipple(added.project, added.result.key, variable.id, direction, {
+    ...options,
+    caption: true,
+  });
+  return { project: shown.project, result: shown.result, summary: `${added.summary} ${shown.summary}` };
 }

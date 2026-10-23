@@ -114,6 +114,22 @@ describe('the record view', () => {
     expect(store.getState().past.at(-1)?.label).toBe('Step S1.1: the camera no longer frames births.');
   });
 
+  it('spreads over the whole map on a step that lights nothing, lighting what it reaches, and says so', async () => {
+    const { store, user } = await openStory();
+    await user.click(screen.getByRole('radio', { name: 'Spread' }));
+    await user.click(target(/^Births/));
+    expect(map(store)).toEqual({
+      variables: { base: 'dim', focus: ['births', 'population', 'deaths'] },
+      links: { focus: ['L1', 'L3'] },
+      trends: { births: 'up', population: 'up', deaths: 'up' },
+    });
+    expect(
+      await screen.findByText(
+        'Step S1.1: births ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, births and the 2 links it crossed. L4 would push the other way later, so the story check will flag it.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('works from the keyboard: Tab reaches what the tool applies to, and Enter or Space applies it', async () => {
     const { store, user } = await openStory();
     const tabbable = (name: RegExp) => target(name).getAttribute('tabindex') === '0';

@@ -96,7 +96,8 @@ export function edit(
   for (const step of steps) {
     const out = step(project);
     project = out.project;
-    summaries.push(out.summary);
+    // A step that changed nothing of its own (an empty summary) says nothing.
+    if (out.summary) summaries.push(out.summary);
     results.push(out.result);
   }
   const changed = project !== before;

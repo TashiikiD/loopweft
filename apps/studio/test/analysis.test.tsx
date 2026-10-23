@@ -3,7 +3,7 @@
 import { addLink, createProject, type Project } from '@loopweft/model';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.tsx';
 import { memoryRecovery } from '../src/state/recovery.ts';
 import { createStudioStore, type StudioStore } from '../src/state/store.ts';
@@ -136,6 +136,8 @@ describe('the Loops panel', () => {
 });
 
 describe('the Ripple panel', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('starts from the selected variable and shows the change by step, with what it does not cross', async () => {
     const store: StudioStore = createStudioStore(population(), { name: 'population.loopweft' });
     store.getState().select({ variables: ['births'] });
@@ -153,5 +155,91 @@ describe('the Ripple panel', () => {
     await user.click(screen.getByRole('button', { name: 'Select it on the map' }));
     expect(store.getState().selection.variables).toEqual(['births', 'population', 'deaths']);
     expect(store.getState().selection.links).toEqual(['L1', 'L3']);
+  });
+
+  it('draws the ripple on the map while it is open: what it reaches lit and marked, the rest faded', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 700,
+      right: 1000,
+      bottom: 700,
+      toJSON: () => ({}),
+    } as DOMRect);
+    const store: StudioStore = createStudioStore(population(), { name: 'population.loopweft' });
+    store.getState().select({ variables: ['births'] });
+    render(<App store={store} recovery={memoryRecovery()} env="test" />);
+    const user = userEvent.setup();
+    const map = screen.getByRole('img', { name: /^The map:/ });
+    expect(map.classList.contains('rippling')).toBe(false);
+    await user.click(screen.getByRole('tab', { name: 'Ripple' }));
+    expect(map.classList.contains('rippling')).toBe(true);
+    const lit = (selector: string) =>
+      [...map.querySelectorAll(`${selector}.lit`)].map((el) => el.getAttribute(selector.slice(1, -1)));
+    expect(lit('[data-node]')).toEqual(['births', 'population', 'deaths']);
+    expect(lit('[data-edge]')).toEqual(['L1', 'L3']);
+    const mark = (id: string) => map.querySelector(`[data-node="${id}"] .lw-trend`)?.getAttribute('class');
+    expect([mark('births'), mark('population'), mark('deaths'), mark('crowding')]).toEqual([
+      'lw-trend up',
+      'lw-trend up',
+      'lw-trend up',
+      undefined,
+    ]);
+    // The other way: the marks follow.
+    await user.click(screen.getByRole('radio', { name: '▼ It falls' }));
+    expect(mark('deaths')).toBe('lw-trend down');
+    // Another panel: the map is drawn as it is again, and nothing was saved.
+    await user.click(screen.getByRole('tab', { name: 'Layout' }));
+    expect(map.classList.contains('rippling')).toBe(false);
+    expect(map.querySelectorAll('.lw-trend')).toHaveLength(0);
+    expect(store.getState().past).toHaveLength(0);
+  });
+
+  it('makes a story step from it, in a new scene or at the end of one, as one edit, then shows it', async () => {
+    const store: StudioStore = createStudioStore(population(), { name: 'population.loopweft' });
+    store.getState().select({ variables: ['births'] });
+    render(<App store={store} recovery={memoryRecovery()} env="test" />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: 'Ripple' }));
+    // No story yet: a scene of its own.
+    expect(screen.getByLabelText('At the end of', { selector: 'input' })).toHaveProperty(
+      'value',
+      'A new scene',
+    );
+    await user.click(screen.getByRole('button', { name: 'Make a story step from it' }));
+    const scene = store.getState().project.story.scenes[0];
+    expect(scene?.title).toBe('What if Births rises?');
+    expect(scene?.steps.map((s) => s.label)).toEqual(['Births rises']);
+    expect(scene?.steps[0]?.map).toMatchObject({
+      variables: { base: 'dim', focus: ['population', 'deaths'], active: ['births'] },
+      links: { base: 'ghost', focus: ['L1', 'L3'] },
+      trends: { births: 'up', population: 'up', deaths: 'up' },
+      pulses: { hops: [['L1'], ['L3']] },
+    });
+    expect(store.getState().past).toHaveLength(1);
+    expect(store.getState().past.at(-1)?.label).toMatch(/^Added scene S1 \("What if Births rises\?"\)/);
+    expect(store.getState().workspace).toBe('story');
+    expect(store.getState().story).toBe('S1.1');
+    // Back on the Map: the next one goes at the end of S1 (the last scene), and Undo takes it away whole.
+    act(() => store.getState().showWorkspace('map'));
+    await user.click(screen.getByRole('tab', { name: 'Ripple' }));
+    await user.click(screen.getByRole('radio', { name: '▼ It falls' }));
+    expect(screen.getByLabelText('At the end of', { selector: 'input' })).toHaveProperty(
+      'value',
+      'S1 · What if Births rises?',
+    );
+    await user.click(screen.getByRole('button', { name: 'Make a story step from it' }));
+    expect(store.getState().project.story.scenes[0]?.steps.map((s) => s.label)).toEqual([
+      'Births rises',
+      'Births falls',
+    ]);
+    expect(store.getState().story).toBe('S1.2');
+    act(() => {
+      store.getState().undo();
+    });
+    expect(store.getState().project.story.scenes[0]?.steps).toHaveLength(1);
   });
 });

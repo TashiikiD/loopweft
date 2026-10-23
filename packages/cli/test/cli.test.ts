@@ -822,6 +822,51 @@ describe('the story commands', () => {
     });
   });
 
+  it('make a step show a ripple, then refine it; --ripple-optional needs --ripple', async () => {
+    await oneStep('story-ripple.loopweft');
+    await run('add', 'story-ripple.loopweft', '--shorthand', 'B -> C (-)');
+    const added = await json(
+      'story',
+      'step',
+      'add',
+      'story-ripple.loopweft',
+      'S1',
+      '--label',
+      'If A rises',
+      '--ripple',
+      'A=up',
+      '--labels',
+      'focus',
+    );
+    expect(added.code).toBe(0);
+    expect(added.doc.summary).toBe(
+      'Added step S1.2 ("If A rises"), step 2 of 2 in scene S1. Step S1.2: the ripple of a ▲: 2 variables lit and marked (1 ▲, 1 ▼), pulses along 2 links in 2 hops, the rest faded. Changed what step S1.2 shows: labels.',
+    );
+    const shown = await json('story', 'show', 'story-ripple.loopweft', 'S1.2');
+    expect((shown.doc.step as { map: unknown }).map).toEqual({
+      variables: { base: 'dim', focus: ['b', 'c'], active: ['a'] },
+      links: { base: 'ghost', focus: ['L1', 'L2'] },
+      labels: 'focus',
+      trends: { a: 'up', b: 'up', c: 'down' },
+      pulses: { hops: [['L1'], ['L2']] },
+    });
+    // On an existing step, from another start.
+    const set = await json('story', 'step', 'set', 'story-ripple.loopweft', 'S1.1', '--ripple', 'B=down');
+    expect(set.doc.summary).toBe(
+      'Step S1.1: the ripple of b ▼: 1 variable lit and marked (1 ▲), pulses along 1 link in 1 hop, the rest faded.',
+    );
+    const before = readFileSync(join(dir, 'story-ripple.loopweft'), 'utf8');
+    const alone = await json('story', 'step', 'set', 'story-ripple.loopweft', 'S1.1', '--ripple-optional');
+    expect(alone.code).toBe(2);
+    expect((alone.doc.error as { message: string }).message).toBe(
+      '--ripple-optional goes with --ripple <variable=up|down>.',
+    );
+    expect(
+      (await json('story', 'step', 'set', 'story-ripple.loopweft', 'S1.1', '--ripple', 'A=sideways')).code,
+    ).toBe(2);
+    expect(readFileSync(join(dir, 'story-ripple.loopweft'), 'utf8')).toBe(before);
+  });
+
   it('refuse an empty list of variables or links for a level, changing nothing', async () => {
     await oneStep('story-levels.loopweft');
     const before = readFileSync(join(dir, 'story-levels.loopweft'), 'utf8');

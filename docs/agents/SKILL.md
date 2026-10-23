@@ -207,7 +207,9 @@ loopweft loops set garden.loopweft B2 --name 'Waiting puts people off'
 `loops list` shows every loop the map makes, R or B, and which are named. Name the ones the story talks about
 with `loops add --links <ids in order> --name "<name>"` (or rename a template's with `loops set`). A loop through
 a `?` link has no polarity until the person decides the sign. `ripple <file> <variable> up|down` traces what a
-rise or fall pushes, by the signs: a good way to check that the map says what the brief says.
+rise or fall pushes, by the signs: a good way to check that the map says what the brief says. To show a ripple in
+the story, `story step add <file> <scene> --label "<label>" --ripple <variable>=up|down` makes a step of it (see
+section 8).
 
 ```bash
 loopweft ripple garden.loopweft 'Invitations from members' up
@@ -270,6 +272,7 @@ Steps are named by scene and step (`S1.2`). The map options most stories need:
 | `--base dim`, `--link-base ghost` | Fade everything the step does not list |
 | `--focus <ids>`, `--active <ids>` | Light variables (by id or label) and links (by id); active is the strongest |
 | `--up`, `--down`, `--mixed <variables>` | ▲ ▼ ± trends. They must agree with the signs of the lit links, or `validate` warns |
+| `--ripple <variable>=up\|down` | A what-if step: the variable and what its rise or fall reaches lit, the rest faded, ▲ ▼ ± marked and pulses hop by hop (other options refine it) |
 | `--badge <loops>`, `--name <loops>` | A loop's R/B badge, and its name |
 | `--pulse-loop <loop>`, `--pulse <links>` (repeatable) | Glows that travel round a named loop, or along links hop by hop |
 | `--frame <variables>`, `--whole-map` | What the camera frames |

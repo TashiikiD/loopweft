@@ -5,6 +5,7 @@ import {
   addAsset,
   addOverlay,
   addPulseHop,
+  addRippleStep,
   addScene,
   addStep,
   checkProject,
@@ -28,6 +29,7 @@ import {
   resolveStep,
   scriptSegments,
   setAsset,
+  setLink,
   setOverlay,
   setScene,
   setStep,
@@ -35,6 +37,7 @@ import {
   setStepLevel,
   setStepLoops,
   setStepMap,
+  setStepRipple,
   setStepTrend,
   spreadTrend,
   withLevel,
@@ -291,6 +294,95 @@ describe('what a step shows', () => {
     expect(reinforcing.summary).toBe(
       'Step S1.2: births ▲, spread by sign along the lit links to 1 variable.',
     );
+  });
+
+  it('spreads over the whole map on a step that lights no links, and lights what it reaches', () => {
+    // S1.1 lights nothing (its links are dim).
+    const p = richProject();
+    const out = spreadTrend(p, 'S1.1', 'deaths', 'up');
+    expect(out.result.along).toBe('map');
+    // L4 (−) takes population down, L2 (+) carries that to births; L5 (an optional side effect) is left out.
+    expect(out.result.trends).toEqual({ deaths: 'up', population: 'down', births: 'down' });
+    const map = stepOf(out.project, 'S1.1').map;
+    expect(map.variables).toEqual({ base: 'normal', focus: ['deaths', 'population', 'births'] });
+    expect(map.links).toEqual({ base: 'dim', focus: ['L4', 'L2'] });
+    expect(out.summary).toBe(
+      'Step S1.1: deaths ▲; the step lit no links, so the spread followed the whole map by sign to 2 variables, and lit them, deaths and the 2 links it crossed. L3 would push the other way later, so the story check will flag it.',
+    );
+  });
+
+  it('says why a spread reaches nothing: no lit link leaves the start, or only links it cannot cross', () => {
+    // S1.2 lights L1 and L2 only: none leaves deaths.
+    const lit = spreadTrend(
+      setStepMap(richProject(), 'S1.2', { trends: null }).project,
+      'S1.2',
+      'deaths',
+      'up',
+    );
+    expect(lit.result).toMatchObject({ along: 'lit', trends: { deaths: 'up' } });
+    expect(lit.summary).toBe(
+      'Step S1.2: deaths ▲, but the spread along the lit links reaches no other variable: no lit link leaves deaths for another variable. Light the links it should follow with Show (Focus or Active), or spread on a step that lights none to follow the whole map.',
+    );
+    // On the whole map, with deaths' links of unknown sign or of an optional type: the start is still lit.
+    const unknown = setLink(richProject(), 'L4', { sign: '?' }).project;
+    const map = spreadTrend(unknown, 'S1.1', 'deaths', 'up');
+    expect(map.result).toMatchObject({ along: 'map', trends: { deaths: 'up' } });
+    expect(stepOf(map.project, 'S1.1').map.variables).toEqual({ base: 'normal', focus: ['deaths'] });
+    expect(map.summary).toBe(
+      'Step S1.1: deaths ▲, lit; the step lit no links, so the spread followed the whole map, but reaches no other variable: the links that leave deaths are of unknown sign (L4), which it does not cross, or of optional types (L5), left out.',
+    );
+  });
+
+  it('makes a step show a ripple: the start and what it reaches lit, the rest faded, marks and pulses', () => {
+    const out = setStepRipple(richProject(), 'S1.3', 'births', 'up');
+    // L1 (+) raises population, L3 (+) carries that to deaths; L4 brings it back the other way (named by
+    // the story check), L2 back to births the same way; L5 is optional, left out.
+    expect(out.result).toEqual({
+      key: 'S1.3',
+      reached: ['population', 'deaths'],
+      links: ['L1', 'L3'],
+      hops: 2,
+    });
+    const step = stepOf(out.project, 'S1.3');
+    expect(step.map).toEqual({
+      opacity: 0.6,
+      ambient: { from: ['births'], tone: 'harm', every: [1, 2], hops: [2, 4], delay: 1 },
+      variables: { base: 'dim', focus: ['population', 'deaths'], active: ['births'] },
+      links: { base: 'ghost', focus: ['L1', 'L3'] },
+      trends: { births: 'up', population: 'up', deaths: 'up' },
+      pulses: { hops: [['L1'], ['L3']] },
+    });
+    expect(step.overlays).toEqual([]);
+    expect(out.summary).toBe(
+      'Step S1.3: the ripple of births ▲: 2 variables lit and marked (2 ▲), pulses along 2 links in 2 hops, the rest faded; left out: 1 link of optional types (L5).',
+    );
+    // On a step that had pulses and trends of its own, the ripple's replace them; with the caption asked
+    // for, a step without one shows it when another step of its scene does.
+    const again = setStepRipple(out.project, 'S1.3', 'deaths', 'down', { caption: true });
+    expect(stepOf(again.project, 'S1.3').map).toMatchObject({
+      trends: { deaths: 'down', population: 'up', births: 'up' },
+      pulses: { hops: [['L4'], ['L2']] },
+    });
+    expect(stepOf(again.project, 'S1.3').overlays).toEqual([{ type: 'caption' }]);
+    expect(again.summary).toMatch(/ It shows the scene's caption\.$/);
+  });
+
+  it('adds a step that shows a ripple, at the end of its scene, labelled by the change, in one edit', () => {
+    const out = addRippleStep(richProject(), 'S1', 'population', 'down');
+    expect(out.result.key).toBe('S1.4');
+    const step = stepOf(out.project, 'S1.4');
+    expect(step.label).toBe('Population falls');
+    expect(step.overlays).toEqual([{ type: 'caption' }]);
+    expect(step.map.trends).toEqual({ population: 'down', births: 'down', deaths: 'down' });
+    expect(step.map.pulses).toEqual({ hops: [['L2', 'L3']] });
+    expect(out.summary).toBe(
+      'Added step S1.4 ("Population falls"), step 4 of 4 in scene S1. Step S1.4: the ripple of population ▼: 2 variables lit and marked (2 ▼), pulses along 2 links in 1 hop, the rest faded; left out: 1 link of optional types (L5). It shows the scene\'s caption.',
+    );
+    // A label of its own, and a place.
+    const first = addRippleStep(richProject(), 'S1', 'births', 'up', { label: 'What if' }, { index: 0 });
+    expect(first.result.key).toBe('S1.4');
+    expect(resolveStep(first.project, 'S1.4')).toMatchObject({ stepIndex: 0, step: { label: 'What if' } });
+    expect(refused(() => addRippleStep(richProject(), 'S1', 'nobody', 'up')).kind).toBe('notFound');
   });
 
   it('refuses a map the format would refuse', () => {

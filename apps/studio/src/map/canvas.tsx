@@ -7,13 +7,23 @@
 // - Drag from a variable's handle (the ring that shows on it) to another variable to link them; the sign
 //   is asked, never assumed. Click an arrowhead to flip its link's sign.
 // - Delete removes what is selected; Ctrl+F finds a variable; the home view is framed from here.
-import { addLink, flipSign, type Link, moveVariables, type Project, setHome, setLink } from '@loopweft/model';
+import {
+  addLink,
+  flipSign,
+  type Link,
+  moveVariables,
+  type Project,
+  setHome,
+  setLink,
+  type Trend,
+} from '@loopweft/model';
 import {
   buildGraph,
   type Graph,
   type GraphEdge,
   type GraphNode,
   shapeGlyph,
+  TREND_GLYPH,
   themeTokens,
   themeVariables,
 } from '@loopweft/render';
@@ -122,6 +132,7 @@ const Node = memo(function Node({
   selected,
   pinned,
   target,
+  trend,
   k,
 }: {
   node: GraphNode;
@@ -129,11 +140,13 @@ const Node = memo(function Node({
   pinned: boolean;
   /** A link being drawn would end here. */
   target: boolean;
+  /** Its mark in the ripple drawn on the canvas, if the ripple reaches it. */
+  trend?: Trend;
   k: number;
 }) {
   return (
     <g
-      className={`lw-node shape-${node.shape}${selected ? ' selected' : ''}${target ? ' target' : ''}${node.response ? ' response' : ''}`}
+      className={`lw-node shape-${node.shape}${selected ? ' selected' : ''}${target ? ' target' : ''}${node.response ? ' response' : ''}${trend ? ' lit' : ''}`}
       data-node={node.id}
       transform={`translate(${node.x} ${node.y})`}
       style={{ '--c': node.colour } as React.CSSProperties}
@@ -147,15 +160,33 @@ const Node = memo(function Node({
         createElement(part.tag, { key: i, ...glyphProps(part.attrs) }, part.text),
       )}
       {pinned && <circle className="pin" cx={node.r * 0.9} cy={-node.r * 0.9} r={3.2} />}
+      {trend && (
+        <g className={`lw-trend ${trend}`} transform={`translate(${node.r + 6} ${-node.r - 6})`}>
+          <title>{trend === 'up' ? 'Rises' : trend === 'down' ? 'Falls' : 'Pushed both ways'}</title>
+          <circle r={9} />
+          <path d={TREND_GLYPH[trend]} />
+        </g>
+      )}
     </g>
   );
 });
 
-const Edge = memo(function Edge({ edge, selected, k }: { edge: GraphEdge; selected: boolean; k: number }) {
+const Edge = memo(function Edge({
+  edge,
+  selected,
+  lit,
+  k,
+}: {
+  edge: GraphEdge;
+  selected: boolean;
+  /** The ripple drawn on the canvas crosses it. */
+  lit: boolean;
+  k: number;
+}) {
   const sign = edge.sign === '+' ? 'plus' : edge.sign === '-' ? 'minus' : 'unknown';
   return (
     <g
-      className={`lw-edge style-${edge.style}${edge.conditional ? ' conditional' : ''}${edge.optional ? ' optional' : ''}${selected ? ' selected' : ''}`}
+      className={`lw-edge style-${edge.style}${edge.conditional ? ' conditional' : ''}${edge.optional ? ' optional' : ''}${selected ? ' selected' : ''}${lit ? ' lit' : ''}`}
       data-edge={edge.id}
       style={{ '--c': edge.colour } as React.CSSProperties}
     >
@@ -182,7 +213,16 @@ const Edge = memo(function Edge({ edge, selected, k }: { edge: GraphEdge; select
   );
 });
 
-const Labels = memo(function Labels({ graph, k }: { graph: Graph; k: number }) {
+const Labels = memo(function Labels({
+  graph,
+  k,
+  lit,
+}: {
+  graph: Graph;
+  k: number;
+  /** The variables a ripple drawn on the canvas reaches (their labels stay bright). */
+  lit?: Record<string, unknown>;
+}) {
   return (
     <g className="lw-labels">
       {[...graph.nodes.values()].map((n) => {
@@ -190,7 +230,7 @@ const Labels = memo(function Labels({ graph, k }: { graph: Graph; k: number }) {
         return (
           <text
             key={n.id}
-            className="lw-label"
+            className={`lw-label${lit && n.id in lit ? ' lit' : ''}`}
             x={place.x}
             y={place.y}
             textAnchor={place.anchor}
@@ -482,6 +522,9 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
 
   const selectedVariables = useMemo(() => new Set(selection.variables), [selection.variables]);
   const selectedLinks = useMemo(() => new Set(selection.links), [selection.links]);
+  // The ripple the Ripple panel draws: what it reaches and crosses lit and marked, the rest faded.
+  const ripple = useStudio((s) => s.ripple);
+  const rippleLinks = useMemo(() => new Set(ripple?.links ?? []), [ripple]);
 
   const local = (event: { clientX: number; clientY: number }) => {
     const r = (host.current as HTMLDivElement).getBoundingClientRect();
@@ -683,7 +726,9 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onDoubleClick={onDoubleClick}
-          className={linking ? 'linking' : undefined}
+          className={
+            [linking ? 'linking' : '', ripple ? 'rippling' : ''].filter(Boolean).join(' ') || undefined
+          }
         >
           <rect className="lw-canvas-bg" width="100%" height="100%" />
           <g transform={`translate(${view.dx} ${view.dy}) scale(${view.k})`}>
@@ -695,7 +740,13 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
             )}
             <g className="lw-edges">
               {[...shown.edges.values()].map((e) => (
-                <Edge key={e.id} edge={e} selected={selectedLinks.has(e.id)} k={view.k} />
+                <Edge
+                  key={e.id}
+                  edge={e}
+                  selected={selectedLinks.has(e.id)}
+                  lit={rippleLinks.has(e.id)}
+                  k={view.k}
+                />
               ))}
             </g>
             {linkFrom && linking && (
@@ -716,11 +767,12 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
                   selected={selectedVariables.has(n.id)}
                   pinned={project.layout.positions[n.id]?.pinned === true}
                   target={linking?.over === n.id}
+                  trend={ripple?.trends[n.id]}
                   k={view.k}
                 />
               ))}
             </g>
-            {view.k >= LABELS_FROM_ZOOM && <Labels graph={shown} k={view.k} />}
+            {view.k >= LABELS_FROM_ZOOM && <Labels graph={shown} k={view.k} lit={ripple?.trends} />}
           </g>
           {band && <rect className="lw-band" x={band.x} y={band.y} width={band.w} height={band.h} />}
           {framing && frame && (

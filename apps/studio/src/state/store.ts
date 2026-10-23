@@ -1,7 +1,7 @@
 // The open project, what is selected, and undo and redo. Every edit is one of @loopweft/model's operations
 // (the ones the command line runs), applied as one undoable step; a step keeps the project as it was
 // before, sharing every unchanged part with the next (history.ts).
-import type { OpOutput, Project } from '@loopweft/model';
+import type { OpOutput, Project, Trend } from '@loopweft/model';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { HISTORY_LIMIT, share } from './history.ts';
 
@@ -19,6 +19,15 @@ export interface Selection {
 }
 
 export const NOTHING: Selection = { variables: [], links: [], loop: null };
+
+/** A ripple the Map's Ripple panel draws on the canvas while it is open: a view only, never saved. */
+export interface RippleShown {
+  start: string;
+  /** ▲/▼/± of the start and of every variable the change reaches. */
+  trends: Record<string, Trend>;
+  /** The links it crosses. */
+  links: string[];
+}
 
 /** The Studio's five workspaces; Present and Export arrive in later phases. */
 export type WorkspaceId = 'map' | 'sources' | 'story' | 'present' | 'export';
@@ -64,6 +73,8 @@ export interface StudioState {
   conflict: { project: Project; what: string } | null;
   /** True while the "Work with an AI agent" window is open. */
   agentHelp: boolean;
+  /** The ripple drawn on the Map's canvas, while its panel shows one. */
+  ripple: RippleShown | null;
   /** Runs one operation as one undoable step and returns its output; an OpError leaves everything as it was. */
   edit<R>(run: (project: Project) => OpOutput<R>, label?: string): OpOutput<R>;
   /** Several operations as one undoable step, e.g. removing everything selected. */
@@ -89,6 +100,7 @@ export interface StudioState {
   keepMine(): void;
   setPresenting(presenting: boolean): void;
   setAgentHelp(open: boolean): void;
+  showRipple(ripple: RippleShown | null): void;
   select(selection: Partial<Selection>): void;
   /** Asks the canvas to show the whole map. */
   requestFit(): void;
@@ -155,6 +167,7 @@ export function createStudioStore(
       presenting: false,
       conflict: null,
       agentHelp: false,
+      ripple: null,
 
       edit(run, label) {
         const out = run(get().project);
@@ -247,6 +260,10 @@ export function createStudioStore(
 
       setPresenting(presenting) {
         set({ presenting });
+      },
+
+      showRipple(ripple) {
+        set({ ripple });
       },
 
       setAgentHelp(agentHelp) {

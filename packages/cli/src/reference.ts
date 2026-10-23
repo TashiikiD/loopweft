@@ -295,8 +295,12 @@ const EXAMPLES: Record<string, Example[]> = {
         'L4',
       ],
     },
+    { args: ['story', 'step', 'add', PROJECT, 'S1', '--label', 'If births rise', '--ripple', 'Births=up'] },
   ],
-  'story step set': [{ args: ['story', 'step', 'set', PROJECT, 'S1.2', '--cue', 'Wait for the pulse.'] }],
+  'story step set': [
+    { args: ['story', 'step', 'set', PROJECT, 'S1.2', '--cue', 'Wait for the pulse.'] },
+    { args: ['story', 'step', 'set', PROJECT, 'S1.2', '--ripple', 'Deaths=down'] },
+  ],
   'story step rm': [{ args: ['story', 'step', 'rm', PROJECT, 'S1.1'] }],
   'story step move': [{ args: ['story', 'step', 'move', PROJECT, 'S1.2', '--first'] }],
   'story step copy': [{ args: ['story', 'step', 'copy', PROJECT, 'S1.2', '--label', 'The loop again'] }],

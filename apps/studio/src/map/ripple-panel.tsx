@@ -1,7 +1,17 @@
 // What if one variable rises, or falls? The ripple (@loopweft/model) carries the change link by link by the
 // links' signs, and says where it stops: at a link of unknown sign, and where opposing pushes meet. It tells
-// directions only, never how much or how soon.
-import { plural, type RippleDirection, ripple, type Trend } from '@loopweft/model';
+// directions only, never how much or how soon. While the panel shows a ripple, the canvas draws it; "Make a
+// story step from it" adds a step that shows it (addRippleStep, as `story step add --ripple` does).
+import {
+  addRippleStep,
+  addScene,
+  type OpOutput,
+  type Project,
+  plural,
+  type RippleDirection,
+  ripple,
+  type Trend,
+} from '@loopweft/model';
 import {
   Button,
   Group,
@@ -15,11 +25,13 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { useMemo, useState } from 'react';
-import { useStudio, useStudioStore } from '../context.tsx';
+import { useEffect, useMemo, useState } from 'react';
+import { useEdit, useStudio, useStudioStore } from '../context.tsx';
 
 const MARK: Record<Trend, string> = { up: '▲', down: '▼', mixed: '±' };
 const WORD: Record<Trend, string> = { up: 'rises', down: 'falls', mixed: 'pushed both ways' };
+/** The scene list's choice for a scene of its own. */
+const NEW_SCENE = '+new';
 
 export function RipplePanel() {
   const project = useStudio((s) => s.project);
@@ -36,6 +48,53 @@ export function RipplePanel() {
     () => (present ? ripple(project, start, direction, { includeOptional }) : null),
     [project, start, direction, includeOptional, present],
   );
+
+  // The canvas draws the ripple while the panel shows one, and stops when it closes.
+  useEffect(() => {
+    store.getState().showRipple(
+      result
+        ? {
+            start: result.start,
+            trends: Object.fromEntries([
+              [result.start, result.direction],
+              ...result.reached.map((r) => [r.variable, r.trend]),
+            ]),
+            links: result.hops.flat(),
+          }
+        : null,
+    );
+  }, [result, store]);
+  useEffect(() => () => store.getState().showRipple(null), [store]);
+
+  const edit = useEdit();
+  const scenes = useStudio((s) => s.project.story.scenes);
+  const [into, setInto] = useState<string | null>(null);
+  const scene =
+    into && (into === NEW_SCENE || scenes.some((s) => s.id === into))
+      ? into
+      : (scenes.at(-1)?.id ?? NEW_SCENE);
+  // One edit: a scene of its own first if asked for, then the step; then the Story shows it.
+  const makeStep = () => {
+    if (!result) return;
+    const out = edit((p: Project): OpOutput<{ key: string }> => {
+      let base = p;
+      let said = '';
+      let target = scene;
+      if (scene === NEW_SCENE) {
+        const added = addScene(p, {
+          title: `What if ${name(result.start).replace(/\s+/g, ' ')} ${direction === 'up' ? 'rises' : 'falls'}?`,
+        });
+        base = added.project;
+        target = added.result.id;
+        said = `${added.summary} `;
+      }
+      const made = addRippleStep(base, target, result.start, direction, {}, undefined, { includeOptional });
+      return { project: made.project, result: { key: made.result.key }, summary: `${said}${made.summary}` };
+    });
+    if (!out) return;
+    store.getState().selectStory(out.result.key);
+    store.getState().showWorkspace('story');
+  };
 
   const steps = useMemo(() => {
     const byStep = new Map<number, NonNullable<typeof result>['reached']>();
@@ -140,6 +199,30 @@ export function RipplePanel() {
                   ))}
                 </Stack>
               ))}
+              <Stack gap={6} className="lw-ripple-step">
+                <Text size="xs" fw={600}>
+                  In the story
+                </Text>
+                <Text size="xs" c="dimmed">
+                  A new step that lights this ripple, fades the rest, marks ▲ ▼ ± and sends pulses along it
+                  hop by hop, with the scene's caption if its other steps show one.
+                </Text>
+                <Select
+                  label="At the end of"
+                  size="xs"
+                  value={scene}
+                  data={[
+                    ...scenes.map((s) => ({ value: s.id, label: `${s.id} · ${s.title}` })),
+                    { value: NEW_SCENE, label: 'A new scene' },
+                  ]}
+                  onChange={(value) => value && setInto(value)}
+                  allowDeselect={false}
+                  comboboxProps={{ withinPortal: true }}
+                />
+                <Button size="xs" w="fit-content" onClick={makeStep}>
+                  Make a story step from it
+                </Button>
+              </Stack>
               <List size="xs" spacing={4} c="dimmed">
                 {result.feedback.map((f) => (
                   <List.Item key={f.link}>

@@ -98,7 +98,8 @@ They change what a step's map shows, applied in this order (see [telling a story
 | `--base <level>`, `--link-base <level>` | The level of the variables (links) a step does not list: `hidden`, `ghost`, `dim`, `normal`, `focus`, `active` |
 | `--hidden`, `--ghost`, `--dim`, `--normal`, `--focus`, `--active <ids>`, `--unlist <ids>` | Put variables (by id or label) and links (by id) at a level, or back to the base |
 | `--up`, `--down`, `--mixed <variables>`, `--clear-trend <variables>` | ▲ ▼ ± trends |
-| `--spread <variable>=up\|down` | A what-if: mark a rise or fall and spread it by sign along the lit links |
+| `--spread <variable>=up\|down` | A what-if: mark a rise or fall and spread it by sign along the lit links (on a step that lights none, along the whole map, lighting what it reaches) |
+| `--ripple <variable>=up\|down` | A what-if step: the variable and what the change reaches lit, the rest faded, ▲ ▼ ± marked and pulses hop by hop (`--ripple-optional` follows optional links too) |
 | `--badge <loops>`, `--name <loops>`, `--hide-name <loops>`, `--hide-badge <loops>` | Loop badges and names (a name shows its badge) |
 | `--clear-pulses`, `--pulse-loop <loop>`, `--pulse <links>` (repeatable), `--pulse-with <links>`, `--pulse-repeat <n>`, `--pulse-tone <tone>`, `--pulse-delay <s>` | Pulses: round a named loop, hop by hop, or added to the last hop, and their timing |
 | `--frame <variables>`, `--whole-map`, `--frame-at <where>`, `--max-zoom <n>` | The camera: what it frames, where on the stage, and a zoom limit |

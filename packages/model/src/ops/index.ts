@@ -82,13 +82,16 @@ export {
 } from './story.ts';
 export {
   addPulseHop,
+  addRippleStep,
   type ElementKind,
   type MapChanges,
   pulseRoundLoop,
+  type RippleStepOptions,
   setStepBase,
   setStepLevel,
   setStepLoops,
   setStepMap,
+  setStepRipple,
   setStepTrend,
   spreadTrend,
   withBase,

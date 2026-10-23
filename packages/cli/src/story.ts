@@ -52,6 +52,7 @@ import {
   setStepLevel,
   setStepLoops,
   setStepMap,
+  setStepRipple,
   setStepTrend,
   spreadTrend,
   stepSources,
@@ -534,6 +535,8 @@ export function sceneMoveCommand(
 export interface MapOptions {
   map?: string;
   mapFile?: string;
+  ripple?: string;
+  rippleOptional?: boolean;
   hideMap?: boolean;
   showMap?: boolean;
   opacity?: string;
@@ -596,8 +599,11 @@ function splitElements(project: Project, refs: string[]): { variables: string[];
   };
 }
 
-/** The edits a step's map options ask for, on the step `key` names, in a fixed order. */
-export function mapRuns(key: () => string, o: MapOptions): Run[] {
+/**
+ * The edits a step's map options ask for, on the step `key` names, in a fixed order. `adding`: the step is
+ * new, so a ripple shows the scene's caption when its other steps do.
+ */
+export function mapRuns(key: () => string, o: MapOptions, adding = false): Run[] {
   const runs: Run[] = [];
   const whole = textOption(o.map, o.mapFile, 'map');
   if (whole !== undefined) {
@@ -619,6 +625,18 @@ export function mapRuns(key: () => string, o: MapOptions): Run[] {
         `Step ${key()}: map set from JSON.`,
       );
     });
+  }
+  if (o.rippleOptional && o.ripple === undefined)
+    throw new OpError('--ripple-optional goes with --ripple <variable=up|down>.', 'usage');
+  if (o.ripple !== undefined) {
+    const [variable, way] = pair(o.ripple, 'ripple');
+    const direction = oneOf(way, ['up', 'down'] as const, 'ripple');
+    runs.push((p) =>
+      setStepRipple(p, key(), variable, direction, {
+        includeOptional: o.rippleOptional === true,
+        caption: adding,
+      }),
+    );
   }
   const set = (changes: Parameters<typeof setStepMap>[2]) => runs.push((p) => setStepMap(p, key(), changes));
   if (o.hideMap && o.showMap) throw new OpError('Give --hide-map or --show-map, not both.', 'usage');
@@ -825,7 +843,7 @@ export function stepAddCommand(
       key = out.result.key;
       return out;
     },
-    ...mapRuns(() => key, o),
+    ...mapRuns(() => key, o, true),
   ]);
 }
 

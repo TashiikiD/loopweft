@@ -52,6 +52,20 @@ is more past the cap: a variable to reach, feedback to the start, or a push the 
 The ripple follows the rule of the polycrisis deck's own ripples, whose ▲/▼ badges were carried along the
 lit links by their signs. A ripple is reached by the same steps every time for the same map.
 
+### A ripple on the map, and in the story
+
+While the Studio's Ripple panel shows a ripple, the canvas draws it: the start, the variables it reaches and
+the links it crosses lit, each variable marked ▲ ▼ ±, the rest faded. It is only a view: nothing is saved.
+
+**Make a story step from it** adds a step at the end of a scene (or of a new scene) that shows the ripple:
+the start lit most (active), what the change reaches and the links it crosses lit (focus), the rest faded
+(variables dim, links ghost), the marks, and pulses along it hop by hop, in order, with the scene's caption
+when its other steps show one. It is one edit (one Undo), and the Studio then shows the step. On the command
+line, `story step add <file> <scene> --label <label> --ripple <variable>=up|down` does the same, and
+`story step set <file> <step> --ripple …` makes an existing step show one (its camera, labels and the rest
+stay); `--ripple-optional` follows links of optional types too. The step shows directions only, as the ripple
+does: no amounts and no timing, and it stops where the ripple stops.
+
 ## Paths
 
 A path from one variable to another follows links in their direction without passing a variable twice. It
