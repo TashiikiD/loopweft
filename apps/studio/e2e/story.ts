@@ -32,7 +32,7 @@ export const side = (page: Page) => page.getByRole('complementary', { name: 'Sto
 
 /**
  * Chooses a step in the story outline (by its key, e.g. "S04.1"). In a narrow window, where the outline is folded
- * behind the Scenes button, it is opened for the choice and closed again, leaving the stage clear.
+ * behind the Scenes button, it is opened for the choice, which closes it again, leaving the stage clear.
  */
 export async function chooseStep(page: Page, key: string) {
   const outline = page.getByRole('navigation', { name: 'Story outline' });
@@ -40,10 +40,7 @@ export async function chooseStep(page: Page, key: string) {
   if (folded) await page.getByRole('button', { name: 'Scenes' }).click();
   const step = outline.getByRole('button', { name: new RegExp(`^${literal(key)}\\s`) });
   await step.click();
-  if (folded) {
-    await step.press('Escape');
-    await expect(outline).toBeHidden();
-  }
+  if (folded) await expect(outline).toBeHidden();
 }
 
 /** Opens the example's story at a step. */

@@ -51,7 +51,7 @@ describe('the Studio', () => {
     await user.type(field, 'Population{Enter}');
     expect(store.getState().project.meta.title).toBe('Population');
     expect(screen.getByRole('status', { name: 'Save status: Unsaved changes' }).textContent).toBe(
-      'Unsaved changes',
+      'Save status: Unsaved changes',
     );
   });
 

@@ -20,7 +20,7 @@ import {
   stepKey,
 } from '@loopweft/model';
 import { ActionIcon, Button, Group, Menu, Radio, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { IconDots, IconPlus } from '@tabler/icons-react';
+import { IconDots, IconPlus, IconX } from '@tabler/icons-react';
 import {
   createContext,
   type RefObject,
@@ -380,7 +380,21 @@ function SceneBlock({ scene, index, current }: { scene: Scene; index: number; cu
 }
 
 /** The outline; `over`: laid over the stage, in a narrow window, and closed by Escape (`onClose`). */
-export function StoryOutline({ over = false, onClose }: { over?: boolean; onClose?: () => void } = {}) {
+/**
+ * The story's scenes and steps. In a narrow window it opens over the stage (`over`), shown while `open`: the
+ * focus goes to its Close button as it opens, and Close, Escape or choosing a scene or step closes it.
+ */
+export function StoryOutline({
+  id,
+  over = false,
+  open = true,
+  onClose,
+}: {
+  id?: string;
+  over?: boolean;
+  open?: boolean;
+  onClose?: () => void;
+} = {}) {
   const store = useStudioStore();
   const edit = useEdit();
   const scenes = useStudio((s) => s.project.story.scenes);
@@ -394,6 +408,10 @@ export function StoryOutline({ over = false, onClose }: { over?: boolean; onClos
     [warnings],
   );
   const nav = useRef<HTMLElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (over && open) closeButton.current?.focus();
+  }, [over, open]);
   const pending = useRef<{ key: string; fallback: RefObject<HTMLElement | null> } | null>(null);
   const focusAfter = useCallback((key: string, fallback: RefObject<HTMLElement | null>) => {
     pending.current = { key, fallback };
@@ -413,10 +431,16 @@ export function StoryOutline({ over = false, onClose }: { over?: boolean; onClos
       <FocusAfter.Provider value={focusAfter}>
         <nav
           ref={nav}
+          id={id}
+          hidden={!open}
           className={`lw-outline${over ? ' over' : ''}`}
           aria-label="Story outline"
           onKeyDown={(event) => {
             if (over && event.key === 'Escape' && !event.defaultPrevented) onClose?.();
+          }}
+          // Over the stage, choosing a scene or step (after its own handler has chosen it) closes the list.
+          onClick={(event) => {
+            if (over && (event.target as Element).closest('.lw-outline-pick')) onClose?.();
           }}
         >
           <div className="lw-outline-top">
@@ -435,6 +459,20 @@ export function StoryOutline({ over = false, onClose }: { over?: boolean; onClos
             >
               Scene
             </Button>
+            {over && (
+              <Tooltip label="Close the scenes (Escape)">
+                <ActionIcon
+                  ref={closeButton}
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
+                  aria-label="Close scenes"
+                  onClick={onClose}
+                >
+                  <IconX size={14} aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </div>
           <div className="lw-outline-body">
             {scenes.length === 0 && !adding && (

@@ -16,9 +16,11 @@ import {
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
+  IconCheck,
   IconChevronDown,
   IconDeviceDesktop,
   IconDeviceFloppy,
+  IconExclamationMark,
   IconFile,
   IconFolderOpen,
   IconMoon,
@@ -82,18 +84,30 @@ function SaveState() {
     : file
       ? `Saved · ${file.name}`
       : 'Saved';
-  // In a narrow window the badge shrinks to a dot of its colour; its words stay in its name and tooltip.
+  // In a narrow window the badge shrinks to a mark (a tick when saved, "!" when not); its words stay, out of
+  // sight, in the live status and its tooltip, which the keyboard reaches too.
+  const Mark = dirty ? IconExclamationMark : IconCheck;
   return (
-    <Tooltip label={label} className="lw-save-tip">
-      <output aria-live="polite" aria-label={`Save status: ${label}`} className="lw-save">
+    <Tooltip label={label} className="lw-save-tip" events={{ hover: true, focus: true, touch: false }}>
+      <output
+        aria-live="polite"
+        aria-label={`Save status: ${label}`}
+        className="lw-save"
+        data-saved={!dirty}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a keyboard stop, so the tooltip with its words opens on focus
+        tabIndex={0}
+      >
         <Badge
           variant="light"
           color={dirty ? 'yellow' : 'gray'}
           radius="sm"
           style={{ textTransform: 'none' }}
-          leftSection={<span className="lw-save-dot" aria-hidden />}
+          leftSection={<Mark className="lw-save-mark" size={12} stroke={3} aria-hidden />}
         >
-          <span className="lw-save-label">{label}</span>
+          <span className="lw-save-label">
+            <span className="lw-save-prefix">Save status: </span>
+            {label}
+          </span>
         </Badge>
       </output>
     </Tooltip>

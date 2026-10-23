@@ -654,6 +654,10 @@ body {
   background: var(--mantine-color-body);
 }
 
+.lw-outline[hidden] {
+  display: none;
+}
+
 /* In a narrow window, the outline opened over the stage. */
 .lw-story-workspace {
   position: relative;
@@ -987,27 +991,41 @@ body {
   outline: none;
 }
 
-/* The save status: a badge with its words, or in a narrow window a dot of its colour (its words in its tooltip). */
+/* The save status: a badge with its words, or in a narrow window a mark (a tick, or "!" when not saved), its
+   words out of sight but still read, and in its tooltip. */
 .lw-save {
   display: inline-flex;
   flex: none;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.lw-save:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
 }
 
 .lw-save .mantine-Badge-section {
   display: none;
 }
 
-.lw-save-dot {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
+/* Words a screen reader reads that need not show. */
+.lw-save-prefix {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (max-width: 1199px) {
   .lw-save-label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .lw-save .mantine-Badge-section {

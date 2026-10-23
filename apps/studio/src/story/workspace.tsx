@@ -36,6 +36,12 @@ export function StoryWorkspace() {
   // the window's width.
   const narrow = useMediaQuery('(max-width: 1279px)') ?? false;
   const [scenesOpen, setScenesOpen] = useState(false);
+  const scenesButton = useRef<HTMLButtonElement>(null);
+  // Closing the scene list over the stage puts the focus back on the button that opened it.
+  const closeScenes = () => {
+    setScenesOpen(false);
+    scenesButton.current?.focus();
+  };
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The step the playing scene last brought up. */
   const playedTo = useRef<string | null>(null);
@@ -132,15 +138,18 @@ export function StoryWorkspace() {
   const recording = brush.tool !== 'look' && !!current?.step && !playing;
   return (
     <div className="lw-workspace lw-story-workspace">
-      {narrow ? scenesOpen && <StoryOutline over onClose={() => setScenesOpen(false)} /> : <StoryOutline />}
+      {/* One outline at every width, so a name being typed in it survives the window narrowing. */}
+      <StoryOutline id="lw-story-outline" over={narrow} open={!narrow || scenesOpen} onClose={closeScenes} />
       <div className="lw-view">
         <div className="lw-viewbar">
           {narrow && (
             <Button
+              ref={scenesButton}
               size="compact-sm"
               variant={scenesOpen ? 'light' : 'default'}
               leftSection={<IconListTree size={16} aria-hidden />}
               aria-expanded={scenesOpen}
+              aria-controls="lw-story-outline"
               onClick={() => setScenesOpen((open) => !open)}
             >
               Scenes
