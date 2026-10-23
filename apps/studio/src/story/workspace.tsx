@@ -37,6 +37,16 @@ export function StoryWorkspace() {
   const narrow = useMediaQuery('(max-width: 1279px)') ?? false;
   const [scenesOpen, setScenesOpen] = useState(false);
   const scenesButton = useRef<HTMLButtonElement>(null);
+  // Whether the keyboard focus is in the outline (someone typing a name in it, say).
+  const focusInOutline = useRef(false);
+  // The window narrowing while the focus is in the outline leaves it open, over the stage, with the focus
+  // where it was, rather than folding it away from under the keyboard. (Set as the width changes, before
+  // the outline would be drawn hidden.)
+  const [wasNarrow, setWasNarrow] = useState(narrow);
+  if (narrow !== wasNarrow) {
+    setWasNarrow(narrow);
+    if (narrow && focusInOutline.current) setScenesOpen(true);
+  }
   // Closing the scene list over the stage puts the focus back on the button that opened it.
   const closeScenes = () => {
     setScenesOpen(false);
@@ -139,7 +149,15 @@ export function StoryWorkspace() {
   return (
     <div className="lw-workspace lw-story-workspace">
       {/* One outline at every width, so a name being typed in it survives the window narrowing. */}
-      <StoryOutline id="lw-story-outline" over={narrow} open={!narrow || scenesOpen} onClose={closeScenes} />
+      <StoryOutline
+        id="lw-story-outline"
+        over={narrow}
+        open={!narrow || scenesOpen}
+        onClose={closeScenes}
+        onFocusWithin={(inside) => {
+          focusInOutline.current = inside;
+        }}
+      />
       <div className="lw-view">
         <div className="lw-viewbar">
           {narrow && (

@@ -138,7 +138,7 @@ test('the scene list over the stage works from the keyboard: in on opening, Esca
   await expect(scenes).toBeFocused();
 });
 
-test('a scene name being typed survives the window narrowing', async ({ page }) => {
+test('a scene name left half typed survives the window narrowing', async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 900 });
   await page.getByRole('tab', { name: 'Story' }).click();
   const outline = page.getByRole('navigation', { name: 'Story outline' });
@@ -146,10 +146,35 @@ test('a scene name being typed survives the window narrowing', async ({ page }) 
   await outline.getByRole('button', { name: 'Scene', exact: true }).click();
   const field = outline.getByRole('textbox', { name: 'Title of the new scene' });
   await field.fill('A scene half named');
+  // The focus elsewhere: the list folds as the window narrows, and keeps the name.
+  await page.locator('.lw-story-frame').focus();
   await page.setViewportSize({ width: 1040, height: 900 });
   await expect(outline).toBeHidden();
   await page.getByRole('button', { name: 'Scenes' }).click();
   await expect(field).toHaveValue('A scene half named');
+});
+
+test('a scene name being typed as the window narrows stays in reach of the keyboard', async ({ page }) => {
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await page.getByRole('tab', { name: 'Story' }).click();
+  const outline = page.getByRole('navigation', { name: 'Story outline' });
+  await outline.getByRole('button', { name: 'Scene', exact: true }).click();
+  const field = outline.getByRole('textbox', { name: 'Title of the new scene' });
+  await expect(field).toBeFocused();
+  await page.keyboard.type('A scene typed');
+  await page.setViewportSize({ width: 1040, height: 900 });
+  // The list stays open over the stage, the field visible and still focused.
+  await expect(page.getByRole('button', { name: 'Scenes', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  await page.keyboard.type(' on, across the resize');
+  await page.keyboard.press('Enter');
+  await expect(
+    outline.locator('.lw-outline-scene-head', { hasText: 'A scene typed on, across the resize' }),
+  ).toHaveCount(1);
 });
 
 test('the table toolbar shows every button whole', async ({ page }) => {

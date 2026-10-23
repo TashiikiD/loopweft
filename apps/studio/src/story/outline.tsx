@@ -389,11 +389,14 @@ export function StoryOutline({
   over = false,
   open = true,
   onClose,
+  onFocusWithin,
 }: {
   id?: string;
   over?: boolean;
   open?: boolean;
   onClose?: () => void;
+  /** Told when the keyboard focus comes into the outline and when it leaves. */
+  onFocusWithin?: (inside: boolean) => void;
 } = {}) {
   const store = useStudioStore();
   const edit = useEdit();
@@ -409,8 +412,10 @@ export function StoryOutline({
   );
   const nav = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  // Opening over the stage puts the focus on Close, unless it is in the outline already (it stayed open, over
+  // the stage, as the window narrowed with someone typing in it).
   useEffect(() => {
-    if (over && open) closeButton.current?.focus();
+    if (over && open && !nav.current?.contains(document.activeElement)) closeButton.current?.focus();
   }, [over, open]);
   const pending = useRef<{ key: string; fallback: RefObject<HTMLElement | null> } | null>(null);
   const focusAfter = useCallback((key: string, fallback: RefObject<HTMLElement | null>) => {
@@ -437,6 +442,10 @@ export function StoryOutline({
           aria-label="Story outline"
           onKeyDown={(event) => {
             if (over && event.key === 'Escape' && !event.defaultPrevented) onClose?.();
+          }}
+          onFocus={() => onFocusWithin?.(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusWithin?.(false);
           }}
           // Over the stage, choosing a scene or step (after its own handler has chosen it) closes the list.
           onClick={(event) => {
