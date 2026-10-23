@@ -454,16 +454,15 @@ function SeveralInspector({ variables, links }: { variables: string[]; links: st
   const project = useStudio((s) => s.project);
   const graph = useGraph(project);
   const edit = useEdit();
-  // Why the last press did nothing, if it did nothing; cleared when the selection changes.
-  const [refused, setRefused] = useState<{ for: string; text: string } | null>(null);
-  const selected = variables.join(' ');
+  // Why the last press did nothing, if it did nothing (a new selection mounts a new inspector, without it).
+  const [refused, setRefused] = useState('');
   const align = (how: Alignment) => {
     const out = lineUp(graph, variables, how);
     if ('refused' in out) {
-      setRefused({ for: selected, text: out.refused });
+      setRefused(out.refused);
       return;
     }
-    setRefused(null);
+    setRefused('');
     edit((p) => moveVariables(p, out.moves));
   };
   const lineButton = (how: Alignment, label: string) => (
@@ -495,11 +494,10 @@ function SeveralInspector({ variables, links }: { variables: string[]; links: st
               {lineButton('down', 'Space evenly down')}
             </Group>
           )}
-          {refused?.for === selected && (
-            <Text size="xs" c="yellow.7" role="status">
-              {refused.text}
-            </Text>
-          )}
+          {/* Always there, so a screen reader announces the text when it changes. */}
+          <Text size="xs" c="yellow.7" role="status" aria-label="Line up">
+            {refused}
+          </Text>
         </>
       )}
       {variables.length >= 1 && (
@@ -529,7 +527,14 @@ export function Inspector() {
   const count = selection.variables.length + selection.links.length;
   let body: React.ReactNode;
   if (count === 0) body = <ProjectInspector />;
-  else if (count > 1) body = <SeveralInspector variables={selection.variables} links={selection.links} />;
+  else if (count > 1)
+    body = (
+      <SeveralInspector
+        key={`${selection.variables.join(' ')}|${selection.links.join(' ')}`}
+        variables={selection.variables}
+        links={selection.links}
+      />
+    );
   else if (selection.variables.length === 1) {
     const variable = project.variables.find((v) => v.id === selection.variables[0]);
     body = variable ? <VariableInspector key={variable.id} variable={variable} /> : null;

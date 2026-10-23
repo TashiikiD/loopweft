@@ -95,11 +95,40 @@ describe('the canvas helpers', () => {
     // Top would put b on a: refused, with both named.
     expect(lineUp(buildGraph(p), ['a', 'b'], 'top')).toEqual({
       refused:
-        'Lining them up on the top one would put “A” and “B” on one spot, one hidden under the other: they are in a column already. Move one of them first.',
+        'Lining them up on the top one would put “A” and “B” on top of each other: they are in a column already. Move one of them first.',
     });
     // Two already on one spot (placed so by hand) do not stop a press that moves them.
     p.layout.positions.b = { x: 200, y: 300 };
     expect('moves' in lineUp(buildGraph(p), ['a', 'b', 'c'], 'top')).toBe(true);
+  });
+
+  it('never lines a variable up over one that is not selected', () => {
+    const p = three();
+    // Left moves b to (200, 360), where c is.
+    p.layout.positions.c = { x: 200, y: 360 };
+    expect(lineUp(buildGraph(p), ['a', 'b'], 'left')).toEqual({
+      refused:
+        'Lining them up on the left-most one would put “B” on top of “C”, which is not selected. Move one of them first.',
+    });
+  });
+
+  it('never makes two that overlap a little overlap more', () => {
+    const p = three();
+    p.layout.positions = { a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, c: { x: 2000, y: 2000 } };
+    expect(lineUp(buildGraph(p), ['a', 'b'], 'left')).toEqual({
+      refused:
+        'Lining them up on the left-most one would put “A” and “B” on top of each other: they are in a row already. Move one of them first.',
+    });
+  });
+
+  it('says Space evenly across would overlap two in a row', () => {
+    const p = three();
+    const r = buildGraph(p).nodes.get('a')?.r as number;
+    // b, close to c, would go half way: over a.
+    p.layout.positions = { a: { x: 0, y: 0 }, b: { x: 3 * r, y: 0 }, c: { x: 3.5 * r, y: 0 } };
+    expect(lineUp(buildGraph(p), ['a', 'b', 'c'], 'across')).toMatchObject({
+      refused: expect.stringContaining('on top of each other: they are in a row already.'),
+    });
   });
 
   it('tells overlap by each glyph’s own shape, as the canvas draws it', () => {
@@ -113,7 +142,7 @@ describe('the canvas helpers', () => {
     const r = buildGraph(three()).nodes.get('a')?.r as number;
     // Octagons reach past the radius (by a fifth or so): side by side within that, Top would overlap them.
     expect(lineUp(shaped('octagon', 2 * r + 2), ['a', 'b'], 'top')).toMatchObject({
-      refused: expect.stringContaining('on one spot'),
+      refused: expect.stringContaining('on top of each other'),
     });
     // Squares stay within it: side by side just over their width apart, Top leaves them clear.
     expect(lineUp(shaped('square', 2 * r - 2), ['a', 'b'], 'top')).toMatchObject({
@@ -315,7 +344,9 @@ describe('editing on the canvas', () => {
     // Top would put one on the other: refused, and the Undo history keeps only the Left.
     const steps = store.getState().past.length;
     await user.click(screen.getByRole('button', { name: 'Top' }));
-    expect(screen.getByText(/would put “A” and “B” on one spot/).getAttribute('role')).toBe('status');
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toMatch(
+      /would put “A” and “B” on top of each other/,
+    );
     expect(store.getState().project.layout.positions).toEqual(lined);
     expect(store.getState().past.length).toBe(steps);
     // Left again: lined up already.
@@ -324,6 +355,27 @@ describe('editing on the canvas', () => {
     // Each button says what it lines up to.
     await user.hover(screen.getByRole('button', { name: 'Right' }));
     expect(await screen.findByText('Line them up on the right-most one')).toBeTruthy();
+  });
+
+  it('keeps the Line up status in the page, empty, and clears it whenever the selection changes', async () => {
+    const { store } = setup();
+    const user = userEvent.setup();
+    act(() => store.getState().select({ variables: ['a', 'b'] }));
+    // There before any press, so its first message is announced.
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toBe('');
+    await user.click(screen.getByRole('button', { name: 'Left' }));
+    await user.click(screen.getByRole('button', { name: 'Top' }));
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toMatch(/on top of each other/);
+    // A link added to the selection clears it.
+    act(() => store.getState().select({ variables: ['a', 'b'], links: ['L1'] }));
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toBe('');
+    await user.click(screen.getByRole('button', { name: 'Top' }));
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toMatch(/on top of each other/);
+    // So does another variable, and the message does not come back with the first selection.
+    act(() => store.getState().select({ variables: ['a', 'c'] }));
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toBe('');
+    act(() => store.getState().select({ variables: ['a', 'b'] }));
+    expect(screen.getByRole('status', { name: 'Line up' }).textContent).toBe('');
   });
 
   it('frames the home view from the canvas', async () => {

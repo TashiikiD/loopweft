@@ -127,10 +127,22 @@ export const LINE_UP: Record<Alignment, string> = {
   down: 'spaced evenly from the top to the bottom one',
 };
 
+type At = { x: number; y: number };
+
+/** How much two glyphs, drawn as the canvas draws them (each shape's own reach), overlap with their centres here. */
+function overlapArea(a: GraphNode, pa: At, b: GraphNode, pb: At): number {
+  const ea = glyphExtent(a.shape, a.r);
+  const eb = glyphExtent(b.shape, b.r);
+  const w = Math.min(pa.x + ea.right, pb.x + eb.right) - Math.max(pa.x - ea.left, pb.x - eb.left);
+  const h = Math.min(pa.y + ea.down, pb.y + eb.down) - Math.max(pa.y - ea.up, pb.y - eb.up);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
 /**
- * What a Line up press does: the moves, or why it does nothing. A press that would put two variables on one
- * spot (one drawn over the other, as Left then Top does to two variables) is refused, with the two named; a
- * press that would move nothing says they are lined up already.
+ * What a Line up press does: the moves, or why it does nothing. A press that would draw a variable further over
+ * another (the selected ones, as Left then Top does to two variables, or one that is not selected) is refused,
+ * with the two named; two that overlapped before may move together, as long as they overlap no more. A press
+ * that would move nothing says they are lined up already.
  */
 export function lineUp(
   graph: Graph,
@@ -138,39 +150,33 @@ export function lineUp(
   how: Alignment,
 ): { moves: Moves } | { refused: string } {
   const moves = alignment(graph, ids, how);
-  const at = (id: string) => moves[id] ?? (graph.nodes.get(id) as GraphNode);
+  const at = (id: string): At => moves[id] ?? (graph.nodes.get(id) as GraphNode);
   const moved = Object.keys(moves).filter((id) => {
     const n = graph.nodes.get(id) as GraphNode;
-    const to = moves[id] as { x: number; y: number };
+    const to = moves[id] as At;
     return Math.round(n.x) !== to.x || Math.round(n.y) !== to.y;
   });
   if (moved.length === 0) return { refused: `They are lined up ${LINE_UP[how]} already.` };
-  const nodes = ids.map((id) => graph.nodes.get(id)).filter((n): n is GraphNode => n !== undefined);
-  // Whether two glyphs, drawn as the canvas draws them (each shape's own reach), overlap with their centres here.
-  const overlap = (
-    a: GraphNode,
-    pa: { x: number; y: number },
-    b: GraphNode,
-    pb: { x: number; y: number },
-  ) => {
-    const ea = glyphExtent(a.shape, a.r);
-    const eb = glyphExtent(b.shape, b.r);
-    return (
-      pa.x - ea.left < pb.x + eb.right &&
-      pb.x - eb.left < pa.x + ea.right &&
-      pa.y - ea.up < pb.y + eb.down &&
-      pb.y - eb.up < pa.y + ea.down
-    );
-  };
-  for (const [i, a] of nodes.entries()) {
-    for (const b of nodes.slice(i + 1)) {
-      if (overlap(a, at(a.id), b, at(b.id)) && !overlap(a, a, b, b)) {
-        const name = (n: GraphNode) => `“${n.label.replace(/\n/g, ' ')}”`;
-        const line = how === 'left' || how === 'centre' || how === 'right' ? 'a row' : 'a column';
+  const movedSet = new Set(moved);
+  const selected = new Set(ids);
+  const name = (n: GraphNode) => `“${n.label.replace(/\n/g, ' ')}”`;
+  const all = [...graph.nodes.values()];
+  for (const id of moved) {
+    const a = graph.nodes.get(id) as GraphNode;
+    for (const b of all) {
+      // Each pair once: a pair of two moved variables is checked from the earlier one.
+      if (b.id === id || (movedSet.has(b.id) && b.id < id)) continue;
+      if (overlapArea(a, at(a.id), b, at(b.id)) <= overlapArea(a, a, b, b)) continue;
+      if (!selected.has(b.id))
         return {
-          refused: `Lining them up ${LINE_UP[how]} would put ${name(a)} and ${name(b)} on one spot, one hidden under the other: they are in ${line} already. Move one of them first.`,
+          refused: `Lining them up ${LINE_UP[how]} would put ${name(a)} on top of ${name(b)}, which is not selected. Move one of them first.`,
         };
-      }
+      const [first, second] = a.id < b.id ? [a, b] : [b, a];
+      const line =
+        how === 'left' || how === 'centre' || how === 'right' || how === 'across' ? 'a row' : 'a column';
+      return {
+        refused: `Lining them up ${LINE_UP[how]} would put ${name(first)} and ${name(second)} on top of each other: they are in ${line} already. Move one of them first.`,
+      };
     }
   }
   return { moves };
