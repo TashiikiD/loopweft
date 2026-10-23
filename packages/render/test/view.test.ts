@@ -216,6 +216,40 @@ describe('the map view', () => {
     );
   });
 
+  it('lets the pointer, the keyboard and screen readers reach only the loop badges on show', () => {
+    const { clock, host, view } = mapView();
+    const badge = q(host, '.loop-badge[data-id="R7"]') as SVGGElement;
+    const key = q(host, '.map-loop-key[data-detail^="R7:"]') as HTMLElement;
+    // Hidden at first: no pointer, no keyboard stop, nothing said.
+    expect(badge.style.pointerEvents).toBe('none');
+    expect(key.hidden).toBe(true);
+    view.apply(stepAt(project, 'S05.1').map, 'instant');
+    expect(badge.style.pointerEvents).toBe('none');
+    // The step that pops it in.
+    view.apply(stepAt(project, 'S05.2').map, 'smooth');
+    clock.advance(5);
+    expect(badge.style.pointerEvents).toBe('auto');
+    expect(key.hidden).toBe(false);
+    expect(key.tabIndex).toBe(0);
+    expect(key.getAttribute('role')).toBe('img');
+    expect(key.getAttribute('aria-label')).toBe(q(host, '.loop-badge[data-id="R7"] > title')?.textContent);
+    key.focus();
+    expect(document.activeElement).toBe(key);
+    // Back to a step without it.
+    view.apply(stepAt(project, 'S05.1').map, 'smooth');
+    expect(badge.style.pointerEvents).toBe('none');
+    expect(key.hidden).toBe(true);
+    // One stop per badge, each hidden while its badge is.
+    expect(host.querySelectorAll('.map-loop-key')).toHaveLength(18);
+  });
+
+  it('says a loop’s archetype through its badge’s keyboard stop', () => {
+    const { host } = mapView();
+    expect(q(host, '.map-loop-key[data-detail^="R10:"]')?.getAttribute('aria-label')).toBe(
+      'R10: Deepening divides (Deepening Divides (Success to the Successful))',
+    );
+  });
+
   it('keeps soft pulses wandering a held step, and stops them on the next step', () => {
     const { clock, view } = mapView();
     view.apply(stepAt(project, 'S00.1').map, 'instant');

@@ -120,7 +120,7 @@ export class ExportStage {
         '.map-svg .edge-head',
         '.map-svg .node > :not(.node-halo)',
         '.map-svg .loop-badge',
-        '.map-labels > *',
+        '.map-labels > :not(.map-loop-key)',
       ].join(','),
     );
     let x0 = Number.POSITIVE_INFINITY;

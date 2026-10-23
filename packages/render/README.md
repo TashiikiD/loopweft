@@ -8,8 +8,8 @@ The pure part, which runs in Node as well as the browser:
 - **`buildGraph`**: every placed variable and link with its position, size, colour (its category's), glyph
   (its role's shape) and curve (from `@loopweft/layout`). Hubs are the variables sized large; responses come
   from their role.
-- **`namedLoops`**: the project's loops, each R or B from its links' signs, with the short name shown beside
-  its badge.
+- **`namedLoops`**: the project's loops, each R or B from its links' signs, with its own name shown beside
+  its badge (its archetype is in the badge's tooltip, and said by its keyboard stop).
 - **`resolveMap`**: a step's map state as concrete levels, labels and camera; with `categoryWords`, also the
   category to name beneath each label (decision 22 of the format).
 - **`schedule`**: the choreography of a forward step: which new links trace in and when, when variables and

@@ -146,6 +146,10 @@ export class MapView {
   #state: MapState | undefined = undefined;
   #categoryWords = false;
   readonly #loopNames = new Map<string, HTMLElement>();
+  /** Each loop badge's keyboard stop, saying what the loop is (the map's SVG is hidden from assistive technology). */
+  readonly #loopKeys = new Map<string, HTMLElement>();
+  /** The loops the step last applied shows. */
+  #shownLoops = new Set<string>();
   readonly #groupLabels = new Map<string, { el: HTMLElement; group: GraphGroup }>();
   readonly #labelLayer: HTMLElement;
   readonly #minimap: Minimap;
@@ -298,12 +302,25 @@ export class MapView {
         svg('path', { d: LOOP_ARROW.head, class: 'loop-head' }),
         text,
       );
-      // Its id, name and archetype, for whoever points at it.
+      // Its id, name and archetype, for whoever points at it; a hidden badge takes no pointer (nor shows it).
+      const detail = `${loop.id}: ${loop.name}${loop.archetype ? ` (${loop.archetype})` : ''}`;
       const tip = svg('title');
-      tip.textContent = `${loop.id}: ${loop.name}${loop.archetype ? ` (${loop.archetype})` : ''}`;
+      tip.textContent = detail;
       g.append(tip, body);
+      g.style.pointerEvents = 'none';
       badgeLayer.appendChild(g);
       this.#badges.set(loop.id, { g, body, arc, at: loop.at });
+
+      // The same for the keyboard and screen readers: a stop over the badge while it shows, which says it.
+      const key = document.createElement('div');
+      key.className = 'map-loop-key';
+      key.hidden = true;
+      key.tabIndex = 0;
+      key.setAttribute('role', 'img');
+      key.setAttribute('aria-label', detail);
+      key.dataset.detail = detail;
+      this.#labelLayer.appendChild(key);
+      this.#loopKeys.set(loop.id, key);
 
       // The loop's own name, not its archetype: two loops of one archetype must not read alike.
       const name = hidden(document.createElement('div'));
@@ -418,10 +435,14 @@ export class MapView {
     }
 
     const shownLoops = new Set(r.loops);
+    this.#shownLoops = shownLoops;
+    this.#placeLoopKeys(this.#cam);
     for (const [id, b] of this.#badges) {
       const at = plan?.loopAt.get(id);
-      if (tl && at !== undefined && shownLoops.has(id)) this.#popBadge(tl, b, at);
-      else this.#tween(b.g, { opacity: shownLoops.has(id) ? 1 : 0 }, fade);
+      const shown = shownLoops.has(id);
+      b.g.style.pointerEvents = shown ? 'auto' : 'none';
+      if (tl && at !== undefined && shown) this.#popBadge(tl, b, at);
+      else this.#tween(b.g, { opacity: shown ? 1 : 0 }, fade);
     }
     const named = new Set(r.loopNames);
     for (const [id, el] of this.#loopNames) {
@@ -824,7 +845,22 @@ export class MapView {
       const p = toStage(cam, b.at.x, b.at.y);
       el.style.transform = `translate(${p.x.toFixed(1)}px, ${(p.y + 21 * cam.zoom + 8).toFixed(1)}px)`;
     }
+    this.#placeLoopKeys(cam);
     this.#minimap.update(cam);
+  }
+
+  /** Puts each loop badge's keyboard stop over its badge, and out of reach while its badge is hidden or off the stage. */
+  #placeLoopKeys(cam: Camera): void {
+    for (const [id, el] of this.#loopKeys) {
+      const b = this.#badges.get(id);
+      if (!b) continue;
+      const p = toStage(cam, b.at.x, b.at.y);
+      // The badge's disc (radius 21).
+      const d = 42 * cam.zoom;
+      el.style.width = el.style.height = `${d.toFixed(1)}px`;
+      el.style.transform = `translate(${(p.x - d / 2).toFixed(1)}px, ${(p.y - d / 2).toFixed(1)}px)`;
+      el.hidden = !this.#shownLoops.has(id) || p.x < 0 || p.y < 0 || p.x > STAGE.w || p.y > STAGE.h;
+    }
   }
 
   get camera(): Camera {

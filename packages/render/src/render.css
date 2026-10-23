@@ -259,7 +259,7 @@
   filter: drop-shadow(0 0 6px var(--tone)) drop-shadow(0 0 2px var(--tone));
 }
 
-/* A loop's archetype or name, under its badge. */
+/* A loop's name, under its badge. */
 .lw-stage .map-loop-name {
   position: absolute;
   left: 0;
@@ -275,6 +275,36 @@
     0 0 8px var(--lw-ink),
     0 0 16px var(--lw-ink);
   will-change: transform, opacity;
+}
+
+/* A loop badge's keyboard stop: nothing to see until it has the focus, then a ring round the badge and what
+   the loop is (its id, name and archetype) above it. */
+.lw-stage .map-loop-key {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  outline: none;
+}
+
+.lw-stage .map-loop-key:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--lw-text),
+    0 0 0 6px var(--lw-ink);
+}
+
+.lw-stage .map-loop-key:focus-visible::after {
+  content: attr(data-detail);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  translate: -50% 0;
+  white-space: nowrap;
+  font-size: 18px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--lw-ink);
+  color: var(--lw-text);
 }
 
 /* Labels live in HTML so they stay crisp and a constant size at any zoom. */

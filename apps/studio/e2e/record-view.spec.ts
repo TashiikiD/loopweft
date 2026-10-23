@@ -21,15 +21,18 @@ plainBrowser();
 const RECORD = 'Record: click variables and links';
 
 /** Where keyboard focus is: a record target's name and whether any of it shows on the stage, or null. */
-async function focusedTarget(page: Page): Promise<{ label: string; onStage: boolean } | null> {
+async function focusedTarget(page: Page): Promise<{ label: string; onStage: boolean; loop: boolean } | null> {
   return page.evaluate(() => {
     const el = document.activeElement;
-    if (!(el instanceof SVGGeometryElement) || !el.closest('.lw-record-layer')) return null;
-    const stage = (el.closest('.lw-stage') as HTMLElement).getBoundingClientRect();
+    // A loop badge's keyboard stop, on the stage's map under the record layer.
+    const loop = el instanceof HTMLElement && el.classList.contains('map-loop-key');
+    if (!loop && (!(el instanceof SVGGeometryElement) || !el.closest('.lw-record-layer'))) return null;
+    const stage = ((el as Element).closest('.lw-stage') as HTMLElement).getBoundingClientRect();
     const scale = stage.width / 1920;
     const inside = (x: number, y: number, pad: number) =>
       x >= stage.left - pad && x <= stage.right + pad && y >= stage.top - pad && y <= stage.bottom + pad;
     let onStage = false;
+    if (!el) return null;
     if (el instanceof SVGPathElement) {
       // Along the link's curve, counting half its 14-pixel target either side.
       const length = el.getTotalLength();
@@ -44,7 +47,7 @@ async function focusedTarget(page: Page): Promise<{ label: string; onStage: bool
       onStage =
         box.right > stage.left && box.left < stage.right && box.bottom > stage.top && box.top < stage.bottom;
     }
-    return { label: el.getAttribute('aria-label') ?? '', onStage };
+    return { label: el.getAttribute('aria-label') ?? '', onStage, loop };
   });
 }
 
@@ -96,6 +99,7 @@ test('Tab skips the variables and links off the stage', async ({ page }) => {
     const at = await focusedTarget(page);
     if (!at) break;
     expect(at.onStage, `Tab reached "${at.label}", which is off the stage`).toBe(true);
+    if (at.loop) continue;
     reached.push(at.label);
     expect(reached.length).toBeLessThanOrEqual(targets);
   }
