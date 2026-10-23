@@ -1,7 +1,7 @@
 // What a step's map shows: the edits behind the Studio's record view and `loopweft story step set`. Each one
 // changes one step's map state and nothing else; the pure helpers (withLevel, withTrend…) are what they
 // share, so both front ends make the same state from the same request.
-import { type RippleDirection, type RippleOptions, type RippleResult, ripple } from '../ripple.ts';
+import { type RippleDirection, type RippleResult, ripple } from '../ripple.ts';
 import {
   LEVELS,
   type Level,
@@ -362,7 +362,13 @@ export function spreadTrend(
   return { project: out.project, result: { key, trends, against, along }, summary: out.summary };
 }
 
-export interface RippleStepOptions extends RippleOptions {
+/**
+ * What a ripple step can be asked for. A step shows the whole ripple: no step cap (a ripple stopped by
+ * `maxSteps` would be told as if the change went no further).
+ */
+export interface RippleStepOptions {
+  /** Follow links of optional types too. Default: left out. */
+  includeOptional?: boolean;
   /** Show the scene's caption, when the step shows none and another step of its scene does. */
   caption?: boolean;
 }
@@ -382,7 +388,8 @@ export function setStepRipple(
   options: RippleStepOptions = {},
 ): OpOutput<{ key: string; reached: string[]; links: string[]; hops: number }> {
   const { scene, step, key } = resolveStep(project, ref);
-  const spread = ripple(project, startRef, direction, options);
+  // Only what a step may ask for reaches the ripple: never a step cap, whatever else the options carry.
+  const spread = ripple(project, startRef, direction, { includeOptional: options.includeOptional === true });
   const { start } = spread;
   const reached = spread.reached.map((r) => r.variable);
   const crossed = [...new Set(spread.hops.flat())];
@@ -439,14 +446,14 @@ export function addRippleStep(
   direction: RippleDirection,
   input: Omit<StepInput, 'label' | 'map' | 'overlays'> & { label?: string } = {},
   where?: Where,
-  options: RippleOptions = {},
+  options: Pick<RippleStepOptions, 'includeOptional'> = {},
 ): OpOutput<{ key: string; reached: string[]; links: string[]; hops: number }> {
   const variable = resolveVariable(project, startRef).variable;
   const label =
     input.label ?? `${variable.label.replace(/\n/g, ' ')} ${direction === 'up' ? 'rises' : 'falls'}`;
   const added = addStep(project, sceneRef, { ...input, label, map: {} }, where);
   const shown = setStepRipple(added.project, added.result.key, variable.id, direction, {
-    ...options,
+    includeOptional: options.includeOptional,
     caption: true,
   });
   return { project: shown.project, result: shown.result, summary: `${added.summary} ${shown.summary}` };

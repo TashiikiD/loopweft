@@ -385,6 +385,16 @@ describe('what a step shows', () => {
     expect(refused(() => addRippleStep(richProject(), 'S1', 'nobody', 'up')).kind).toBe('notFound');
   });
 
+  it('shows the whole ripple in a step: a step cap slipped into its options is not followed', () => {
+    // maxSteps is not a ripple step's option; given anyway at run time, it must not cut the ripple short.
+    const capped = { maxSteps: 0 } as unknown as { includeOptional?: boolean };
+    const set = setStepRipple(richProject(), 'S1.3', 'births', 'up', capped);
+    expect(set.result).toMatchObject({ reached: ['population', 'deaths'], hops: 2 });
+    const added = addRippleStep(richProject(), 'S1', 'births', 'up', {}, undefined, capped);
+    expect(added.result).toMatchObject({ reached: ['population', 'deaths'], hops: 2 });
+    expect(stepOf(added.project, added.result.key).map.pulses).toEqual({ hops: [['L1'], ['L3']] });
+  });
+
   it('refuses a map the format would refuse', () => {
     expect(refused(() => setStepMap(richProject(), 'S1.1', { opacity: 2 })).kind).toBe('invalid');
     // Ambient walks with no time between them.
