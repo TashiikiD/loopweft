@@ -8,7 +8,8 @@
 //
 // --map names the map file the instructions give the agent (the Phase 7 brief's road-lanes.loopweft by default).
 //
-// - Claude Code runs as `claude -p` with only `loopweft` commands, and reading and writing files in its folder,
+// - Claude Code runs as `claude -p` with only `loopweft` commands (in Bash; PowerShell is not offered), and reading
+//   and writing files in its folder,
 //   allowed (no web, no other shell commands, no user settings, plugins or MCP servers).
 // - Codex runs as `codex exec` in its workspace-write sandbox; it cannot be held to `loopweft` commands alone, so
 //   the transcript shows every command it ran.
@@ -121,6 +122,9 @@ const LAUNCH: Record<'claude' | 'codex' | 'agy', () => Launch> = {
       '--disallowedTools',
       'WebFetch',
       'WebSearch',
+      // Claude Code on Windows also offers PowerShell, where `loopweft` is not allowed: the agent would stop to
+      // ask for an approval nobody gives. Bash is its way to the command line.
+      'PowerShell',
       '--setting-sources',
       'project',
       '--strict-mcp-config',
