@@ -259,12 +259,11 @@
   filter: drop-shadow(0 0 6px var(--tone)) drop-shadow(0 0 2px var(--tone));
 }
 
-/* A loop's name, under its badge. */
+/* A loop's name beside its badge: below it, unless that would cover a variable, a badge or a label. */
 .lw-stage .map-loop-name {
   position: absolute;
   left: 0;
   top: 0;
-  translate: -50% 0;
   font-size: 24px;
   font-weight: 600;
   font-style: italic;

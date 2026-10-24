@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { badgeOffset } from '@loopweft/layout';
 import { ManualClock, Motion } from '@loopweft/motion';
 import { describe, expect, it } from 'vitest';
 import { MapView, StoryView, schedule, storyPositions } from '../src/index.ts';
@@ -189,6 +190,19 @@ describe('the map view', () => {
     clock.advance(12);
     expect(view.pulseLayer.childElementCount).toBe(0);
     expect(host.querySelectorAll('mask')).toHaveLength(0);
+  });
+
+  it('puts each ▲/▼ badge where its own links leave it clear, not always at the upper right', () => {
+    const { host, view } = mapView();
+    const corners = [...host.querySelectorAll('.node[data-id]')].map((node) => {
+      const id = node.getAttribute('data-id') as string;
+      const at = badgeOffset(view.graph, id);
+      expect(node.querySelector('.node-trend')?.getAttribute('transform')).toBe(`translate(${at.x} ${at.y})`);
+      return at.x > 0 && at.y < 0 ? 'upper right' : 'elsewhere';
+    });
+    // Most keep the upper right; some, whose links run there, do not.
+    expect(corners.filter((c) => c === 'upper right').length).toBeGreaterThan(corners.length / 2);
+    expect(corners).toContain('elsewhere');
   });
 
   it('pops new loop badges in once their loop has traced', () => {

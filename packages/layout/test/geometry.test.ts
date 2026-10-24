@@ -2,6 +2,8 @@
 // tests, run on the converted example instead of the deck's own map.
 import { describe, expect, it } from 'vitest';
 import {
+  BADGE_R,
+  badgeOffset,
   boxFor,
   circleOnStage,
   curveOnStage,
@@ -9,8 +11,12 @@ import {
   FRAMES,
   fitCamera,
   homeCamera,
+  LOOP_BADGE_R,
+  type LoopNameSide,
+  loopNameBox,
   mapGeometry,
   placeLabels,
+  placeLoopNames,
   project,
   quad,
   wholeMapCamera,
@@ -172,5 +178,70 @@ describe('label placement', () => {
     expect(b.y + b.h <= 80 && b.x + b.w / 2 === 100).toBe(true);
     const r = boxFor('right', 100, 100, 20, 60, 30);
     expect(r.x >= 120 && r.y + r.h / 2 === 100).toBe(true);
+  });
+});
+
+describe('marks that keep clear of each other', () => {
+  // Two variables in a two-way pair, as a loop of two draws them: B up and to the right of A.
+  const A = { x: 400, y: 700, r: 11 };
+  const B = { x: 1400, y: 400, r: 11 };
+  const pair = (bend: number) => {
+    const ab = edgeGeometry(A, A.r, B, B.r, bend, '+');
+    const ba = edgeGeometry(B, B.r, A, A.r, bend, '+');
+    return {
+      nodes: new Map([
+        ['a', A],
+        ['b', B],
+        ['c', { x: 900, y: 900, r: 11 }],
+      ]),
+      edges: new Map([
+        ['ab', { source: { id: 'a' }, target: { id: 'b' }, geom: ab }],
+        ['ba', { source: { id: 'b' }, target: { id: 'a' }, geom: ba }],
+      ]),
+    };
+  };
+  const near = (graph: ReturnType<typeof pair>, id: string, at: { x: number; y: number }) => {
+    const n = graph.nodes.get(id) as { x: number; y: number };
+    let closest = Number.POSITIVE_INFINITY;
+    for (const e of graph.edges.values()) {
+      if (e.source.id !== id && e.target.id !== id) continue;
+      for (let i = 0; i <= 50; i++) {
+        const p = quad(e.geom.p0, e.geom.c, e.geom.p1, i / 50);
+        closest = Math.min(closest, Math.hypot(p.x - n.x - at.x, p.y - n.y - at.y));
+      }
+    }
+    return closest;
+  };
+
+  it('puts a ▲/▼ badge at its variable’s upper right, or the first corner clear of its own links', () => {
+    const graph = pair(0.18);
+    // A variable without links: its upper right.
+    expect(badgeOffset(graph, 'c')).toEqual({ x: 17, y: -17 });
+    // A's links leave towards its upper right, where the badge would hide them (the proof's loop step).
+    const a = badgeOffset(graph, 'a');
+    expect(a).not.toEqual({ x: 17, y: -17 });
+    expect(near(graph, 'a', a)).toBeGreaterThanOrEqual(BADGE_R + 3);
+    // The same every time; a variable not on the map has none.
+    expect(badgeOffset(graph, 'a')).toEqual(a);
+    expect(badgeOffset(graph, 'nowhere')).toEqual({ x: 0, y: 0 });
+  });
+
+  it('puts a loop’s name below its badge, or on the first side clear of variables, badges and labels', () => {
+    const graph = pair(0.18);
+    const camera = { cx: 960, cy: 540, zoom: 1 };
+    const name = { id: 'R1', w: 360, h: 30 };
+    const ctx = { graph, camera, nodes: ['a', 'b', 'c'], badges: [], labels: [], reserved: [] };
+    // Nothing below the badge: below.
+    expect(placeLoopNames([{ ...name, at: { x: 900, y: 300 } }], ctx).get('R1')).toBe('below');
+    // C sits just under the badge (as Food insecurity sat under the name in the proof): not below.
+    const side = placeLoopNames([{ ...name, at: { x: 900, y: 840 } }], ctx).get('R1');
+    expect(side).not.toBe('below');
+    const box = loopNameBox(side as LoopNameSide, 900, 840, LOOP_BADGE_R, name.w, name.h);
+    expect(box.x <= 900 && 900 <= box.x + box.w && box.y <= 900 && 900 <= box.y + box.h).toBe(false);
+    // A label in the way counts too.
+    const label = { x: 700, y: 330, w: 400, h: 40 };
+    expect(
+      placeLoopNames([{ ...name, at: { x: 900, y: 300 } }], { ...ctx, labels: [label] }).get('R1'),
+    ).not.toBe('below');
   });
 });

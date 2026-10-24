@@ -56,13 +56,21 @@ export {
   segmentsCross,
 } from './geometry.ts';
 export {
+  BADGE_R,
   type Box,
+  badgeOffset,
   boxFor,
   type LabelGraph,
   type LabelRequest,
   type LabelSide,
+  LOOP_BADGE_R,
+  type LoopNamePlacement,
+  type LoopNameRequest,
+  type LoopNameSide,
+  loopNameBox,
   type PlacementContext,
   placeLabels,
+  placeLoopNames,
 } from './labels.ts';
 export {
   type AutoLayout,

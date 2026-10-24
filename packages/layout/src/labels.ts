@@ -6,12 +6,16 @@
 // eight spots around its node and keeps the one that collides least with
 // lit links, nodes, earlier labels and reserved regions (captions, minimap).
 import { type Camera, project, STAGE } from './camera.ts';
-import { type Pt, quad } from './geometry.ts';
+import { HEAD_LEN, type Pt, quad } from './geometry.ts';
 
 /** What placement needs to know about the map: variable positions and radii, and link curves. */
 export interface LabelGraph {
   nodes: ReadonlyMap<string, { x: number; y: number; r: number }>;
-  edges: ReadonlyMap<string, { geom: { p0: Pt; c: Pt; p1: Pt } }>;
+  /** Link curves, with their ends' ids where known (a ▲/▼ badge keeps clear of its variable's own links). */
+  edges: ReadonlyMap<
+    string,
+    { source?: { id: string }; target?: { id: string }; geom: { p0: Pt; c: Pt; p1: Pt } }
+  >;
 }
 
 export type LabelSide =
@@ -47,7 +51,7 @@ export interface PlacementContext {
   edges: Array<{ id: string; weight: number }>;
   /** Visible nodes (centres and radii come from the graph). */
   nodes: string[];
-  /** Nodes showing a ▲/▼ badge at their upper right. */
+  /** Nodes showing a ▲/▼ badge (where `badgeOffset` puts it). */
   badges: string[];
   reserved: Box[];
 }
@@ -115,7 +119,8 @@ export function placeLabels(requests: LabelRequest[], ctx: PlacementContext): Ma
   });
   const badges = ctx.badges.map((id) => {
     const n = graph.nodes.get(id) as { x: number; y: number; r: number };
-    const s = project(camera, n.x + n.r + 6, n.y - n.r - 6);
+    const o = badgeOffset(graph, id);
+    const s = project(camera, n.x + o.x, n.y + o.y);
     return { id, x: s.x, y: s.y, r: 9 * camera.zoom + 3 };
   });
 
@@ -167,6 +172,159 @@ export function placeLabels(requests: LabelRequest[], ctx: PlacementContext): Ma
       result.set(req.id, pick.side);
       boxes.set(req.id, pick.box);
     }
+  }
+  return result;
+}
+
+/** A ▲/▼/± badge's radius, and its gap from its variable's glyph, in map units. */
+export const BADGE_R = 9;
+const BADGE_GAP = 6;
+/** The corners a badge may take, upper right first (where the deck drew it). */
+const CORNERS = [
+  [1, -1],
+  [-1, -1],
+  [1, 1],
+  [-1, 1],
+] as const;
+
+/**
+ * Where a variable's ▲/▼/± badge goes, from its centre, in map units: its upper right, unless a link arrives
+ * there (its arrowhead, which the badge would hide); then the first corner clear of the arrowheads (upper left,
+ * lower right, lower left), or, with none clear, the clearest.
+ */
+export function badgeOffset(graph: LabelGraph, id: string): Pt {
+  const n = graph.nodes.get(id);
+  if (!n) return { x: 0, y: 0 };
+  const points: Pt[] = [];
+  // The arrowheads arriving at the variable, and the last stretch of line into each: a badge over them would
+  // hide which way the link runs. (A line merely passing under a badge stays readable either side of it.)
+  for (const e of graph.edges.values()) {
+    if (e.target?.id !== id) continue;
+    const { p0, c, p1 } = e.geom;
+    for (let i = 0; i <= 24; i++) {
+      const p = quad(p0, c, p1, 0.75 + i / 96);
+      if (Math.hypot(p.x - p1.x, p.y - p1.y) <= 2 * HEAD_LEN) points.push(p);
+    }
+    // The arrowhead runs on from the line's end to the glyph's rim.
+    const len = Math.hypot(p1.x - c.x, p1.y - c.y) || 1;
+    for (const k of [0.5, 1])
+      points.push({
+        x: p1.x + ((p1.x - c.x) / len) * HEAD_LEN * k,
+        y: p1.y + ((p1.y - c.y) / len) * HEAD_LEN * k,
+      });
+  }
+  const d = n.r + BADGE_GAP;
+  let best: Pt = { x: CORNERS[0][0] * d, y: CORNERS[0][1] * d };
+  let bestClear = -1;
+  for (const [sx, sy] of CORNERS) {
+    const at = { x: sx * d, y: sy * d };
+    const clear = Math.min(Infinity, ...points.map((p) => Math.hypot(p.x - n.x - at.x, p.y - n.y - at.y)));
+    // Clear: no line or arrowhead within the badge and a little air.
+    if (clear >= BADGE_R + 3) return at;
+    if (clear > bestClear) {
+      best = at;
+      bestClear = clear;
+    }
+  }
+  return best;
+}
+
+/** Where a loop's name goes beside its badge. */
+export type LoopNameSide = 'below' | 'above' | 'right' | 'left';
+const NAME_SIDES: LoopNameSide[] = ['below', 'above', 'right', 'left'];
+
+/** The box of a loop's name, in stage pixels, beside a badge of radius `badgeR` centred at (cx, cy). */
+export function loopNameBox(
+  side: LoopNameSide,
+  cx: number,
+  cy: number,
+  badgeR: number,
+  w: number,
+  h: number,
+): Box {
+  const gap = badgeR + 8;
+  switch (side) {
+    case 'below':
+      return { x: cx - w / 2, y: cy + gap, w, h };
+    case 'above':
+      return { x: cx - w / 2, y: cy - gap - h, w, h };
+    case 'right':
+      return { x: cx + gap, y: cy - h / 2, w, h };
+    case 'left':
+      return { x: cx - gap - w, y: cy - h / 2, w, h };
+  }
+}
+
+export interface LoopNameRequest {
+  id: string;
+  /** The loop badge's centre, in map units. */
+  at: Pt;
+  w: number;
+  h: number;
+}
+
+export interface LoopNamePlacement {
+  graph: LabelGraph;
+  camera: Camera;
+  /** Visible variables, and those showing a ▲/▼ badge. */
+  nodes: string[];
+  badges: string[];
+  /** The variables' labels as placed, and other boxes to keep clear of (captions, minimap). */
+  labels: Box[];
+  reserved: Box[];
+}
+
+/** The loop badge's radius in map units (render's loop disc). */
+export const LOOP_BADGE_R = 21;
+
+/**
+ * A side for each loop's name: below its badge, unless that would cover a variable, a ▲/▼ badge, a label,
+ * another name or a reserved box; then the first clear side (above, right, left), or the least covered.
+ */
+export function placeLoopNames(
+  requests: LoopNameRequest[],
+  ctx: LoopNamePlacement,
+): Map<string, LoopNameSide> {
+  const { graph, camera } = ctx;
+  const circles = ctx.nodes.flatMap((id) => {
+    const n = graph.nodes.get(id);
+    if (!n) return [];
+    const s = project(camera, n.x, n.y);
+    return [{ x: s.x, y: s.y, r: n.r * camera.zoom + 4 }];
+  });
+  const badges = ctx.badges.flatMap((id) => {
+    const n = graph.nodes.get(id);
+    if (!n) return [];
+    const o = badgeOffset(graph, id);
+    const s = project(camera, n.x + o.x, n.y + o.y);
+    return [{ x: s.x, y: s.y, r: BADGE_R * camera.zoom + 3 }];
+  });
+  const result = new Map<string, LoopNameSide>();
+  const placed: Box[] = [];
+  for (const req of requests) {
+    const c = project(camera, req.at.x, req.at.y);
+    let best: LoopNameSide = 'below';
+    let bestCost = Infinity;
+    for (const side of NAME_SIDES) {
+      const b = loopNameBox(side, c.x, c.y, LOOP_BADGE_R * camera.zoom, req.w, req.h);
+      let cost = 0;
+      for (const k of circles) if (inside(b, k.x, k.y, k.r)) cost += 10;
+      for (const k of badges) if (inside(b, k.x, k.y, k.r)) cost += 8;
+      for (const o of [...ctx.labels, ...placed]) cost += overlapArea(b, o, 4) / 60;
+      for (const r of ctx.reserved) cost += overlapArea(b, r, 4) / 40;
+      if (b.x < MARGIN || b.y < MARGIN || b.x + b.w > STAGE.w - MARGIN || b.y + b.h > STAGE.h - MARGIN)
+        cost += 40;
+      if (cost === 0) {
+        best = side;
+        break;
+      }
+      if (cost < bestCost) {
+        best = side;
+        bestCost = cost;
+      }
+    }
+    result.set(req.id, best);
+    placed.push(loopNameBox(best, c.x, c.y, LOOP_BADGE_R * camera.zoom, req.w, req.h));
   }
   return result;
 }

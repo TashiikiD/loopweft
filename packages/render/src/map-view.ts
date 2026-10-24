@@ -3,12 +3,18 @@
 // the graph) and the theme; SVG ids are unique to each view, so several maps can share a page.
 import {
   type Box,
+  badgeOffset,
+  boxFor,
   type Camera,
   cameraTransform,
   homeCamera,
   type LabelRequest,
   type LabelSide,
+  LOOP_BADGE_R,
+  type LoopNameSide,
+  loopNameBox,
   placeLabels,
+  placeLoopNames,
   quad,
   quadSegment,
   STAGE,
@@ -146,6 +152,8 @@ export class MapView {
   #state: MapState | undefined = undefined;
   #categoryWords = false;
   readonly #loopNames = new Map<string, HTMLElement>();
+  /** Each loop name's side of its badge and its size, as the last label layout placed it (below until then). */
+  readonly #loopNamePlaces = new Map<string, { side: LoopNameSide; w: number; h: number }>();
   /** Each loop badge's keyboard stop, saying what the loop is (the map's SVG is hidden from assistive technology). */
   readonly #loopKeys = new Map<string, HTMLElement>();
   /** The loops the step last applied shows. */
@@ -248,7 +256,11 @@ export class MapView {
         }),
       );
       g.append(halo, ...glyph(shapeGlyph(n.shape, n.r)));
-      const trend = hidden(svg('g', { class: 'node-trend', transform: `translate(${n.r + 6} ${-n.r - 6})` }));
+      // Its ▲/▼ badge at its upper right, or another corner where its own links would be hidden.
+      const corner = badgeOffset(this.graph, n.id);
+      const trend = hidden(
+        svg('g', { class: 'node-trend', transform: `translate(${corner.x} ${corner.y})` }),
+      );
       const trendBody = svg('g');
       const trendGlyph = svg('path', { d: '' });
       trendBody.append(svg('circle', { r: 9 }), trendGlyph);
@@ -791,6 +803,31 @@ export class MapView {
       reserved: [...reserved, ...groupBoxes],
     });
     for (const [id, side] of sides) this.#setSide(id, side, id in r.labelText);
+
+    // Loop names, beside their badges, clear of the variables, their badges and the labels just placed.
+    const labelBoxes = requests.flatMap((req) => {
+      const node = this.graph.nodes.get(req.id);
+      const side = sides.get(req.id);
+      if (!node || !side) return [];
+      const c = toStage(r.camera, node.x, node.y);
+      return [boxFor(side, c.x, c.y, node.r * r.camera.zoom + 10, req.w, req.h)];
+    });
+    const named = new Set(r.loopNames.filter((id) => r.loops.includes(id)));
+    const names = [...this.#loopNames].flatMap(([id, el]) => {
+      const badge = this.#badges.get(id);
+      return named.has(id) && badge ? [{ id, at: badge.at, w: el.offsetWidth, h: el.offsetHeight }] : [];
+    });
+    const nameSides = placeLoopNames(names, {
+      graph: this.graph,
+      camera: r.camera,
+      nodes,
+      badges: Object.keys(r.trends),
+      labels: labelBoxes,
+      reserved,
+    });
+    for (const { id, w, h } of names)
+      this.#loopNamePlaces.set(id, { side: nameSides.get(id) ?? 'below', w, h });
+    this.#placeLoopNames(this.#cam);
     return hiddenGroups;
   }
 
@@ -839,14 +876,22 @@ export class MapView {
       const p = toStage(cam, at.x, at.y);
       el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
     }
+    this.#placeLoopNames(cam);
+    this.#placeLoopKeys(cam);
+    this.#minimap.update(cam);
+  }
+
+  /** Puts each loop's name on its side of its badge (below until a label layout has placed it). */
+  #placeLoopNames(cam: Camera): void {
     for (const [id, el] of this.#loopNames) {
       const b = this.#badges.get(id);
       if (!b) continue;
+      const place = this.#loopNamePlaces.get(id);
+      const w = place?.w ?? el.offsetWidth;
       const p = toStage(cam, b.at.x, b.at.y);
-      el.style.transform = `translate(${p.x.toFixed(1)}px, ${(p.y + 21 * cam.zoom + 8).toFixed(1)}px)`;
+      const box = loopNameBox(place?.side ?? 'below', p.x, p.y, LOOP_BADGE_R * cam.zoom, w, place?.h ?? 0);
+      el.style.transform = `translate(${box.x.toFixed(1)}px, ${box.y.toFixed(1)}px)`;
     }
-    this.#placeLoopKeys(cam);
-    this.#minimap.update(cam);
   }
 
   /** Puts each loop badge's keyboard stop over its badge, and out of reach while its badge is hidden or off the stage. */
@@ -871,7 +916,10 @@ export class MapView {
   setGeometry(graph: Graph): void {
     this.graph = graph;
     for (const n of graph.nodes.values()) {
-      this.#nodes.get(n.id)?.g.setAttribute('transform', `translate(${n.x} ${n.y})`);
+      const els = this.#nodes.get(n.id);
+      els?.g.setAttribute('transform', `translate(${n.x} ${n.y})`);
+      const corner = badgeOffset(graph, n.id);
+      els?.trend.setAttribute('transform', `translate(${corner.x} ${corner.y})`);
     }
     for (const e of graph.edges.values()) {
       const els = this.#edges.get(e.id);

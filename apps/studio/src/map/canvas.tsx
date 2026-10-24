@@ -7,6 +7,7 @@
 // - Drag from a variable's handle (the ring that shows on it) to another variable to link them; the sign
 //   is asked, never assumed. Click an arrowhead to flip its link's sign.
 // - Delete removes what is selected; Ctrl+F finds a variable; the home view is framed from here.
+import { badgeOffset } from '@loopweft/layout';
 import {
   addLink,
   flipSign,
@@ -133,6 +134,7 @@ const Node = memo(function Node({
   pinned,
   target,
   trend,
+  badge,
   k,
 }: {
   node: GraphNode;
@@ -142,6 +144,8 @@ const Node = memo(function Node({
   target: boolean;
   /** Its mark in the ripple drawn on the canvas, if the ripple reaches it. */
   trend?: Trend;
+  /** Where that mark goes, from its centre (`badgeOffset`: clear of its own links). */
+  badge?: { x: number; y: number };
   k: number;
 }) {
   return (
@@ -161,7 +165,10 @@ const Node = memo(function Node({
       )}
       {pinned && <circle className="pin" cx={node.r * 0.9} cy={-node.r * 0.9} r={3.2} />}
       {trend && (
-        <g className={`lw-trend ${trend}`} transform={`translate(${node.r + 6} ${-node.r - 6})`}>
+        <g
+          className={`lw-trend ${trend}`}
+          transform={`translate(${badge?.x ?? node.r + 6} ${badge?.y ?? -node.r - 6})`}
+        >
           <title>{trend === 'up' ? 'Rises' : trend === 'down' ? 'Falls' : 'Pushed both ways'}</title>
           <circle r={9} />
           <path d={TREND_GLYPH[trend]} />
@@ -768,6 +775,7 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
                   pinned={project.layout.positions[n.id]?.pinned === true}
                   target={linking?.over === n.id}
                   trend={ripple?.trends[n.id]}
+                  badge={ripple?.trends[n.id] ? badgeOffset(shown, n.id) : undefined}
                   k={view.k}
                 />
               ))}
