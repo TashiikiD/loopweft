@@ -22,7 +22,15 @@ import {
   splitTop,
 } from './css.ts';
 import { selectFontFaces } from './fonts.ts';
-import { fadeEnd, gradientRings, type Ring } from './rings.ts';
+import {
+  type Cover,
+  clipToCircle,
+  coverInradius,
+  fadeEnd,
+  gradientRings,
+  type Pt,
+  type Ring,
+} from './rings.ts';
 import { type Attrs, Defs, escapeText, fadeShapes, num, SOLVED, tag } from './writer.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -100,6 +108,10 @@ function roundedPath(r: Rect, radii: Radii): string {
     'Z',
   ].join('');
 }
+
+/** A circle as a path (for cutting one shape out of another, with fill-rule evenodd). */
+const circlePath = (cx: number, cy: number, r: number) =>
+  `M${num(cx + r)} ${num(cy)}A${num(r)} ${num(r)} 0 1 0 ${num(cx - r)} ${num(cy)}A${num(r)} ${num(r)} 0 1 0 ${num(cx + r)} ${num(cy)}Z`;
 
 const paint = (c: Colour, kind: 'fill' | 'stroke' = 'fill'): Attrs =>
   kind === 'fill'
@@ -421,12 +433,23 @@ class Flattener {
    * One ring: a circle, or an ellipse where its radii differ, of flat colour. Its opacity is final (solved for
    * the groups around it), so it is marked for fadeShapes to pass over.
    */
-  #ring(cx: number, cy: number, rx: number, ry: number, ring: Ring): string {
+  #ring(cx: number, cy: number, rx: number, ry: number, ring: Ring, cover?: Cover | null): string {
     const fill: Attrs = {
       fill: ring.hex,
       'fill-opacity': ring.opacity < 1 ? String(ring.opacity) : null,
       [SOLVED]: '1',
     };
+    if (cover) {
+      // Cut where the opaque shape over it lies (a ring wholly under it is left out).
+      if (rx <= coverInradius(cover)) return '';
+      const hole =
+        'r' in cover
+          ? circlePath(cx, cy, cover.r)
+          : `M${clipToCircle(cover.points, rx)
+              .map(([x, y]) => `${num(cx + x)} ${num(cy + y)}`)
+              .join('L')}Z`;
+      return tag('path', { d: circlePath(cx, cy, rx) + hole, 'fill-rule': 'evenodd', ...fill });
+    }
     return Math.abs(rx - ry) < 0.005
       ? tag('circle', { cx, cy, r: rx, ...fill })
       : tag('ellipse', { cx, cy, rx, ry, ...fill });
@@ -962,17 +985,7 @@ class Flattener {
       if (s.fillRule === 'evenodd') attrs['fill-rule'] = 'evenodd';
       if (s.fillOpacity !== '1')
         attrs['fill-opacity'] = Number(s.fillOpacity) * Number(attrs['fill-opacity'] ?? 1);
-      if (s.stroke !== 'none') {
-        attrs['stroke-width'] = parseLength(s.strokeWidth, 0) ?? s.strokeWidth;
-        if (s.strokeOpacity !== '1')
-          attrs['stroke-opacity'] = Number(s.strokeOpacity) * Number(attrs['stroke-opacity'] ?? 1);
-        if (s.strokeDasharray !== 'none')
-          attrs['stroke-dasharray'] = s.strokeDasharray.replace(/px/g, '').replace(/,\s*/g, ' ');
-        if (s.strokeDashoffset !== '0px')
-          attrs['stroke-dashoffset'] = parseLength(s.strokeDashoffset, 0) ?? null;
-        if (s.strokeLinecap !== 'butt') attrs['stroke-linecap'] = s.strokeLinecap;
-        if (s.strokeLinejoin !== 'miter') attrs['stroke-linejoin'] = s.strokeLinejoin;
-      }
+      if (s.stroke !== 'none') this.#strokeDetails(s, attrs);
     }
     if (name === 'text' || name === 'tspan') {
       attrs['font-family'] = s.fontFamily;
@@ -1042,8 +1055,7 @@ class Flattener {
     const width = stroked ? Number(attrs['stroke-width'] ?? 1) : 0;
     const outer = r - width / 2;
     const common: Attrs = { transform: attrs.transform, opacity: attrs.opacity, filter: attrs.filter };
-    const circle = (radius: number) =>
-      `M${num(cx + radius)} ${num(cy)}A${num(radius)} ${num(radius)} 0 1 0 ${num(cx - radius)} ${num(cy)}A${num(radius)} ${num(radius)} 0 1 0 ${num(cx + radius)} ${num(cy)}Z`;
+    const circle = (radius: number) => circlePath(cx, cy, radius);
     const fill =
       attrs.fill !== 'none' && outer > inner
         ? tag('path', {
@@ -1065,6 +1077,73 @@ class Flattener {
         })
       : '';
     return fill + outline;
+  }
+
+  /**
+   * What the first opaque shape drawn after a glow (in its group, at its centre: a variable's glyph) covers, about
+   * the glow's centre; null if none does, or if it is not a circle, rectangle or convex polygon about the centre.
+   */
+  #coverOver(el: SVGElement, cx: number, cy: number): Cover | null {
+    for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
+      const st = this.#style(next);
+      if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) continue;
+      const fill = parseColour(st.fill);
+      const opaque =
+        fill?.alpha === 1 &&
+        Number(st.fillOpacity) === 1 &&
+        Number(st.opacity) === 1 &&
+        !next.hasAttribute('transform') &&
+        st.transform === 'none';
+      if (!opaque) continue;
+      const at = (a: string) => Number(next.getAttribute(a) ?? 0);
+      if (next.localName === 'circle') {
+        return at('cx') === cx && at('cy') === cy ? { r: at('r') } : null;
+      }
+      if (next.localName === 'polygon') {
+        const values = (next.getAttribute('points') ?? '')
+          .trim()
+          .split(/[\s,]+/)
+          .map(Number);
+        const points: Pt[] = [];
+        for (let k = 0; k + 1 < values.length; k += 2)
+          points.push([(values[k] as number) - cx, (values[k + 1] as number) - cy]);
+        return points.length >= 3 && points.every((p) => p.every(Number.isFinite)) && convexAround(points)
+          ? { points }
+          : null;
+      }
+      if (next.localName === 'rect') {
+        const [x, y, w, h] = [at('x') - cx, at('y') - cy, at('width'), at('height')];
+        const r = Math.min(Number(next.getAttribute('rx') ?? next.getAttribute('ry') ?? 0), w / 2, h / 2);
+        const points: Pt[] = [];
+        // The rounded corners, each as a few points along its arc.
+        for (const [ox, oy, start] of [
+          [x + w - r, y + r, -90],
+          [x + w - r, y + h - r, 0],
+          [x + r, y + h - r, 90],
+          [x + r, y + r, 180],
+        ] as const) {
+          for (let k = 0; k <= 4; k++) {
+            const a = ((start + k * 22.5) * Math.PI) / 180;
+            points.push([ox + r * Math.cos(a), oy + r * Math.sin(a)]);
+          }
+        }
+        return convexAround(points) ? { points } : null;
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /** A stroke's width, opacity, dashes, caps and joins, added to `attrs` (which hold its paint). */
+  #strokeDetails(s: CSSStyleDeclaration, attrs: Attrs): void {
+    attrs['stroke-width'] = parseLength(s.strokeWidth, 0) ?? s.strokeWidth;
+    if (s.strokeOpacity !== '1')
+      attrs['stroke-opacity'] = Number(s.strokeOpacity) * Number(attrs['stroke-opacity'] ?? 1);
+    if (s.strokeDasharray !== 'none')
+      attrs['stroke-dasharray'] = s.strokeDasharray.replace(/px/g, '').replace(/,\s*/g, ' ');
+    if (s.strokeDashoffset !== '0px') attrs['stroke-dashoffset'] = parseLength(s.strokeDashoffset, 0) ?? null;
+    if (s.strokeLinecap !== 'butt') attrs['stroke-linecap'] = s.strokeLinecap;
+    if (s.strokeLinejoin !== 'miter') attrs['stroke-linejoin'] = s.strokeLinejoin;
   }
 
   /** The radialGradient a fill refers to, if it does. */
@@ -1126,16 +1205,21 @@ class Flattener {
       Number(s.fillOpacity) * opacity * this.#fade,
     );
     if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
-    const body = rings.map((ring) => this.#ring(cx, cy, rx * ring.r, ry * ring.r, ring)).join('');
-    const outline =
-      s.stroke !== 'none'
-        ? tag(name, {
-            ...Object.fromEntries(Object.entries(attrs).filter(([a]) => a !== 'transform')),
-            fill: 'none',
-            ...this.#svgPaint(s.stroke, 'stroke'),
-            'stroke-width': parseLength(s.strokeWidth, 0) ?? s.strokeWidth,
-          })
-        : '';
+    // In a faded group, cut out the opaque glyph drawn over the glow: each carries the group's opacity, and the
+    // glow must not show through it.
+    const cover = this.#fade * opacity < 1 && Math.abs(rx - ry) < 0.005 ? this.#coverOver(el, cx, cy) : null;
+    const body = rings.map((ring) => this.#ring(cx, cy, rx * ring.r, ry * ring.r, ring, cover)).join('');
+    let outline = '';
+    if (s.stroke !== 'none') {
+      // Its outline, apart: stroked as any shape is (its opacity, dashes, caps and joins too).
+      const line: Attrs = {
+        ...Object.fromEntries(Object.entries(attrs).filter(([a]) => a !== 'transform')),
+        fill: 'none',
+        ...this.#svgPaint(s.stroke, 'stroke'),
+      };
+      this.#strokeDetails(s, line);
+      outline = tag(name, line);
+    }
     const filter = this.#filter(s.filter, null, { x: -100000, y: -100000, w: 200000, h: 200000 });
     const drawn = body + fadeShapes(outline, opacity);
     if (!drawn) return '';
@@ -1188,6 +1272,15 @@ class Flattener {
     }
     return out.length ? `<defs>${out.join('')}</defs>` : '';
   }
+}
+
+/** True for a convex polygon with the centre (0, 0) inside it, its points in order either way round. */
+function convexAround(points: Pt[]): boolean {
+  const turns = points.map(([x1, y1], k) => {
+    const [x2, y2] = points[(k + 1) % points.length] as Pt;
+    return x1 * y2 - x2 * y1;
+  });
+  return turns.every((t) => t >= -1e-9) || turns.every((t) => t <= 1e-9);
 }
 
 /** The attributes that give each SVG shape its geometry. */

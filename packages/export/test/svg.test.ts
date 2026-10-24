@@ -253,20 +253,20 @@ describe('radial gradients as rings, for PowerPoint and Word', () => {
       [pulse, 1],
       [halo, 0.4],
     ] as const) {
-      const { rings, exact } = gradientRings([...stops], 1, opacity);
+      const { rings, bands, exact } = gradientRings([...stops], 1, opacity);
       expect(exact).toBe(true);
-      expect(rings.length).toBeLessThanOrEqual(RINGS);
+      expect(rings.length).toBeLessThanOrEqual(bands);
       expect(rings.every((r) => r.hex === stops[0]?.colour.hex && r.opacity > 0 && r.opacity < 1)).toBe(true);
       // Outermost first, each smaller than the one before.
       expect(rings.map((r) => r.r)).toEqual([...rings.map((r) => r.r)].sort((a, b) => b - a));
-      for (let k = 0; k < RINGS; k++) {
-        const middle = (RINGS - k - 0.5) / RINGS;
+      for (let k = 0; k < bands; k++) {
+        const middle = (bands - k - 0.5) / bands;
         const want = colourAt([...stops], middle).alpha * opacity;
         expect(Math.abs(ringsOpacityAt(rings, middle) - want), `band ${k}`).toBeLessThan(0.001);
       }
       // Anywhere in a band, between the gradient's opacities at the band's edges.
-      for (let k = 0; k < RINGS; k++) {
-        const [inner, outer] = [(RINGS - k - 1) / RINGS, (RINGS - k) / RINGS];
+      for (let k = 0; k < bands; k++) {
+        const [inner, outer] = [(bands - k - 1) / bands, (bands - k) / bands];
         const edges = [inner, outer].map((t) => colourAt([...stops], t).alpha * opacity);
         for (let t = inner + 0.001; t < outer; t += 0.01) {
           const got = ringsOpacityAt(rings, t);
@@ -276,6 +276,21 @@ describe('radial gradients as rings, for PowerPoint and Word', () => {
       }
       expect(ringsOpacityAt(rings, 1.01)).toBe(0);
     }
+  });
+
+  it('cuts a fainter glow into fewer bands, each ring adding about 4% at most', () => {
+    // A halo (55%) takes all ten; at 0.4 (22%), six; a glow at 7%, two; a glow at 1%, one.
+    expect(gradientRings(halo, 1).bands).toBe(RINGS);
+    expect(gradientRings(halo, 1, 0.4).bands).toBe(6);
+    const glow = (alpha: number) => [
+      { offset: 0, colour: { hex: '#70e2c5', alpha } },
+      { offset: 1, colour: { hex: '#70e2c5', alpha: 0 } },
+    ];
+    expect(gradientRings(glow(0.07), 1).bands).toBe(2);
+    expect(gradientRings(glow(0.01), 1).bands).toBe(1);
+    // A browser rounds each ring's colour by up to a step of 256, its way depending on the computer: a faint
+    // glow's few rings keep that to a few steps. A count can still be asked for.
+    expect(gradientRings(halo, 1, 1, 3).bands).toBe(3);
   });
 
   it('solves each ring from the outside in: its own opacity, not the band’s', () => {

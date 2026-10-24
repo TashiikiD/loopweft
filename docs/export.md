@@ -154,14 +154,15 @@ keeps flat shapes, see-through colour, straight gradients and, in PowerPoint, th
 - **In PowerPoint**, Convert to Shape ruins the plain drawing: the stage's backdrop becomes a flat bright colour,
   each variable's halo and each group's glow a solid disc, and the faded part of the map comes back at full
   strength. Make the drawing **For PowerPoint and Word** instead (a switch under SVG in the Studio, `--for-office`
-  on the command line), and Convert to Shape keeps it: its glows are rings of flat see-through colour (ten for
-  each, matching the glow at the middle of each ring), each faded part carries its own opacity, and the darkened
-  edges of the stage's backdrop, which rings cannot draw, are left out (the backdrop is its plain colour there).
-  As a picture, it looks as the plain drawing does but for those edges, and where shapes overlap in a faded part
+  on the command line), and Convert to Shape keeps it: its glows are rings of flat see-through colour (up to ten
+  for a strong glow, fewer for a faint one, each adding about 4% at most, matching the glow at the middle of each
+  ring), each faded part carries its own opacity, and the darkened edges of the stage's backdrop, which rings
+  cannot draw, are left out (the backdrop is its plain colour there). A glow's rings are cut where a variable's
+  glyph lies over them, and a response's ring is drawn around its dot, so that neither shows through. As a
+  picture, it looks as the plain drawing does but for those edges, and where other shapes overlap in a faded part
   of the map: links that cross, or meet at a variable, and a link's line under its arrowhead or end bar. Each
   carries the faded part's opacity on its own, so where two overlap they show a little brighter than under one
-  opacity (in the example, at most about 20 levels of 255, in a few small places). A response's ring is drawn
-  around its dot, so the two never overlap.
+  opacity (in the example, at most about 30 levels of 255, in a few small places).
 - **In Word, keep the drawing as a picture.** Word's Convert to Shape breaks the text whatever the drawing: in a
   drawing the size of a slide, the text keeps its full size while the shapes shrink to the page, so lines wrap
   and pile up; in one the size of the page, the text lands in place but is drawn dark, under the background.

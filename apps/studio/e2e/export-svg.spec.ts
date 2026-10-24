@@ -247,9 +247,11 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
       const plainBack = await rasterize(page, decoder.decode((plain as FileEvent).bytes));
       // Only the stage's darkened edges are left out: everything else stays close to the PNG ...
       const { far, mean } = await difference(page, drawnBack, (png as FileEvent).bytes);
-      // ... and, in small places, to the plain drawing: where rings meet, at a response's ring and dot, where
-      // a link meets its head. Only shapes that overlap in a faded group (links crossing or meeting at a
-      // variable, in S08.3a) differ by more than 12 levels, in a few blocks.
+      // ... and, in small places, to the plain drawing: where rings meet, at a glyph over its halo, at a
+      // response's ring and dot, where a link meets its head, drawn by a browser with a graphics card or without
+      // (as on CI's machines, which round faint rings' colours the other way). Only shapes that overlap in a
+      // faded group differ by more than 12 levels, in a few blocks: in S08.3a, the heads of two links meeting at
+      // a variable (about 27 levels, on every system).
       const local = await nearby(page, drawnBack, plainBack);
       const measured = `PNG: far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}; plain: largest ${local.largest.toFixed(1)}, over 12 ${(local.over * 100).toFixed(4)}%`;
       test.info().annotations.push({ type: `office ${key}`, description: measured });
@@ -259,7 +261,9 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
       review(`svg-office/${key}-drawn.png`, drawnBack);
       review(`svg-office/${key}-plain-drawn.png`, plainBack);
       expect.soft(mean, `${key}: mean difference from the PNG`).toBeLessThan(4);
-      expect.soft(local.largest, `${key}: largest 4 × 4 difference from the plain drawing`).toBeLessThan(28);
+      expect
+        .soft(local.largest, `${key}: largest 4 × 4 difference from the plain drawing`)
+        .toBeLessThan(key === 'S08.3a' ? 32 : 16);
       expect
         .soft(local.over, `${key}: share of 4 × 4 blocks over 12 levels from the plain drawing`)
         .toBeLessThan(0.0002);
