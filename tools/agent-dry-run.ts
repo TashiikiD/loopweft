@@ -35,7 +35,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { starterText } from '../apps/studio/src/shell/agent-text.ts';
-import { main } from '../packages/cli/src/main.ts';
+import { checkNamedMap } from './dry-run-map.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -182,23 +182,33 @@ const seconds = Math.round((Date.now() - started) / 1000);
 writeFileSync(join(out, 'transcript.jsonl'), `${events.join('\n')}\n`);
 writeFileSync(join(out, 'transcript.md'), readable(events, agent));
 
-// What it left, and the map checked by this tool.
+// What it left, and the map it was told to make, checked by this tool: that map, by its name.
 cpSync(work, join(out, 'work'), { recursive: true });
-let validate = '';
-const map = readdirSync(work).find((f) => f.endsWith('.loopweft'));
-if (map) {
-  await main(['validate', join(work, map)], { out: (t) => (validate += t), err: (t) => (validate += t) });
-}
-writeFileSync(
-  join(out, 'validate.txt'),
-  validate.split(work).join('work') || 'No .loopweft file was made.\n',
-);
+const check = await checkNamedMap(work, MAP);
+writeFileSync(join(out, 'validate.txt'), check.text);
 writeFileSync(
   join(out, 'summary.json'),
-  `${JSON.stringify({ agent, model: model ?? 'its default', exit: code, seconds, files: readdirSync(work), map: map ?? null }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      agent,
+      model: model ?? 'its default',
+      exit: code,
+      seconds,
+      files: readdirSync(work),
+      map: MAP,
+      mapMade: check.found,
+      mapValid: check.valid,
+      otherMaps: check.others,
+    },
+    null,
+    2,
+  )}\n`,
 );
 rmSync(base, { recursive: true, force: true });
-process.stdout.write(`${agent}: exit ${code} after ${seconds} s; written to ${out}\n`);
+const verdict = check.found ? (check.valid ? 'valid' : 'NOT valid') : 'NOT made';
+process.stdout.write(`${agent}: exit ${code} after ${seconds} s; ${MAP} ${verdict}; written to ${out}\n`);
+// The run fails when the agent did, or when the named map is missing or invalid.
+process.exitCode = code === 0 && check.found && check.valid ? 0 : 1;
 
 /** The agent's event stream as a readable transcript: what it said, every command and what it printed. */
 function readable(lines: string[], who: string): string {
