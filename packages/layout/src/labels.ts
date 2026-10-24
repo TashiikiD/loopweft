@@ -189,8 +189,8 @@ const CORNERS = [
 
 /**
  * Where a variable's ▲/▼/± badge goes, from its centre, in map units: its upper right, unless a link arrives
- * there (its arrowhead, which the badge would hide); then the first corner clear of the arrowheads (upper left,
- * lower right, lower left), or, with none clear, the clearest.
+ * there (its arrowhead, which the badge would hide) or another variable sits there; then the first corner clear
+ * of both (upper left, lower right, lower left), or, with none clear, the clearest.
  */
 export function badgeOffset(graph: LabelGraph, id: string): Pt {
   const n = graph.nodes.get(id);
@@ -213,17 +213,25 @@ export function badgeOffset(graph: LabelGraph, id: string): Pt {
         y: p1.y + ((p1.y - c.y) / len) * HEAD_LEN * k,
       });
   }
+  const others = [...graph.nodes].filter(([other]) => other !== id).map(([, o]) => o);
   const d = n.r + BADGE_GAP;
   let best: Pt = { x: CORNERS[0][0] * d, y: CORNERS[0][1] * d };
-  let bestClear = -1;
+  let bestMargin = Number.NEGATIVE_INFINITY;
   for (const [sx, sy] of CORNERS) {
     const at = { x: sx * d, y: sy * d };
-    const clear = Math.min(Infinity, ...points.map((p) => Math.hypot(p.x - n.x - at.x, p.y - n.y - at.y)));
-    // Clear: no line or arrowhead within the badge and a little air.
-    if (clear >= BADGE_R + 3) return at;
-    if (clear > bestClear) {
+    const cx = n.x + at.x;
+    const cy = n.y + at.y;
+    // How far the badge keeps (with a little air) from the arrowheads, and from every other variable's glyph:
+    // a corner on another variable would hide it instead.
+    const margin = Math.min(
+      ...points.map((p) => Math.hypot(p.x - cx, p.y - cy) - (BADGE_R + 3)),
+      ...others.map((o) => Math.hypot(o.x - cx, o.y - cy) - (o.r + BADGE_R + 3)),
+      Number.POSITIVE_INFINITY,
+    );
+    if (margin >= 0) return at;
+    if (margin > bestMargin) {
       best = at;
-      bestClear = clear;
+      bestMargin = margin;
     }
   }
   return best;
@@ -269,17 +277,20 @@ export interface LoopNamePlacement {
   /** Visible variables, and those showing a ▲/▼ badge. */
   nodes: string[];
   badges: string[];
-  /** The variables' labels as placed, and other boxes to keep clear of (captions, minimap). */
+  /** The variables' labels as placed, and other boxes to keep clear of (captions, minimap, group labels). */
   labels: Box[];
   reserved: Box[];
+  /** Every loop badge on show (a name keeps clear of the others' discs), in map units. */
+  loops?: Array<{ id: string; at: Pt }>;
 }
 
 /** The loop badge's radius in map units (render's loop disc). */
 export const LOOP_BADGE_R = 21;
 
 /**
- * A side for each loop's name: below its badge, unless that would cover a variable, a ▲/▼ badge, a label,
- * another name or a reserved box; then the first clear side (above, right, left), or the least covered.
+ * A side for each loop's name: below its badge, unless that would cover a variable, a ▲/▼ badge, another loop's
+ * badge, a label, another name or a reserved box; then the first clear side (above, right, left), or the least
+ * covered.
  */
 export function placeLoopNames(
   requests: LoopNameRequest[],
@@ -299,6 +310,10 @@ export function placeLoopNames(
     const s = project(camera, n.x + o.x, n.y + o.y);
     return [{ x: s.x, y: s.y, r: BADGE_R * camera.zoom + 3 }];
   });
+  const discs = (ctx.loops ?? []).map((l) => {
+    const s = project(camera, l.at.x, l.at.y);
+    return { id: l.id, x: s.x, y: s.y, r: LOOP_BADGE_R * camera.zoom + 3 };
+  });
   const result = new Map<string, LoopNameSide>();
   const placed: Box[] = [];
   for (const req of requests) {
@@ -310,6 +325,8 @@ export function placeLoopNames(
       let cost = 0;
       for (const k of circles) if (inside(b, k.x, k.y, k.r)) cost += 10;
       for (const k of badges) if (inside(b, k.x, k.y, k.r)) cost += 8;
+      // Another loop's badge (its own is beside it by construction).
+      for (const k of discs) if (k.id !== req.id && inside(b, k.x, k.y, k.r)) cost += 8;
       for (const o of [...ctx.labels, ...placed]) cost += overlapArea(b, o, 4) / 60;
       for (const r of ctx.reserved) cost += overlapArea(b, r, 4) / 40;
       if (b.x < MARGIN || b.y < MARGIN || b.x + b.w > STAGE.w - MARGIN || b.y + b.h > STAGE.h - MARGIN)

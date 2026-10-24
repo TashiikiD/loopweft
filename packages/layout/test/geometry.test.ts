@@ -243,5 +243,42 @@ describe('marks that keep clear of each other', () => {
     expect(
       placeLoopNames([{ ...name, at: { x: 900, y: 300 } }], { ...ctx, labels: [label] }).get('R1'),
     ).not.toBe('below');
+    // So does a box kept clear (a group label on show).
+    expect(
+      placeLoopNames([{ ...name, at: { x: 900, y: 300 } }], { ...ctx, reserved: [label] }).get('R1'),
+    ).not.toBe('below');
+  });
+
+  it('never moves a badge onto another variable: the corner must be clear of glyphs as well as arrowheads', () => {
+    // A link arrives at A's upper right; C sits at A's upper left; the lower right is free.
+    const A = { x: 100, y: 100, r: 11 };
+    const B = { x: 400, y: -200, r: 11 };
+    const graph = {
+      nodes: new Map([
+        ['a', A],
+        ['b', B],
+        ['c', { x: 83, y: 83, r: 11 }],
+      ]),
+      edges: new Map([
+        ['ba', { source: { id: 'b' }, target: { id: 'a' }, geom: edgeGeometry(B, B.r, A, A.r, 0, '+') }],
+      ]),
+    };
+    expect(badgeOffset(graph, 'a')).toEqual({ x: 17, y: 17 });
+  });
+
+  it('keeps a loop’s name off another loop’s badge on show', () => {
+    const graph = { nodes: new Map(), edges: new Map() };
+    const camera = { cx: 960, cy: 540, zoom: 1 };
+    const ctx = { graph, camera, nodes: [], badges: [], labels: [], reserved: [] };
+    const name = { id: 'R1', at: { x: 960, y: 500 }, w: 120, h: 30 };
+    // R2's badge just under R1's: R1's name goes elsewhere while R2's badge shows, below when it does not.
+    const loops = [
+      { id: 'R1', at: name.at },
+      { id: 'R2', at: { x: 960, y: 535 } },
+    ];
+    expect(placeLoopNames([name], { ...ctx, loops }).get('R1')).not.toBe('below');
+    expect(placeLoopNames([name], { ...ctx, loops: [loops[0] as (typeof loops)[0]] }).get('R1')).toBe(
+      'below',
+    );
   });
 });

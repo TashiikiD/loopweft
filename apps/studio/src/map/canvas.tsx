@@ -7,7 +7,7 @@
 // - Drag from a variable's handle (the ring that shows on it) to another variable to link them; the sign
 //   is asked, never assumed. Click an arrowhead to flip its link's sign.
 // - Delete removes what is selected; Ctrl+F finds a variable; the home view is framed from here.
-import { badgeOffset } from '@loopweft/layout';
+import { badgeOffset, type Pt } from '@loopweft/layout';
 import {
   addLink,
   flipSign,
@@ -51,6 +51,7 @@ import {
   removeSelection,
   rounded,
 } from './edit.ts';
+import { clearLabelPlace } from './labels.ts';
 import { arrowheadTakesClick, CLEARLY_NEARER, nearestLink, nearestOtherLink } from './nearest.ts';
 import {
   centreOn,
@@ -95,38 +96,9 @@ function useSize(ref: React.RefObject<HTMLElement | null>): Size | null {
 }
 
 /** Element attributes as React props: `class` becomes `className`. */
-/**
- * Label size on screen: in proportion to the zoom, as the presentation's labels are to its stage (24 px at
- * the whole-map zoom of about 0.9), but never smaller than can be read nor larger than the Studio's text.
- */
-export const labelPx = (k: number): number => Math.max(9, Math.min(15, 28 * k));
 
 /** Below this zoom the labels would be too crowded to read, so they are left out. */
 export const LABELS_FROM_ZOOM = 0.12;
-
-/** Where a label goes beside its variable, in map units at zoom `k`. */
-function labelPlace(n: GraphNode, k: number) {
-  const gap = n.r + 6 / k;
-  const size = labelPx(k) / k;
-  const lines = n.label.split('\n');
-  const middle = n.y - ((lines.length - 1) * size * 1.15) / 2 + size * 0.35;
-  switch (n.labelSide) {
-    case 'above':
-      return {
-        x: n.x,
-        y: n.y - gap - (lines.length - 1) * size * 1.15 - size * 0.25,
-        anchor: 'middle' as const,
-        lines,
-        size,
-      };
-    case 'left':
-      return { x: n.x - gap, y: middle, anchor: 'end' as const, lines, size };
-    case 'right':
-      return { x: n.x + gap, y: middle, anchor: 'start' as const, lines, size };
-    default:
-      return { x: n.x, y: n.y + gap + size * 0.9, anchor: 'middle' as const, lines, size };
-  }
-}
 
 const Node = memo(function Node({
   node,
@@ -224,16 +196,19 @@ const Labels = memo(function Labels({
   graph,
   k,
   lit,
+  badges,
 }: {
   graph: Graph;
   k: number;
   /** The variables a ripple drawn on the canvas reaches (their labels stay bright). */
   lit?: Record<string, unknown>;
+  /** Where the ripple's ▲/▼ badges sit, by variable: a label keeps clear of its own. */
+  badges?: ReadonlyMap<string, Pt>;
 }) {
   return (
     <g className="lw-labels">
       {[...graph.nodes.values()].map((n) => {
-        const place = labelPlace(n, k);
+        const place = clearLabelPlace(n, k, badges?.get(n.id));
         return (
           <text
             key={n.id}
@@ -532,6 +507,14 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
   // The ripple the Ripple panel draws: what it reaches and crosses lit and marked, the rest faded.
   const ripple = useStudio((s) => s.ripple);
   const rippleLinks = useMemo(() => new Set(ripple?.links ?? []), [ripple]);
+  // Where the ripple's ▲/▼ badges go: clear of arrowheads and other variables, and the labels clear of them.
+  const rippleBadges = useMemo(
+    () =>
+      ripple
+        ? new Map(Object.keys(ripple.trends).map((id) => [id, badgeOffset(shown, id)] as const))
+        : undefined,
+    [ripple, shown],
+  );
 
   const local = (event: { clientX: number; clientY: number }) => {
     const r = (host.current as HTMLDivElement).getBoundingClientRect();
@@ -775,12 +758,14 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
                   pinned={project.layout.positions[n.id]?.pinned === true}
                   target={linking?.over === n.id}
                   trend={ripple?.trends[n.id]}
-                  badge={ripple?.trends[n.id] ? badgeOffset(shown, n.id) : undefined}
+                  badge={rippleBadges?.get(n.id)}
                   k={view.k}
                 />
               ))}
             </g>
-            {view.k >= LABELS_FROM_ZOOM && <Labels graph={shown} k={view.k} lit={ripple?.trends} />}
+            {view.k >= LABELS_FROM_ZOOM && (
+              <Labels graph={shown} k={view.k} lit={ripple?.trends} badges={rippleBadges} />
+            )}
           </g>
           {band && <rect className="lw-band" x={band.x} y={band.y} width={band.w} height={band.h} />}
           {framing && frame && (

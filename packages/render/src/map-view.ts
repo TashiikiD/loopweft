@@ -823,7 +823,12 @@ export class MapView {
       nodes,
       badges: Object.keys(r.trends),
       labels: labelBoxes,
-      reserved,
+      // The group labels kept on show, as the variables' labels keep clear of them.
+      reserved: [...reserved, ...groupBoxes],
+      loops: r.loops.flatMap((id) => {
+        const badge = this.#badges.get(id);
+        return badge ? [{ id, at: badge.at }] : [];
+      }),
     });
     for (const { id, w, h } of names)
       this.#loopNamePlaces.set(id, { side: nameSides.get(id) ?? 'below', w, h });
