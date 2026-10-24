@@ -49,6 +49,12 @@ test('Send to projector opens the audience window filling the second screen, and
   await expect(console_.locator('.lp-status .lp-chip.ok')).toHaveText('Audience connected', {
     timeout: 10_000,
   });
+  // In step both ways: the console moves the audience, and the audience the console.
+  const hash = () => audience.evaluate(() => decodeURIComponent(location.hash));
   await page.keyboard.press('PageDown');
-  await expect.poll(() => audience.evaluate(() => decodeURIComponent(location.hash))).toBe('#S01.1');
+  await expect.poll(hash).toBe('#S01.1');
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/S01\.1/);
+  await audience.keyboard.press('PageDown');
+  await expect.poll(hash).toBe('#S01.2');
+  await expect(console_.locator('.lp-scene-sub')).toHaveText(/S01\.2/);
 });

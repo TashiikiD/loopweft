@@ -13,6 +13,9 @@ test('Send to projector says only one screen was found, and opens nothing', asyn
     opened = true;
   });
   await console_.getByRole('button', { name: 'Send to projector' }).click();
-  await expect(console_.getByText('Only one screen found.', { exact: false })).toBeVisible();
+  // The whole message: what is wrong, and how to put the desktop onto a projector.
+  await expect(console_.locator('.lp-toast')).toHaveText(
+    'Only one screen found. Connect the projector and choose “Extend” (Windows key + P).',
+  );
   expect(opened).toBe(false);
 });
