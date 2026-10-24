@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -155,4 +155,78 @@ describe('the export checker', () => {
       expect(rows['(the folder)']).toEqual({ ok: false, what: 'no export to check in it' });
     }
   }, 180_000);
+
+  it('fails a one-file HTML that loads a file beside it, though it draws while that file is there', () => {
+    // Both draw their start page and stage; one also shows a picture from the folder, which would be missing
+    // once the HTML is sent alone.
+    const page = (extra: string) =>
+      `<!doctype html><title>T</title><div class="lp-start">Start</div><div class="lw-stage">Stage</div>${extra}`;
+    const { code, rows } = check(
+      folder('beside', {
+        'alone.html': page('<img src="data:image/png;base64,' + TINY_PNG + '">'),
+        'needs.html': page('<img src="beside.png">'),
+        'beside.png': Buffer.from(TINY_PNG, 'base64'),
+      }),
+    );
+    expect(code).toBe(1);
+    expect(rows['alone.html']?.ok, rows['alone.html']?.what).toBe(true);
+    expect(rows['beside.png']?.ok).toBe(true);
+    expect(rows['needs.html']?.ok).toBe(false);
+    expect(rows['needs.html']?.what).toMatch(/needs 1 file\(s\) beside it, e\.g\. beside\.png/);
+  }, 180_000);
+
+  it('checks a good video after a broken one as if it came first', async () => {
+    const videos = folder('videos', {
+      'a-broken.webm': Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(64, 7)]),
+    });
+    expect(
+      await main(
+        [
+          'export',
+          join('examples', 'polycrisis.loopweft'),
+          '--webm',
+          '--from',
+          'S00.1',
+          '--to',
+          'S00.1',
+          '--height',
+          '720',
+          '--hold',
+          '0',
+          '-o',
+          join(videos, 'b-good.webm'),
+        ],
+        quiet,
+      ),
+    ).toBe(0);
+    const { code, rows } = check(videos);
+    expect(code).toBe(1);
+    expect(rows['a-broken.webm']?.ok).toBe(false);
+    expect(rows['b-good.webm']).toEqual({
+      ok: true,
+      what: expect.stringMatching(/^WEBM 1280 × 720, \d+\.\d s, plays in Chrome/),
+    });
+  }, 240_000);
+
+  // A folder no one may read: by its permissions where they are honoured (not on Windows, nor for root).
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'reports a folder it cannot read, and checks the rest',
+    () => {
+      const at = folder('locked-parent', { 'z.png': Buffer.from(TINY_PNG, 'base64') });
+      const locked = join(at, 'locked');
+      mkdirSync(locked);
+      writeFileSync(join(locked, 'inside.png'), Buffer.from(TINY_PNG, 'base64'));
+      chmodSync(locked, 0o000);
+      try {
+        const { code, rows } = check(at);
+        expect(code).toBe(1);
+        expect(rows['locked/']?.ok).toBe(false);
+        expect(rows['locked/']?.what).toMatch(/^a folder that could not be read: /);
+        expect(rows['z.png']?.ok).toBe(true);
+      } finally {
+        chmodSync(locked, 0o755);
+      }
+    },
+    180_000,
+  );
 });

@@ -15,7 +15,7 @@
 // - .mp4, .webm: the signature, then played in the browser until a frame is decoded (its size and length).
 // Every wait is bounded. Prints a Markdown table (and writes it with --out); exits 1 if any file fails a check,
 // or if the folder holds no export at all.
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { type Dirent, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Browser, chromium, type Page } from '@playwright/test';
@@ -48,11 +48,21 @@ const starts = (bytes: Buffer, magic: number[] | string, at = 0) =>
     (b, i) => bytes[at + i] === b,
   );
 
-/** Every file under the folder, nested ones too, in name order. */
-function filesIn(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true })
+/**
+ * Every file under the folder, nested ones too, in name order, and the folders in it that could not be read (each
+ * a failed row; their siblings are still checked).
+ */
+function filesIn(dir: string, unreadable: Array<{ dir: string; why: string }> = []): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch (error) {
+    unreadable.push({ dir, why: (error as Error).message.split('\n')[0] as string });
+    return [];
+  }
+  return entries
     .sort((a, b) => (a.name < b.name ? -1 : 1))
-    .flatMap((d) => (d.isDirectory() ? filesIn(join(dir, d.name)) : [join(dir, d.name)]));
+    .flatMap((d) => (d.isDirectory() ? filesIn(join(dir, d.name), unreadable) : [join(dir, d.name)]));
 }
 
 /** A GIF's size and frames, read block by block through to its trailer; throws where it is cut short or wrong. */
@@ -152,6 +162,7 @@ async function playVideo(
             once: true,
           });
         });
+      // Released however it ends (a failed video may still be playing), so it cannot hold on into the next check.
       try {
         const header = next('loadedmetadata');
         v.src = src;
@@ -179,6 +190,11 @@ async function playVideo(
         return { width: v.videoWidth, height: v.videoHeight, seconds };
       } catch (error) {
         return { error: String((error as Error).message ?? error) };
+      } finally {
+        v.pause();
+        v.removeAttribute('src');
+        v.load();
+        v.remove();
       }
     },
     { src: url, wait: WAIT },
@@ -194,8 +210,9 @@ const browser: Browser = await chromium.launch({ executablePath: findBrowser() }
 const context = await browser.newContext({ offline: true, viewport: { width: 1280, height: 720 } });
 const media = await context.newPage();
 await media.goto(pathToFileURL(join(folder, '.')).href).catch(() => {});
+const unreadable: Array<{ dir: string; why: string }> = [];
 try {
-  for (const path of filesIn(folder)) {
+  for (const path of filesIn(folder, unreadable)) {
     const file = path.slice(folder.length + 1).replace(/\\/g, '/');
     const ext = extname(path).toLowerCase();
     if (!EXPORTS.has(ext)) {
@@ -224,12 +241,19 @@ try {
         const page = await context.newPage();
         const errors: string[] = [];
         const asked: string[] = [];
+        // A one-file presentation asks for nothing but itself: a file beside it would be missing once it is sent alone.
+        const beside = new Set<string>();
+        const itself = url.split(/[?#]/)[0];
         page.on('pageerror', (e) => errors.push(e.message));
         page.on('console', (m) => {
           if (m.type() === 'error') errors.push(m.text());
         });
         page.on('request', (r) => {
-          if (!/^(file|data|blob):/.test(r.url())) asked.push(r.url());
+          const at = r.url();
+          const file = at.split(/[?#]/)[0] as string;
+          if (at.startsWith('file:')) {
+            if (file !== itself) beside.add(file);
+          } else if (!/^(data|blob):/.test(at)) asked.push(at);
         });
         const shows = (selector: string) =>
           page
@@ -246,12 +270,15 @@ try {
         const doctype = bytes.subarray(0, 15).toString('latin1').toLowerCase() === '<!doctype html>';
         await page.close();
         row(
-          doctype && start && stage && errors.length === 0 && asked.length === 0,
+          doctype && start && stage && errors.length === 0 && asked.length === 0 && beside.size === 0,
           [
             doctype ? '' : 'no doctype',
             start ? 'opens on its start page' : 'no start page',
             stage ? 'draws its stage (rehearsal), offline' : 'no stage drawn',
             asked.length ? `asks the network for ${asked.length} thing(s), e.g. ${asked[0]}` : '',
+            beside.size
+              ? `needs ${beside.size} file(s) beside it, e.g. ${decodeURIComponent([...beside][0]?.split('/').pop() ?? '')}`
+              : '',
             errors.length ? `errors: ${errors.slice(0, 2).join(' | ')}` : '',
           ]
             .filter(Boolean)
@@ -311,7 +338,14 @@ try {
 } finally {
   await browser.close();
 }
-if (checked === 0) rows.push({ file: '(the folder)', ok: false, what: 'no export to check in it' });
+for (const u of unreadable)
+  rows.push({
+    file: u.dir === folder ? '(the folder)' : `${u.dir.slice(folder.length + 1).replace(/\\/g, '/')}/`,
+    ok: false,
+    what: `a folder that could not be read: ${u.why}`,
+  });
+if (checked === 0 && unreadable.length === 0)
+  rows.push({ file: '(the folder)', ok: false, what: 'no export to check in it' });
 
 const report = [
   `| File | Check | What it holds |`,
