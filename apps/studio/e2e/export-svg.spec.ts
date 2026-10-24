@@ -186,8 +186,12 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
       expect(report, key).toMatchObject({ error: null, root: 'svg', foreign: 0, missing: [], outside: [] });
       expect(report.texts, `${key}: text stays text`).toBeGreaterThan(0);
       expect(svg, key).not.toContain('radialGradient');
-      // The halos: rings of flat see-through colour.
-      expect(svg, key).toMatch(/<circle [^>]*fill="#[0-9a-f]{6}" fill-opacity="0\.\d+"\/>/);
+      // The halos: rings of flat see-through colour (with their group's opacity, where it is faded).
+      expect(svg, key).toMatch(
+        /<circle [^>]*fill="#[0-9a-f]{6}" fill-opacity="0\.\d+"( opacity="[\d.]+")?\/>/,
+      );
+      // No group opacity, which Convert to Shape drops: each shape carries its own.
+      expect(svg, key).not.toMatch(/<(g|svg) [^>]*\sopacity=/);
       const notes = (office as FileEvent).notes ?? [];
       expect(notes, key).toContain(NOTES.office);
       expect(notes, key).toContain(NOTES.shading);
