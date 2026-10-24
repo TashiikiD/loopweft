@@ -251,17 +251,18 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
       // a link meets its head. Only shapes that overlap in a faded group (links crossing or meeting at a
       // variable, in S08.3a) differ by more than 12 levels, in a few blocks.
       const local = await nearby(page, drawnBack, plainBack);
-      test.info().annotations.push({
-        type: `office ${key}`,
-        description: `PNG: far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}; plain: largest ${local.largest.toFixed(1)}, over 12 ${(local.over * 100).toFixed(4)}%`,
-      });
-      expect(mean, `${key}: mean difference from the PNG`).toBeLessThan(4);
-      expect(local.largest, `${key}: largest 4 × 4 difference from the plain drawing`).toBeLessThan(28);
-      expect(local.over, `${key}: share of 4 × 4 blocks over 12 levels from the plain drawing`).toBeLessThan(
-        0.0002,
-      );
+      const measured = `PNG: far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}; plain: largest ${local.largest.toFixed(1)}, over 12 ${(local.over * 100).toFixed(4)}%`;
+      test.info().annotations.push({ type: `office ${key}`, description: measured });
+      console.log(`Office ${key} (${process.platform}): ${measured}`);
+      // Kept for the review (and CI's artifact) before the checks, so a difference can be seen.
       review(`svg-office/${key}.svg`, (office as FileEvent).bytes);
       review(`svg-office/${key}-drawn.png`, drawnBack);
+      review(`svg-office/${key}-plain-drawn.png`, plainBack);
+      expect.soft(mean, `${key}: mean difference from the PNG`).toBeLessThan(4);
+      expect.soft(local.largest, `${key}: largest 4 × 4 difference from the plain drawing`).toBeLessThan(28);
+      expect
+        .soft(local.over, `${key}: share of 4 × 4 blocks over 12 levels from the plain drawing`)
+        .toBeLessThan(0.0002);
     }
   } finally {
     await browser.close();
