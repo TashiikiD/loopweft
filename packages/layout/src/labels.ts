@@ -6,15 +6,23 @@
 // eight spots around its node and keeps the one that collides least with
 // lit links, nodes, earlier labels and reserved regions (captions, minimap).
 import { type Camera, project, STAGE } from './camera.ts';
-import { HEAD_LEN, type Pt, quad } from './geometry.ts';
+import { BAR_HALF_WIDTH, BAR_THICKNESS, HEAD_HALF_WIDTH, HEAD_LEN, type Pt, quad } from './geometry.ts';
 
 /** What placement needs to know about the map: variable positions and radii, and link curves. */
 export interface LabelGraph {
   nodes: ReadonlyMap<string, { x: number; y: number; r: number }>;
-  /** Link curves, with their ends' ids where known (a ▲/▼ badge keeps clear of its variable's own links). */
+  /**
+   * Link curves, with their ends' ids where known (a ▲/▼ badge keeps clear of its variable's own links), and
+   * the end marker as drawn (`head`, the triangle or bar's path) or the sign it is drawn for.
+   */
   edges: ReadonlyMap<
     string,
-    { source?: { id: string }; target?: { id: string }; geom: { p0: Pt; c: Pt; p1: Pt } }
+    {
+      source?: { id: string };
+      target?: { id: string };
+      sign?: '+' | '-' | '?';
+      geom: { p0: Pt; c: Pt; p1: Pt; head?: string };
+    }
   >;
 }
 
@@ -117,9 +125,10 @@ export function placeLabels(requests: LabelRequest[], ctx: PlacementContext): Ma
     const s = project(camera, n.x, n.y);
     return { id, x: s.x, y: s.y, r: n.r * camera.zoom + 4 };
   });
+  const offsets = badgeOffsets(graph);
   const badges = ctx.badges.map((id) => {
     const n = graph.nodes.get(id) as { x: number; y: number; r: number };
-    const o = badgeOffset(graph, id);
+    const o = offsets.get(id) ?? { x: 0, y: 0 };
     const s = project(camera, n.x + o.x, n.y + o.y);
     return { id, x: s.x, y: s.y, r: 9 * camera.zoom + 3 };
   });
@@ -188,53 +197,118 @@ const CORNERS = [
 ] as const;
 
 /**
- * Where a variable's ▲/▼/± badge goes, from its centre, in map units: its upper right, unless a link arrives
- * there (its arrowhead, which the badge would hide) or another variable sits there; then the first corner clear
- * of both (upper left, lower right, lower left), or, with none clear, the clearest.
+ * The end markers arriving at a variable, as drawn: each link's triangle (+, ?) or bar (−), as a polygon in map
+ * units. Read from the marker's path where the graph has it; otherwise rebuilt from the line's end, and with no
+ * sign known, both shapes.
  */
-export function badgeOffset(graph: LabelGraph, id: string): Pt {
-  const n = graph.nodes.get(id);
-  if (!n) return { x: 0, y: 0 };
-  const points: Pt[] = [];
-  // The arrowheads arriving at the variable, and the last stretch of line into each: a badge over them would
-  // hide which way the link runs. (A line merely passing under a badge stays readable either side of it.)
+export function arrivingMarks(graph: LabelGraph, id: string): Pt[][] {
+  const marks: Pt[][] = [];
   for (const e of graph.edges.values()) {
     if (e.target?.id !== id) continue;
-    const { p0, c, p1 } = e.geom;
-    for (let i = 0; i <= 24; i++) {
-      const p = quad(p0, c, p1, 0.75 + i / 96);
-      if (Math.hypot(p.x - p1.x, p.y - p1.y) <= 2 * HEAD_LEN) points.push(p);
+    const drawn = e.geom.head?.match(/-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/g)?.map(Number);
+    if (drawn && drawn.length >= 6 && drawn.length % 2 === 0) {
+      const poly: Pt[] = [];
+      for (let i = 0; i < drawn.length; i += 2)
+        poly.push({ x: drawn[i] as number, y: drawn[i + 1] as number });
+      marks.push(poly);
+      continue;
     }
-    // The arrowhead runs on from the line's end to the glyph's rim.
-    const len = Math.hypot(p1.x - c.x, p1.y - c.y) || 1;
-    for (const k of [0.5, 1])
-      points.push({
-        x: p1.x + ((p1.x - c.x) / len) * HEAD_LEN * k,
-        y: p1.y + ((p1.y - c.y) / len) * HEAD_LEN * k,
-      });
-  }
-  const others = [...graph.nodes].filter(([other]) => other !== id).map(([, o]) => o);
-  const d = n.r + BADGE_GAP;
-  let best: Pt = { x: CORNERS[0][0] * d, y: CORNERS[0][1] * d };
-  let bestMargin = Number.NEGATIVE_INFINITY;
-  for (const [sx, sy] of CORNERS) {
-    const at = { x: sx * d, y: sy * d };
-    const cx = n.x + at.x;
-    const cy = n.y + at.y;
-    // How far the badge keeps (with a little air) from the arrowheads, and from every other variable's glyph:
-    // a corner on another variable would hide it instead.
-    const margin = Math.min(
-      ...points.map((p) => Math.hypot(p.x - cx, p.y - cy) - (BADGE_R + 3)),
-      ...others.map((o) => Math.hypot(o.x - cx, o.y - cy) - (o.r + BADGE_R + 3)),
-      Number.POSITIVE_INFINITY,
-    );
-    if (margin >= 0) return at;
-    if (margin > bestMargin) {
-      best = at;
-      bestMargin = margin;
+    // The line stops at a triangle's base and at a bar's middle (edgeGeometry), in the line's last direction.
+    const { c, p1 } = e.geom;
+    const l = Math.hypot(p1.x - c.x, p1.y - c.y) || 1;
+    const dir = { x: (p1.x - c.x) / l, y: (p1.y - c.y) / l };
+    const perp = { x: -dir.y, y: dir.x };
+    const at = (along: number, across: number): Pt => ({
+      x: p1.x + dir.x * along + perp.x * across,
+      y: p1.y + dir.y * along + perp.y * across,
+    });
+    if (e.sign !== '-') marks.push([at(HEAD_LEN, 0), at(0, HEAD_HALF_WIDTH), at(0, -HEAD_HALF_WIDTH)]);
+    if (e.sign !== '+' && e.sign !== '?') {
+      const h = BAR_THICKNESS / 2;
+      marks.push([
+        at(h, BAR_HALF_WIDTH),
+        at(h, -BAR_HALF_WIDTH),
+        at(-h, -BAR_HALF_WIDTH),
+        at(-h, BAR_HALF_WIDTH),
+      ]);
     }
   }
-  return best;
+  return marks;
+}
+
+/** How far a point is from a polygon: 0 inside it, else to its nearest edge. */
+export function distanceToPolygon(poly: readonly Pt[], p: Pt): number {
+  let inPoly = false;
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i] as Pt;
+    const b = poly[j] as Pt;
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inPoly = !inPoly;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)));
+  }
+  return inPoly ? 0 : best;
+}
+
+/**
+ * Where every variable's ▲/▼/± badge goes, from its centre, in map units: its upper right, unless a link
+ * arrives there (its marker, which the badge would hide), another variable sits there or another variable's
+ * badge does; then the first corner clear of all three (upper left, lower right, lower left), or, with none
+ * clear, the clearest. Variables choose in the map's order, each keeping clear of the badges chosen before it,
+ * so the stage, the Studio and label placement all see the same corners.
+ */
+export function badgeOffsets(graph: LabelGraph): Map<string, Pt> {
+  const result = new Map<string, Pt>();
+  const chosen: Pt[] = [];
+  for (const [id, n] of graph.nodes) {
+    // The last stretch of line into each arriving link, and its marker as painted: a badge over them would hide
+    // which way the link runs. (A line merely passing under a badge stays readable either side of it.)
+    const points: Pt[] = [];
+    for (const e of graph.edges.values()) {
+      if (e.target?.id !== id) continue;
+      const { p0, c, p1 } = e.geom;
+      for (let i = 0; i <= 24; i++) {
+        const p = quad(p0, c, p1, 0.75 + i / 96);
+        if (Math.hypot(p.x - p1.x, p.y - p1.y) <= 2 * HEAD_LEN) points.push(p);
+      }
+    }
+    const marks = arrivingMarks(graph, id);
+    const others = [...graph.nodes].filter(([other]) => other !== id).map(([, o]) => o);
+    const d = n.r + BADGE_GAP;
+    let best: Pt = { x: CORNERS[0][0] * d, y: CORNERS[0][1] * d };
+    let bestMargin = Number.NEGATIVE_INFINITY;
+    for (const [sx, sy] of CORNERS) {
+      const at = { x: sx * d, y: sy * d };
+      const centre = { x: n.x + at.x, y: n.y + at.y };
+      // How far the badge keeps (with a little air) from the arrowheads, from every other variable's glyph (a
+      // corner on another variable would hide it instead) and from the badges already placed.
+      const margin = Math.min(
+        ...points.map((p) => Math.hypot(p.x - centre.x, p.y - centre.y) - (BADGE_R + 3)),
+        ...marks.map((m) => distanceToPolygon(m, centre) - (BADGE_R + 3)),
+        ...others.map((o) => Math.hypot(o.x - centre.x, o.y - centre.y) - (o.r + BADGE_R + 3)),
+        ...chosen.map((b) => Math.hypot(b.x - centre.x, b.y - centre.y) - (2 * BADGE_R + 3)),
+        Number.POSITIVE_INFINITY,
+      );
+      if (margin >= 0) {
+        best = at;
+        break;
+      }
+      if (margin > bestMargin) {
+        best = at;
+        bestMargin = margin;
+      }
+    }
+    result.set(id, best);
+    chosen.push({ x: n.x + best.x, y: n.y + best.y });
+  }
+  return result;
+}
+
+/** One variable's badge offset (`badgeOffsets`), or none for a variable not on the map. */
+export function badgeOffset(graph: LabelGraph, id: string): Pt {
+  return badgeOffsets(graph).get(id) ?? { x: 0, y: 0 };
 }
 
 /** Where a loop's name goes beside its badge. */
@@ -303,10 +377,11 @@ export function placeLoopNames(
     const s = project(camera, n.x, n.y);
     return [{ x: s.x, y: s.y, r: n.r * camera.zoom + 4 }];
   });
+  const offsets = badgeOffsets(graph);
   const badges = ctx.badges.flatMap((id) => {
     const n = graph.nodes.get(id);
-    if (!n) return [];
-    const o = badgeOffset(graph, id);
+    const o = offsets.get(id);
+    if (!n || !o) return [];
     const s = project(camera, n.x + o.x, n.y + o.y);
     return [{ x: s.x, y: s.y, r: BADGE_R * camera.zoom + 3 }];
   });

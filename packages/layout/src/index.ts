@@ -56,10 +56,13 @@ export {
   segmentsCross,
 } from './geometry.ts';
 export {
+  arrivingMarks,
   BADGE_R,
   type Box,
   badgeOffset,
+  badgeOffsets,
   boxFor,
+  distanceToPolygon,
   type LabelGraph,
   type LabelRequest,
   type LabelSide,

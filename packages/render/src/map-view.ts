@@ -3,7 +3,7 @@
 // the graph) and the theme; SVG ids are unique to each view, so several maps can share a page.
 import {
   type Box,
-  badgeOffset,
+  badgeOffsets,
   boxFor,
   type Camera,
   cameraTransform,
@@ -239,6 +239,7 @@ export class MapView {
       this.#edges.set(e.id, { g, line, head, flag, conditional: e.conditional, style: e.style });
     }
 
+    const corners = badgeOffsets(this.graph);
     for (const n of this.graph.nodes.values()) {
       const g = hidden(
         svg('g', {
@@ -257,7 +258,7 @@ export class MapView {
       );
       g.append(halo, ...glyph(shapeGlyph(n.shape, n.r)));
       // Its ▲/▼ badge at its upper right, or another corner where its own links would be hidden.
-      const corner = badgeOffset(this.graph, n.id);
+      const corner = corners.get(n.id) ?? { x: 0, y: 0 };
       const trend = hidden(
         svg('g', { class: 'node-trend', transform: `translate(${corner.x} ${corner.y})` }),
       );
@@ -920,10 +921,11 @@ export class MapView {
   /** Swaps in new positions and link shapes (when a layout is edited). */
   setGeometry(graph: Graph): void {
     this.graph = graph;
+    const corners = badgeOffsets(graph);
     for (const n of graph.nodes.values()) {
       const els = this.#nodes.get(n.id);
       els?.g.setAttribute('transform', `translate(${n.x} ${n.y})`);
-      const corner = badgeOffset(graph, n.id);
+      const corner = corners.get(n.id) ?? { x: 0, y: 0 };
       els?.trend.setAttribute('transform', `translate(${corner.x} ${corner.y})`);
     }
     for (const e of graph.edges.values()) {

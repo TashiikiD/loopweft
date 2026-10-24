@@ -2,11 +2,14 @@
 // tests, run on the converted example instead of the deck's own map.
 import { describe, expect, it } from 'vitest';
 import {
+  arrivingMarks,
   BADGE_R,
   badgeOffset,
+  badgeOffsets,
   boxFor,
   circleOnStage,
   curveOnStage,
+  distanceToPolygon,
   edgeGeometry,
   FRAMES,
   fitCamera,
@@ -15,6 +18,7 @@ import {
   type LoopNameSide,
   loopNameBox,
   mapGeometry,
+  type Pt,
   placeLabels,
   placeLoopNames,
   project,
@@ -264,6 +268,77 @@ describe('marks that keep clear of each other', () => {
       ]),
     };
     expect(badgeOffset(graph, 'a')).toEqual({ x: 17, y: 17 });
+  });
+
+  it('keeps a badge off the whole painted marker of a link arriving at a shallow angle, bar or triangle', () => {
+    // C→A arrives just above A's right: the line's centre passes the upper right corner with room to spare, but
+    // a bar is 14 units wide, and its end reaches into the badge there.
+    const A = { x: 0, y: 0, r: 11 };
+    const C = { x: 200, y: -35, r: 11 };
+    for (const sign of ['-', '+'] as const) {
+      const geom = edgeGeometry(C, C.r, A, A.r, 0, sign);
+      const withHead = {
+        nodes: new Map([
+          ['a', A],
+          ['c', C],
+        ]),
+        edges: new Map([['ca', { source: { id: 'c' }, target: { id: 'a' }, geom }]]),
+      };
+      const at = badgeOffset(withHead, 'a');
+      const centre = { x: A.x + at.x, y: A.y + at.y };
+      const marks = arrivingMarks(withHead, 'a');
+      expect(marks).toHaveLength(1);
+      expect(
+        distanceToPolygon(marks[0] as Pt[], centre),
+        `${sign}: badge on the marker`,
+      ).toBeGreaterThanOrEqual(BADGE_R);
+      // The same corner when the graph has only the curve and the sign, not the marker's path.
+      const { head: _, ...curve } = geom;
+      const withSign = {
+        ...withHead,
+        edges: new Map([['ca', { source: { id: 'c' }, target: { id: 'a' }, sign, geom: curve }]]),
+      };
+      expect(badgeOffset(withSign, 'a')).toEqual(at);
+    }
+    // The bar is what the upper right corner would cover.
+    const bar = {
+      nodes: new Map([
+        ['a', A],
+        ['c', C],
+      ]),
+      edges: new Map([
+        ['ca', { source: { id: 'c' }, target: { id: 'a' }, geom: edgeGeometry(C, C.r, A, A.r, 0, '-') }],
+      ]),
+    };
+    expect(badgeOffset(bar, 'a')).not.toEqual({ x: 17, y: -17 });
+    expect(distanceToPolygon(arrivingMarks(bar, 'a')[0] as Pt[], { x: 17, y: -17 })).toBeLessThan(BADGE_R);
+  });
+
+  it('keeps badges off each other: neighbours choose their corners together', () => {
+    // A link arrives at B's upper right, so B's badge would go to its upper left, onto A's upper right badge.
+    const A = { x: 0, y: 0, r: 11 };
+    const B = { x: 40, y: 0, r: 11 };
+    const C = { x: 140, y: -100, r: 11 };
+    const graph = {
+      nodes: new Map([
+        ['a', A],
+        ['b', B],
+        ['c', C],
+      ]),
+      edges: new Map([
+        ['cb', { source: { id: 'c' }, target: { id: 'b' }, geom: edgeGeometry(C, C.r, B, B.r, 0, '+') }],
+      ]),
+    };
+    const all = badgeOffsets(graph);
+    const a = all.get('a') as Pt;
+    const b = all.get('b') as Pt;
+    expect(a).toEqual({ x: 17, y: -17 });
+    expect(b).not.toEqual({ x: 17, y: -17 });
+    expect(dist({ x: A.x + a.x, y: A.y + a.y }, { x: B.x + b.x, y: B.y + b.y })).toBeGreaterThanOrEqual(
+      2 * BADGE_R,
+    );
+    // One variable's offset is the one chosen with the rest.
+    for (const [id, at] of all) expect(badgeOffset(graph, id)).toEqual(at);
   });
 
   it('keeps a loop’s name off another loop’s badge on show', () => {

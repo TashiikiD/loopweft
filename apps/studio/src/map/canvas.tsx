@@ -7,7 +7,7 @@
 // - Drag from a variable's handle (the ring that shows on it) to another variable to link them; the sign
 //   is asked, never assumed. Click an arrowhead to flip its link's sign.
 // - Delete removes what is selected; Ctrl+F finds a variable; the home view is framed from here.
-import { badgeOffset, type Pt } from '@loopweft/layout';
+import { arrivingMarks, badgeOffsets, type Pt } from '@loopweft/layout';
 import {
   addLink,
   flipSign,
@@ -116,7 +116,7 @@ const Node = memo(function Node({
   target: boolean;
   /** Its mark in the ripple drawn on the canvas, if the ripple reaches it. */
   trend?: Trend;
-  /** Where that mark goes, from its centre (`badgeOffset`: clear of its own links). */
+  /** Where that mark goes, from its centre (`badgeOffsets`: clear of its own links and the other marks). */
   badge?: { x: number; y: number };
   k: number;
 }) {
@@ -208,7 +208,8 @@ const Labels = memo(function Labels({
   return (
     <g className="lw-labels">
       {[...graph.nodes.values()].map((n) => {
-        const place = clearLabelPlace(n, k, badges?.get(n.id));
+        const badge = badges?.get(n.id);
+        const place = clearLabelPlace(n, k, badge, badge ? arrivingMarks(graph, n.id) : []);
         return (
           <text
             key={n.id}
@@ -511,7 +512,16 @@ export function Canvas({ memory }: { memory?: { current: CanvasMemory | null } }
   const rippleBadges = useMemo(
     () =>
       ripple
-        ? new Map(Object.keys(ripple.trends).map((id) => [id, badgeOffset(shown, id)] as const))
+        ? (() => {
+            // Chosen for the whole map at once, as the stage does, so no two badges meet.
+            const all = badgeOffsets(shown);
+            return new Map(
+              Object.keys(ripple.trends).flatMap((id) => {
+                const at = all.get(id);
+                return at ? [[id, at] as const] : [];
+              }),
+            );
+          })()
         : undefined,
     [ripple, shown],
   );

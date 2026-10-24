@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { badgeOffset } from '@loopweft/layout';
+import { arrivingMarks, BADGE_R, badgeOffset, distanceToPolygon } from '@loopweft/layout';
 import { ManualClock, Motion } from '@loopweft/motion';
 import { describe, expect, it } from 'vitest';
 import { MapView, StoryView, schedule, storyPositions } from '../src/index.ts';
@@ -200,9 +200,33 @@ describe('the map view', () => {
       expect(node.querySelector('.node-trend')?.getAttribute('transform')).toBe(`translate(${at.x} ${at.y})`);
       return at.x > 0 && at.y < 0 ? 'upper right' : 'elsewhere';
     });
-    // Most keep the upper right; some, whose links run there, do not.
-    expect(corners.filter((c) => c === 'upper right').length).toBeGreaterThan(corners.length / 2);
+    // Some keep the upper right; some, whose links arrive there, do not.
+    expect(corners).toContain('upper right');
     expect(corners).toContain('elsewhere');
+    // No badge covers an arrowhead or bar arriving at its variable, unless every corner would (a hub such as
+    // Climate heating), nor another badge.
+    const centres = [...view.graph.nodes.values()].map((n) => {
+      const at = badgeOffset(view.graph, n.id);
+      return { x: n.x + at.x, y: n.y + at.y };
+    });
+    for (const n of view.graph.nodes.values()) {
+      const marks = arrivingMarks(view.graph, n.id);
+      const covers = (at: { x: number; y: number }) =>
+        marks.some((m) => distanceToPolygon(m, { x: n.x + at.x, y: n.y + at.y }) < BADGE_R);
+      if (covers(badgeOffset(view.graph, n.id))) {
+        const d = n.r + 6;
+        for (const at of [
+          { x: d, y: -d },
+          { x: -d, y: -d },
+          { x: d, y: d },
+          { x: -d, y: d },
+        ])
+          expect(covers(at), `${n.id} has a clear corner`).toBe(true);
+      }
+    }
+    for (const [i, a] of centres.entries())
+      for (const b of centres.slice(i + 1))
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(2 * BADGE_R);
   });
 
   it('pops new loop badges in once their loop has traced', () => {

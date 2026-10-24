@@ -1,7 +1,7 @@
 // Where the canvas puts a variable's label, in map units at the canvas's zoom: on its preferred side, unless the
 // ▲/▼ badge a ripple draws on the canvas sits there (badgeOffset can put it at any corner); then on the first
-// side clear of it. The preferred side stored in the project is not changed.
-import { BADGE_R, type Pt } from '@loopweft/layout';
+// side clear of it and of the arrowheads arriving there. The preferred side stored in the project is not changed.
+import { BADGE_R, distanceToPolygon, type Pt, segmentsCross } from '@loopweft/layout';
 import type { GraphNode } from '@loopweft/render';
 
 /**
@@ -60,18 +60,44 @@ const meets = (b: { x: number; y: number; w: number; h: number }, c: Pt, r: numb
   return dx * dx + dy * dy < r * r;
 };
 
+/** Whether a box and a polygon meet: one holds a corner of the other, or their edges cross. */
+const meetsPolygon = (b: { x: number; y: number; w: number; h: number }, poly: readonly Pt[]) => {
+  const box: Pt[] = [
+    { x: b.x, y: b.y },
+    { x: b.x + b.w, y: b.y },
+    { x: b.x + b.w, y: b.y + b.h },
+    { x: b.x, y: b.y + b.h },
+  ];
+  const edges = (ps: readonly Pt[]) => ps.map((p, i) => [p, ps[(i + 1) % ps.length] as Pt] as const);
+  return (
+    poly.some((p) => distanceToPolygon(box, p) === 0) ||
+    box.some((c) => distanceToPolygon(poly, c) === 0) ||
+    edges(poly).some(([p, q]) => edges(box).some(([c, d]) => segmentsCross(p, q, c, d)))
+  );
+};
+
 /**
  * A label's place: on its preferred side, or, with a ▲/▼ badge at `badge` (its offset from the variable's
- * centre), on the first side clear of the badge (below, above, right, left), else the preferred one.
+ * centre) on that side, on the first other side (below, above, right, left) clear of the badge and of `marks`,
+ * the arrowheads arriving at the variable (moved off the badge, it must not cover one instead); with none clear
+ * of both, the first clear of the badge, else the preferred one.
  */
-export function clearLabelPlace(n: GraphNode, k: number, badge?: Pt): LabelPlace {
+export function clearLabelPlace(
+  n: GraphNode,
+  k: number,
+  badge?: Pt,
+  marks: readonly Pt[][] = [],
+): LabelPlace {
   const preferred = labelPlace(n, k);
   if (!badge) return preferred;
   const at = { x: n.x + badge.x, y: n.y + badge.y };
-  const sides = [...new Set<Side>([n.labelSide, 'below', 'above', 'right', 'left'])];
-  for (const side of sides) {
-    const place = labelPlace(n, k, side);
-    if (!meets(labelBox(place), at, BADGE_R + 2)) return place;
-  }
-  return preferred;
+  const offBadge = (place: LabelPlace) => !meets(labelBox(place), at, BADGE_R + 2);
+  if (offBadge(preferred)) return preferred;
+  const others = (['below', 'above', 'right', 'left'] as Side[])
+    .filter((side) => side !== n.labelSide)
+    .map((side) => labelPlace(n, k, side))
+    .filter(offBadge);
+  return (
+    others.find((place) => !marks.some((m) => meetsPolygon(labelBox(place), m))) ?? others[0] ?? preferred
+  );
 }
