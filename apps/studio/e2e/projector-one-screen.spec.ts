@@ -8,6 +8,15 @@ test.use(screens('{0,0 1440x900}'));
 test('Send to projector says only one screen was found, and opens nothing', async ({ page, context }) => {
   await allowWindowPlacement(context, page);
   const console_ = await openConsole(page);
+  // Any attempt to open a window is marked the moment it is made (a new page's event comes only once it starts
+  // loading, too late to be sure of), and still opens it.
+  await console_.evaluate(() => {
+    const open = window.open.bind(window);
+    window.open = (...args) => {
+      document.documentElement.dataset.popupAttempted = 'true';
+      return open(...args);
+    };
+  });
   let opened = false;
   context.on('page', () => {
     opened = true;
@@ -17,5 +26,6 @@ test('Send to projector says only one screen was found, and opens nothing', asyn
   await expect(console_.locator('.lp-toast')).toHaveText(
     'Only one screen found. Connect the projector and choose “Extend” (Windows key + P).',
   );
+  await expect(console_.locator('html')).not.toHaveAttribute('data-popup-attempted', 'true');
   expect(opened).toBe(false);
 });
