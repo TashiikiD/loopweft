@@ -10,7 +10,7 @@ test('Send to projector says only one screen was found, and opens nothing', asyn
   const console_ = await openConsole(page);
   // Any attempt to open a window is marked the moment it is made (a new page's event comes only once it starts
   // loading, too late to be sure of), and still opens it.
-  await console_.evaluate(() => {
+  await page.evaluate(() => {
     const open = window.open.bind(window);
     window.open = (...args) => {
       document.documentElement.dataset.popupAttempted = 'true';
@@ -26,6 +26,6 @@ test('Send to projector says only one screen was found, and opens nothing', asyn
   await expect(console_.locator('.lp-toast')).toHaveText(
     'Only one screen found. Connect the projector and choose “Extend” (Windows key + P).',
   );
-  await expect(console_.locator('html')).not.toHaveAttribute('data-popup-attempted', 'true');
+  await expect(page.locator('html')).not.toHaveAttribute('data-popup-attempted', 'true');
   expect(opened).toBe(false);
 });
