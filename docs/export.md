@@ -96,7 +96,9 @@ times the size of one at 1920 × 1080.
 An SVG is a drawing rather than pixels:
 - it stays sharp at any size (a poster, a printed page);
 - it opens in browsers, PowerPoint, Word, Inkscape and Illustrator;
-- its shapes and text can be edited there: move a label, change a word, recolour a link.
+- its shapes and text can be edited in Inkscape and Illustrator, and in PowerPoint once made for it (see
+  [For PowerPoint and Word](#for-powerpoint-and-word)): move a label, change a word, recolour a link. In Word,
+  keep it as a picture.
 
 In the Studio: **Export**, then **Pictures (PNG or SVG)**, and choose SVG. On the command line:
 
@@ -155,7 +157,11 @@ keeps flat shapes, see-through colour, straight gradients and, in PowerPoint, th
   on the command line), and Convert to Shape keeps it: its glows are rings of flat see-through colour (ten for
   each, matching the glow at the middle of each ring), each faded part carries its own opacity, and the darkened
   edges of the stage's backdrop, which rings cannot draw, are left out (the backdrop is its plain colour there).
-  As a picture, it looks as the plain drawing does but for those edges.
+  As a picture, it looks as the plain drawing does but for those edges, and where shapes overlap in a faded part
+  of the map: links that cross, or meet at a variable, and a link's line under its arrowhead or end bar. Each
+  carries the faded part's opacity on its own, so where two overlap they show a little brighter than under one
+  opacity (in the example, at most about 20 levels of 255, in a few small places). A response's ring is drawn
+  around its dot, so the two never overlap.
 - **In Word, keep the drawing as a picture.** Word's Convert to Shape breaks the text whatever the drawing: in a
   drawing the size of a slide, the text keeps its full size while the shapes shrink to the page, so lines wrap
   and pile up; in one the size of the page, the text lands in place but is drawn dark, under the background.

@@ -24,18 +24,26 @@ export function tag(name: string, attrs: Attrs, children?: string): string {
   return children === undefined || children === '' ? `${out}/>` : `${out}>${children}</${name}>`;
 }
 
+/**
+ * Marks a shape whose opacity is final, for fadeShapes to pass over: a ring of a glow, solved for the groups
+ * around it. Taken off the finished drawing.
+ */
+export const SOLVED = 'data-lw-solved';
+
 /** The elements that draw something themselves (not groups, definitions or gradient stops). */
 const LEAF = /<(path|circle|ellipse|rect|line|polyline|polygon|text|image)\b([^>]*?)(\/?)>/g;
 
 /**
  * A group's opacity moved onto each shape it draws (for PowerPoint and Word, whose Convert to Shape drops a
  * group's opacity but keeps a shape's): each shape's own opacity, if it has one, times `opacity`, at most four
- * decimals. Shapes that overlap in the group then show through each other a little more than under one group
- * opacity. `body` is drawing written by `tag`, whose definitions (clips, masks, filters) live elsewhere.
+ * decimals, except shapes marked SOLVED. Shapes that overlap in the group then show through each other a little
+ * more than under one group opacity. `body` is drawing written by `tag`, whose definitions (clips, masks,
+ * filters) live elsewhere.
  */
 export function fadeShapes(body: string, opacity: number): string {
   if (opacity >= 1) return body;
-  return body.replace(LEAF, (_, name: string, attrs: string, close: string) => {
+  return body.replace(LEAF, (whole: string, name: string, attrs: string, close: string) => {
+    if (attrs.includes(` ${SOLVED}="1"`)) return whole;
     const own = /\sopacity="([^"]*)"/.exec(attrs);
     const value = String(Math.round(Number(own?.[1] ?? 1) * opacity * 10000) / 10000);
     const rest = own ? attrs.replace(own[0], '') : attrs;

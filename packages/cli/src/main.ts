@@ -229,7 +229,7 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     )
     .option(
       '--svg',
-      'drawings (SVG) that stay sharp at any size and can be edited (PowerPoint, Word, Inkscape): --step, --all-steps or --map',
+      'drawings (SVG) that stay sharp at any size, open in PowerPoint, Word and Inkscape, and can be edited in Inkscape (and in PowerPoint with --for-office): --step, --all-steps or --map',
     )
     .option(
       '--pdf <document>',

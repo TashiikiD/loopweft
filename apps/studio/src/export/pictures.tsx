@@ -207,7 +207,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
             <Radio
               value="svg"
               label="SVG: a drawing that stays sharp at any size"
-              description="Shapes and text stay editable in PowerPoint, Word, Inkscape and Illustrator."
+              description="Opens in PowerPoint, Word, Inkscape and Illustrator; its shapes and text can be edited in Inkscape and Illustrator, and in PowerPoint when made for it (below)."
               disabled={busy}
             />
           </Stack>
@@ -253,7 +253,7 @@ export function PicturesCard({ engine }: PicturesCardProps) {
             checked={office}
             onChange={(e) => setOffice(e.currentTarget.checked)}
             label="For PowerPoint and Word"
-            description="Glows drawn as rings of flat colour and faded parts given their own opacity, which PowerPoint’s Convert to Shape keeps; the backdrop’s darkened edges are left out."
+            description="Glows drawn as rings of flat colour and faded parts given their own opacity, which PowerPoint’s Convert to Shape keeps; the backdrop’s darkened edges are left out. In Word, keep the SVG as a picture; Convert to Shape breaks its text."
             disabled={busy}
           />
         )}

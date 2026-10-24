@@ -238,6 +238,14 @@ describe('the Pictures card', () => {
         /rings of flat colour and faded parts given their own opacity, which PowerPoint’s Convert to Shape keeps/,
       ),
     ).toBeTruthy();
+    // Word's limit is said before the export, and SVG promises no editing in Word.
+    expect(
+      screen.getByText(/In Word, keep the SVG as a picture; Convert to Shape breaks its text\./),
+    ).toBeTruthy();
+    expect(screen.queryByText(/editable in PowerPoint, Word/)).toBeNull();
+    expect(
+      screen.getByText(/can be edited in Inkscape and Illustrator, and in PowerPoint when made for it/),
+    ).toBeTruthy();
     await user.click(office);
     await act(() => user.click(screen.getByRole('button', { name: 'Export SVG…' })));
     await vi.waitFor(() => expect(jobs).toHaveLength(1));

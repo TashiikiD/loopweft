@@ -162,10 +162,55 @@ test('every step as an SVG drawing: true SVG, close to the PNG, the same every t
   }
 });
 
-test('for PowerPoint and Word: no radial gradients, glows as rings, close to the PNG, the same every time', async () => {
-  test.setTimeout(300_000);
-  // A plain step, the title (its shading reaches past the stage), a statement on its backdrop, and the map.
-  const keys = ['S04.2a', 'S00.1', 'S01.3'];
+/**
+ * How two pictures of the same size differ in small places: the mean colour of each 4 × 4 block, the largest
+ * difference between two blocks, and the share of blocks more than 12 levels apart (of 255).
+ */
+async function nearby(page: Page, a: Uint8Array, b: Uint8Array): Promise<{ largest: number; over: number }> {
+  return page.evaluate(
+    async ([x, y]) => {
+      const BLOCK = 4;
+      const pixels = async (base64: string) => {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const context = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+        context.drawImage(bitmap, 0, 0);
+        return context.getImageData(0, 0, bitmap.width, bitmap.height);
+      };
+      const [p, q] = [await pixels(x), await pixels(y)];
+      let largest = 0;
+      let over = 0;
+      let blocks = 0;
+      for (let by = 0; by + BLOCK <= p.height; by += BLOCK) {
+        for (let bx = 0; bx + BLOCK <= p.width; bx += BLOCK) {
+          blocks++;
+          let worst = 0;
+          for (let k = 0; k < 3; k++) {
+            let sum = 0;
+            for (let yy = by; yy < by + BLOCK; yy++) {
+              for (let xx = bx; xx < bx + BLOCK; xx++) {
+                const i = (yy * p.width + xx) * 4 + k;
+                sum += (p.data[i] ?? 0) - (q.data[i] ?? 0);
+              }
+            }
+            worst = Math.max(worst, Math.abs(sum) / (BLOCK * BLOCK));
+          }
+          largest = Math.max(largest, worst);
+          if (worst > 12) over++;
+        }
+      }
+      return { largest, over: over / blocks };
+    },
+    [Buffer.from(a).toString('base64'), Buffer.from(b).toString('base64')] as const,
+  );
+}
+
+test('for PowerPoint and Word: no radial gradients, glows as rings, close to the plain drawing, the same every time', async () => {
+  test.setTimeout(420_000);
+  // A plain step, the title (its shading reaches past the stage), a statement on its backdrop, two steps whose
+  // map is faded (S03.2, with responses' rings and dots; S08.3a, with lit halos in it), and the map.
+  const keys = ['S04.2a', 'S00.1', 'S01.3', 'S03.2', 'S08.3a'];
   const job = (step: string) =>
     ({
       format: 'svg',
@@ -180,16 +225,15 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
     for (const key of [...keys, 'map']) {
       const target = key === 'map' ? ({ kind: 'map' } as const) : ({ kind: 'step', step: key } as const);
       const [office] = await pictures({ ...job(key), target });
+      const [plain] = await pictures({ ...job(key), target, office: false });
       const [png] = await pictures({ format: 'png', target, scale: 1, categoryWords: false });
       const svg = decoder.decode((office as FileEvent).bytes);
       const report = await inspect(page, svg);
       expect(report, key).toMatchObject({ error: null, root: 'svg', foreign: 0, missing: [], outside: [] });
       expect(report.texts, `${key}: text stays text`).toBeGreaterThan(0);
       expect(svg, key).not.toContain('radialGradient');
-      // The halos: rings of flat see-through colour (with their group's opacity, where it is faded).
-      expect(svg, key).toMatch(
-        /<circle [^>]*fill="#[0-9a-f]{6}" fill-opacity="0\.\d+"( opacity="[\d.]+")?\/>/,
-      );
+      // The halos: rings of flat see-through colour, their opacity solved for every faded group around them.
+      expect(svg, key).toMatch(/<circle [^>]*fill="#[0-9a-f]{6}" fill-opacity="0\.\d+"\/>/);
       // No group opacity, which Convert to Shape drops: each shape carries its own.
       expect(svg, key).not.toMatch(/<(g|svg) [^>]*\sopacity=/);
       const notes = (office as FileEvent).notes ?? [];
@@ -199,14 +243,23 @@ test('for PowerPoint and Word: no radial gradients, glows as rings, close to the
         notes.filter((n) => n.startsWith('Drawn approximately')),
         key,
       ).toEqual([]);
-      // Only the stage's darkened edges are left out: everything else stays close to the PNG.
       const drawnBack = await rasterize(page, svg);
+      const plainBack = await rasterize(page, decoder.decode((plain as FileEvent).bytes));
+      // Only the stage's darkened edges are left out: everything else stays close to the PNG ...
       const { far, mean } = await difference(page, drawnBack, (png as FileEvent).bytes);
+      // ... and, in small places, to the plain drawing: where rings meet, at a response's ring and dot, where
+      // a link meets its head. Only shapes that overlap in a faded group (links crossing or meeting at a
+      // variable, in S08.3a) differ by more than 12 levels, in a few blocks.
+      const local = await nearby(page, drawnBack, plainBack);
       test.info().annotations.push({
         type: `office ${key}`,
-        description: `far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}`,
+        description: `PNG: far ${(far * 100).toFixed(3)}%, mean ${mean.toFixed(3)}; plain: largest ${local.largest.toFixed(1)}, over 12 ${(local.over * 100).toFixed(4)}%`,
       });
       expect(mean, `${key}: mean difference from the PNG`).toBeLessThan(4);
+      expect(local.largest, `${key}: largest 4 × 4 difference from the plain drawing`).toBeLessThan(28);
+      expect(local.over, `${key}: share of 4 × 4 blocks over 12 levels from the plain drawing`).toBeLessThan(
+        0.0002,
+      );
       review(`svg-office/${key}.svg`, (office as FileEvent).bytes);
       review(`svg-office/${key}-drawn.png`, drawnBack);
     }
@@ -320,6 +373,9 @@ test.describe('in the Studio', () => {
     await expect(office).toHaveCount(0);
     await card.getByLabel(/^SVG: a drawing/).check();
     await expect(card.getByText(/Convert to Shape keeps/)).toBeVisible();
+    await expect(
+      card.getByText(/In Word, keep the SVG as a picture; Convert to Shape breaks its text/),
+    ).toBeVisible();
     await office.check();
     await choose(page, card.getByRole('combobox', { name: 'Step' }), 'S04.2a · Conflict → energy prices');
     const [download] = await Promise.all([

@@ -23,7 +23,7 @@ import {
 } from './css.ts';
 import { selectFontFaces } from './fonts.ts';
 import { fadeEnd, gradientRings, type Ring } from './rings.ts';
-import { type Attrs, Defs, escapeText, fadeShapes, num, tag } from './writer.ts';
+import { type Attrs, Defs, escapeText, fadeShapes, num, SOLVED, tag } from './writer.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -138,6 +138,11 @@ class Flattener {
   readonly #painted = new Map<Element, Set<string>>();
   /** For PowerPoint and Word: radial gradients drawn as rings, or left out. */
   readonly #office: boolean;
+  /**
+   * For PowerPoint and Word: the opacity of the groups being drawn, all of them multiplied, which is put on each
+   * of their shapes when they are written (#faded).
+   */
+  #fade = 1;
 
   constructor(viewport: Element, office = false) {
     const r = viewport.getBoundingClientRect();
@@ -154,6 +159,18 @@ class Flattener {
 
   #style(el: Element, pseudo?: string): CSSStyleDeclaration {
     return this.#view.getComputedStyle(el, pseudo);
+  }
+
+  /** Draws what `make` draws inside a group at `opacity` (for PowerPoint and Word, tracked in #fade). */
+  #inside<T>(opacity: number, make: () => T): T {
+    if (!this.#office || opacity >= 1) return make();
+    const outer = this.#fade;
+    this.#fade = outer * opacity;
+    try {
+      return make();
+    } finally {
+      this.#fade = outer;
+    }
   }
 
   /**
@@ -179,6 +196,10 @@ class Flattener {
     const s = this.#style(el);
     const opacity = visibleOpacity(s);
     if (opacity === 0 || s.visibility === 'hidden') return '';
+    return this.#inside(opacity, () => this.#htmlBox(el, s, opacity));
+  }
+
+  #htmlBox(el: Element, s: CSSStyleDeclaration, opacity: number): string {
     const rect = this.rectOf(el);
     const parts: string[] = [];
     if (
@@ -294,9 +315,9 @@ class Flattener {
       this.approximate(`a decoration placed as ${p.position} ${p.display}, left out`);
       return '';
     }
-    let body = this.#box(el, p, rect);
-    if (p.maskImage && p.maskImage !== 'none') body = this.#mask(body, p.maskImage, rect);
     const opacity = visibleOpacity(p);
+    let body = this.#inside(opacity, () => this.#box(el, p, rect));
+    if (p.maskImage && p.maskImage !== 'none') body = this.#mask(body, p.maskImage, rect);
     if (this.#office) return this.#faded(opacity, body);
     return opacity < 1 ? tag('g', { opacity }, body) : body;
   }
@@ -383,7 +404,8 @@ class Flattener {
       this.notes.add(NOTES.shading);
       return '';
     }
-    const { rings, exact } = gradientRings(g.stops, end);
+    // Solved for the groups around it too, which then leave the rings' opacity alone (#ring).
+    const { rings, exact } = gradientRings(g.stops, end, this.#fade);
     if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
     const body = rings.map((ring) => this.#ring(g.cx, g.cy, g.rx * ring.r, g.ry * ring.r, ring)).join('');
     const reach = { x: g.rx * end, y: g.ry * end };
@@ -395,9 +417,16 @@ class Flattener {
     return body && !inside ? this.#clip(body, rect, radii) : body;
   }
 
-  /** One ring: a circle, or an ellipse where its radii differ, of flat colour. */
+  /**
+   * One ring: a circle, or an ellipse where its radii differ, of flat colour. Its opacity is final (solved for
+   * the groups around it), so it is marked for fadeShapes to pass over.
+   */
   #ring(cx: number, cy: number, rx: number, ry: number, ring: Ring): string {
-    const fill: Attrs = { fill: ring.hex, 'fill-opacity': ring.opacity < 1 ? String(ring.opacity) : null };
+    const fill: Attrs = {
+      fill: ring.hex,
+      'fill-opacity': ring.opacity < 1 ? String(ring.opacity) : null,
+      [SOLVED]: '1',
+    };
     return Math.abs(rx - ry) < 0.005
       ? tag('circle', { cx, cy, r: rx, ...fill })
       : tag('ellipse', { cx, cy, rx, ry, ...fill });
@@ -844,7 +873,7 @@ class Flattener {
     const rect = this.rectOf(svg);
     if (rect.w === 0 || rect.h === 0) return '';
     const viewBox = svg.getAttribute('viewBox');
-    let inner = [...svg.childNodes].map((n) => this.svgNode(n)).join('');
+    let inner = this.#inside(opacity, () => [...svg.childNodes].map((n) => this.svgNode(n)).join(''));
     if (!inner) return '';
     if (this.#office) inner = fadeShapes(inner, opacity);
     const drawn = tag(
@@ -962,7 +991,10 @@ class Flattener {
     if (opacity < 1) attrs.opacity = opacity;
     const filter = this.#filter(s.filter, null, { x: -100000, y: -100000, w: 200000, h: 200000 });
     if (filter) attrs.filter = filter;
-    const children = [...el.childNodes].map((n) => this.svgNode(n)).join('');
+    const children =
+      name === 'g' || name === 'svg'
+        ? this.#inside(opacity, () => [...el.childNodes].map((n) => this.svgNode(n)).join(''))
+        : [...el.childNodes].map((n) => this.svgNode(n)).join('');
     if ((name === 'g' || name === 'svg') && this.#office) {
       const { opacity: _, ...rest } = attrs;
       return children ? this.#faded(opacity, children, rest) : '';
@@ -972,7 +1004,67 @@ class Flattener {
       this.approximate(`an SVG ${name}, left out`);
       return '';
     }
+    if (this.#office && name === 'circle' && this.#fade * opacity < 1) {
+      const ring = this.#ringUnderDot(el, attrs);
+      if (ring) return ring;
+    }
     return tag(name, attrs, children || undefined);
+  }
+
+  /**
+   * For PowerPoint and Word, a circle with a smaller one at its centre drawn next (a response's ring and dot), in
+   * a faded group: its fill as a ring around the dot and its outline apart, so that no two shapes overlap where
+   * each carries the group's opacity. Null if the next shape is no such dot.
+   */
+  #ringUnderDot(el: SVGElement, attrs: Attrs): string | null {
+    const dot = el.nextElementSibling;
+    if (dot?.localName !== 'circle') return null;
+    const at = (e: Element, a: string) => Number(e.getAttribute(a) ?? 0);
+    const r = at(el, 'r');
+    const inner = at(dot, 'r');
+    const style = this.#style(dot);
+    if (
+      at(dot, 'cx') !== at(el, 'cx') ||
+      at(dot, 'cy') !== at(el, 'cy') ||
+      !(inner > 0 && inner < r) ||
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      Number(style.opacity) < 1 ||
+      style.fill === 'none' ||
+      Number(style.fillOpacity) < 1 ||
+      dot.hasAttribute('transform') ||
+      style.transform !== 'none'
+    )
+      return null;
+    const cx = at(el, 'cx');
+    const cy = at(el, 'cy');
+    const stroked = attrs.stroke !== undefined && attrs.stroke !== 'none';
+    const width = stroked ? Number(attrs['stroke-width'] ?? 1) : 0;
+    const outer = r - width / 2;
+    const common: Attrs = { transform: attrs.transform, opacity: attrs.opacity, filter: attrs.filter };
+    const circle = (radius: number) =>
+      `M${num(cx + radius)} ${num(cy)}A${num(radius)} ${num(radius)} 0 1 0 ${num(cx - radius)} ${num(cy)}A${num(radius)} ${num(radius)} 0 1 0 ${num(cx + radius)} ${num(cy)}Z`;
+    const fill =
+      attrs.fill !== 'none' && outer > inner
+        ? tag('path', {
+            d: circle(outer) + circle(inner),
+            'fill-rule': 'evenodd',
+            fill: attrs.fill,
+            'fill-opacity': attrs['fill-opacity'],
+            ...common,
+          })
+        : '';
+    const outline = stroked
+      ? tag('circle', {
+          cx,
+          cy,
+          r,
+          fill: 'none',
+          ...Object.fromEntries(Object.entries(attrs).filter(([a]) => a.startsWith('stroke'))),
+          ...common,
+        })
+      : '';
+    return fill + outline;
   }
 
   /** The radialGradient a fill refers to, if it does. */
@@ -1026,11 +1118,12 @@ class Flattener {
       this.approximate('a radial gradient placed off its shape’s centre, drawn as rings about the centre');
     const stops = this.#svgStops(def);
     if (stops.length === 0) return '';
-    // The shape's opacity is solved into the rings, so that laid on each other they match the glow exactly.
+    // The shape's opacity and the groups' around it are solved into the rings, so that laid on each other they
+    // match the glow exactly; the groups then leave the rings' opacity alone (#ring).
     const { rings, exact } = gradientRings(
       stops,
       Math.min(1, fadeEnd(stops) ?? 1),
-      Number(s.fillOpacity) * opacity,
+      Number(s.fillOpacity) * opacity * this.#fade,
     );
     if (!exact) this.approximate('a radial gradient that changes colour, drawn as rings of its colours');
     const body = rings.map((ring) => this.#ring(cx, cy, rx * ring.r, ry * ring.r, ring)).join('');
@@ -1169,7 +1262,9 @@ function filterPrimitives(parts: FilterPart[], scale = 1): string {
 /** The stage (a `.lw-viewport` laid out by the page) as an SVG drawing. */
 export function drawSvg(viewport: Element, options: SvgOptions): SvgDrawing {
   const flattener = new Flattener(viewport, options.office === true);
-  const body = flattener.html(viewport);
+  const drawn = flattener.html(viewport);
+  // The rings' marks for fadeShapes are no part of the drawing.
+  const body = options.office ? drawn.replaceAll(` ${SOLVED}="1"`, '') : drawn;
   if (options.office) flattener.notes.add(NOTES.office);
   const crop = options.crop ?? { x: 0, y: 0, w: STAGE_SIZE.w, h: STAGE_SIZE.h };
   const faces = selectFontFaces(options.styles, flattener.chars);

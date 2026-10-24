@@ -713,7 +713,7 @@ loopweft export <file> [options]
 |---|---|
 | `--html` | One HTML file. |
 | `--png` | Pictures (PNG), drawn in the Chrome or Edge on this computer: --step, --all-steps or --map. |
-| `--svg` | Drawings (SVG) that stay sharp at any size and can be edited (PowerPoint, Word, Inkscape): --step, --all-steps or --map. |
+| `--svg` | Drawings (SVG) that stay sharp at any size, open in PowerPoint, Word and Inkscape, and can be edited in Inkscape (and in PowerPoint with --for-office): --step, --all-steps or --map. |
 | `--pdf <document>` | A PDF: slides (one 16:9 page per step, drawn in Chrome or Edge), notes (the speaker notes) or references (an APA list with every image credit). |
 | `--paper <size>` | Pdf: letter (the default) or a4. |
 | `--mp4` | Video (MP4, H.264, no sound) of the story as the talk plays it, made in the Chrome or Edge on this computer: the whole story, --scene, or --from and --to. |
