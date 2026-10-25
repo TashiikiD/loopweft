@@ -81,7 +81,7 @@ describe('checkPictureJob', () => {
     expect(() => checkPictureJob({ ...job, office: true })).not.toThrow();
     for (const format of ['png', 'jpeg'] as const) {
       expect(() => checkPictureJob({ ...job, format, office: true })).toThrow(
-        'Only an SVG drawing is made for PowerPoint and Word; a PNG is pixels already.',
+        'Only an SVG drawing is made for PowerPoint and Word.',
       );
     }
   });

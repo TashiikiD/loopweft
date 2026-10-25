@@ -99,7 +99,7 @@ export async function exportCommand(
   if (format !== 'pdf' && o.paper !== undefined)
     throw new OpError('--paper is for the PDFs (--pdf).', 'usage');
   if (format !== 'svg' && o.forOffice !== undefined)
-    throw new OpError('--for-office is for drawings (--svg); a PNG is pixels already.', 'usage');
+    throw new OpError('--for-office is only valid with --svg.', 'usage');
   if (format === 'mp4' || format === 'webm' || format === 'gif') return videoExport(file, o, format, report);
   for (const option of VIDEO_OPTIONS) {
     if (o[option] !== undefined)

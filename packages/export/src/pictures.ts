@@ -89,10 +89,7 @@ export function checkPictureJob(job: PictureJob): void {
   if (!PICTURE_FORMATS.includes(job.format as PictureFormat) && job.format !== 'jpeg')
     throw new OpError(`Pictures are PNG or SVG, not "${job.format}".`, 'usage');
   if (job.office && job.format !== 'svg')
-    throw new OpError(
-      'Only an SVG drawing is made for PowerPoint and Word; a PNG is pixels already.',
-      'usage',
-    );
+    throw new OpError('Only an SVG drawing is made for PowerPoint and Word.', 'usage');
   if (job.format === 'jpeg' && (job.scale !== 1 || job.target.kind !== 'steps'))
     throw new OpError('The slides are every step, at the stage’s own size.', 'usage');
   if (job.format === 'svg' && job.scale !== 1)

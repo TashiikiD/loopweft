@@ -158,7 +158,7 @@ keeps flat shapes, see-through colour, straight gradients and, in PowerPoint, th
   for a strong glow, fewer for a faint one, each adding about 4% at most, matching the glow at the middle of each
   ring), each faded part carries its own opacity, and the darkened edges of the stage's backdrop, which rings
   cannot draw, are left out (the backdrop is its plain colour there). A glow's rings are cut where a variable's
-  glyph lies over them, and a response's ring is drawn around its dot, so that neither shows through. As a
+  glyph and its outline lie over them, and a response's ring is drawn around its dot, so that neither shows through. As a
   picture, it looks as the plain drawing does but for those edges, and where other shapes overlap in a faded part
   of the map: links that cross, or meet at a variable, and a link's line under its arrowhead or end bar. Each
   carries the faded part's opacity on its own, so where two overlap they show a little brighter than under one

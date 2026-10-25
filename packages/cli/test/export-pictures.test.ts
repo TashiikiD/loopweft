@@ -1,7 +1,7 @@
 // `loopweft export --png` and `--svg`: every mistake in the options is named before a browser is started (the drawing
 // itself is tested end to end, apps/studio/e2e/export-pictures.spec.ts). LOOPWEFT_CHROME names a browser that
 // isn't there, so a test that got as far as starting one would say so.
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -51,8 +51,10 @@ describe('loopweft export --png and --svg', () => {
     ],
     [['--svg', '--step', 'S04.2a', '--trim'], '--trim is for the whole map (--map).'],
     [['--svg'], 'Choose what to draw: --step <step> (e.g. S04.2a), --all-steps, or --map (the whole map).'],
-    [['--png', '--map', '--for-office'], '--for-office is for drawings (--svg); a PNG is pixels already.'],
-    [['--html', '--for-office'], '--for-office is for drawings (--svg); a PNG is pixels already.'],
+    [['--png', '--map', '--for-office'], '--for-office is only valid with --svg.'],
+    [['--html', '--for-office'], '--for-office is only valid with --svg.'],
+    [['--pdf', 'notes', '--for-office'], '--for-office is only valid with --svg.'],
+    [['--mp4', '--for-office'], '--for-office is only valid with --svg.'],
   ])('%j is refused before any drawing', async (options, message) => {
     const result = await run('export', project, ...options);
     expect(result.code).toBe(2);
@@ -80,5 +82,14 @@ describe('loopweft export --png and --svg', () => {
     const result = await run('export', bare, '--png', '--all-steps');
     expect(result.code).toBe(2);
     expect(result.err.trim()).toBe('The story has no steps to draw yet; draw the whole map instead.');
+  });
+
+  it('promises editing an SVG only where it holds, in the README as in the help', () => {
+    const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+    const row = readme.split(/\r?\n/).find((line) => line.startsWith('| `export <file> --svg')) ?? '';
+    // It opens in PowerPoint and Word; it is edited in PowerPoint only when made for it, never in Word.
+    expect(row).not.toMatch(/edited in PowerPoint, Word/);
+    expect(row).toContain('in PowerPoint with `--for-office` and Convert to Shape');
+    expect(row).toContain('in Word, keep one as a picture');
   });
 });

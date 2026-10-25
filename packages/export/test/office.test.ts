@@ -62,7 +62,9 @@ const styles = new Map<Element, Record<string, string>>();
  * The map: a halo (55% fading to clear) under a variable's opaque glyph (a response's ring and dot, or an
  * octagon), in a group at 0.75 in a map at 0.4; the halo outlined, if asked, with a faint dashed stroke.
  */
-function map(options: { glyph?: 'ring' | 'octagon'; outline?: boolean } = {}): HTMLElement {
+function map(
+  options: { glyph?: 'ring' | 'octagon' | 'core'; outline?: boolean; coreOutline?: string } = {},
+): HTMLElement {
   const viewport = document.createElement('div');
   viewport.className = 'lw-viewport';
   const svg = document.createElementNS(SVG, 'svg');
@@ -102,7 +104,18 @@ function map(options: { glyph?: 'ring' | 'octagon'; outline?: boolean } = {}): H
       : {}),
   });
   node.appendChild(halo);
-  if (options.glyph === 'octagon') {
+  if (options.glyph === 'core') {
+    // A variable's circle, outlined in the ink at 95% (as the map's .node-core is), or as asked.
+    const core = document.createElementNS(SVG, 'circle');
+    core.setAttribute('r', '10');
+    styles.set(core, {
+      fill: 'rgb(200, 100, 0)',
+      stroke: 'rgb(7, 27, 22)',
+      strokeWidth: '2.5px',
+      strokeOpacity: options.coreOutline ?? '0.95',
+    });
+    node.appendChild(core);
+  } else if (options.glyph === 'octagon') {
     const core = document.createElementNS(SVG, 'polygon');
     const points = Array.from({ length: 8 }, (_, k) => {
       const a = Math.PI / 8 + (k * Math.PI) / 4;
@@ -174,28 +187,62 @@ function pathCovers(d: string, [x, y]: [number, number]): boolean {
   return inside;
 }
 
+/** How far a point lies from a polygon's sides. */
+function toSides(points: [number, number][], [x, y]: [number, number]): number {
+  return Math.min(
+    ...points.map(([x1, y1], k) => {
+      const [x2, y2] = points[(k + 1) % points.length] as [number, number];
+      const t = Math.max(
+        0,
+        Math.min(1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)),
+      );
+      return Math.hypot(x - (x1 + t * (x2 - x1)), y - (y1 + t * (y2 - y1)));
+    }),
+  );
+}
+
 /**
  * The colour the drawing for PowerPoint and Word gives a point of the node (in its own units), over black: every
- * filled circle, path and polygon over it laid on each other in drawing order, each at its own fill opacity and
- * opacity (the drawing has no group opacity). Points on an outline are not asked for.
+ * circle, path and polygon over it laid on each other in drawing order, its fill then its outline, each at its own
+ * opacity (the drawing has no group opacity). Outlines are those of circles and polygons, away from corners.
  */
 function composite(svg: string, point: [number, number]): Rgb {
   let colour: Rgb = [0, 0, 0];
+  const lay = (hex: string, alpha: number) => {
+    const paint = rgb(hex);
+    colour = colour.map((c, k) => c * (1 - alpha) + (paint[k] as number) * alpha) as Rgb;
+  };
   for (const m of svg.matchAll(/<(circle|path|polygon) ([^>]*?)\/?>/g)) {
     const a = Object.fromEntries(
       [...(m[2] as string).matchAll(/([\w:-]+)="([^"]*)"/g)].map((x) => [x[1], x[2]]),
     );
-    if (!a.fill || a.fill === 'none') continue;
-    const covers =
-      m[1] === 'circle'
-        ? Math.hypot(point[0] - Number(a.cx ?? 0), point[1] - Number(a.cy ?? 0)) <= Number(a.r)
-        : m[1] === 'path'
-          ? pathCovers(a.d as string, point)
-          : pathCovers(`M${(a.points as string).replace(/ /g, 'L')}Z`, point);
-    if (!covers) continue;
-    const alpha = Number(a['fill-opacity'] ?? 1) * Number(a.opacity ?? 1);
-    const paint = rgb(a.fill as string);
-    colour = colour.map((c, k) => c * (1 - alpha) + (paint[k] as number) * alpha) as Rgb;
+    const opacity = Number(a.opacity ?? 1);
+    const points =
+      m[1] === 'polygon'
+        ? (((a.points as string).match(/-?[\d.]+/g) ?? [])
+            .map(Number)
+            .flatMap((v, k, all) => (k % 2 === 0 ? [[v, all[k + 1] as number] as [number, number]] : [])) as [
+            number,
+            number,
+          ][])
+        : [];
+    if (a.fill && a.fill !== 'none') {
+      const covers =
+        m[1] === 'circle'
+          ? Math.hypot(point[0] - Number(a.cx ?? 0), point[1] - Number(a.cy ?? 0)) <= Number(a.r)
+          : m[1] === 'path'
+            ? pathCovers(a.d as string, point)
+            : pathCovers(`M${points.map((p) => p.join(' ')).join('L')}Z`, point);
+      if (covers) lay(a.fill as string, Number(a['fill-opacity'] ?? 1) * opacity);
+    }
+    if (a.stroke && a.stroke !== 'none' && m[1] !== 'path') {
+      const half = Number(a['stroke-width'] ?? 1) / 2;
+      const away =
+        m[1] === 'circle'
+          ? Math.abs(Math.hypot(point[0] - Number(a.cx ?? 0), point[1] - Number(a.cy ?? 0)) - Number(a.r))
+          : toSides(points, point);
+      if (away <= half) lay(a.stroke as string, Number(a['stroke-opacity'] ?? 1) * opacity);
+    }
   }
   return colour;
 }
@@ -243,8 +290,8 @@ describe('the drawing for PowerPoint and Word', () => {
             ]
           : [
               [[0, 0], '#c86400'],
-              [[8, 6], '#c86400'],
-              [[-9, -5], '#c86400'],
+              [[7, 4], '#c86400'],
+              [[-8, -2], '#c86400'],
             ];
       for (const [point, paint] of inner) {
         const got = composite(svg, point);
@@ -259,6 +306,77 @@ describe('the drawing for PowerPoint and Word', () => {
         1,
       );
     }
+  });
+
+  it('cuts the glyph’s outline out of the halo too, out to its outer edge', () => {
+    // Under the outer half of a glyph's outline, the plain drawing paints the outline over the halo, then fades
+    // the node: the halo shows only through what the outline lets through (none for an opaque one, a twentieth
+    // for the map's ink at 95%).
+    const halo = (t: number) => colourAt(HALO, t).alpha;
+    const cases = [
+      {
+        glyph: 'core',
+        points: [
+          [10.8, 0],
+          [0, -10.9],
+        ],
+        ink: '#071b16',
+        through: 0.05,
+      },
+      {
+        glyph: 'ring',
+        points: [
+          [11, 0],
+          [0, 11.2],
+        ],
+        ink: '#c86400',
+        through: 0,
+      },
+      {
+        glyph: 'octagon',
+        points: [
+          [11.9, 0],
+          [-11.8, 0],
+        ],
+        ink: '#071b16',
+        through: 0,
+      },
+    ] as const;
+    for (const { glyph, points, ink, through } of cases) {
+      document.body.replaceChildren();
+      styles.clear();
+      vi.restoreAllMocks();
+      const { svg, notes } = drawSvg(map({ glyph }), { styles: '', title: 'Outline', office: true });
+      expect(
+        notes.filter((n) => n.startsWith('Drawn approximately')),
+        glyph,
+      ).toEqual([]);
+      for (const point of points) {
+        const t = Math.hypot(...point) / 20;
+        // The plain drawing: in the node, the outline at (1 − through) over the halo; then the node at 0.3.
+        const plain = rgb(ink).map(
+          (c, k) => 0.3 * ((1 - through) * c + through * halo(t) * (rgb('#ff0000')[k] as number)),
+        );
+        const got = composite(svg, point as [number, number]);
+        got.forEach((c, k) => {
+          // What the halo shows through a 95% outline is left out: under half a level of 255 here.
+          expect(Math.abs(c - (plain[k] as number)), `${glyph} at ${point}, channel ${k}`).toBeLessThan(
+            through > 0 ? 1 : 0.05,
+          );
+        });
+      }
+    }
+  });
+
+  it('says so where a glyph’s outline is too faint to cut the halo out under it', () => {
+    const { notes } = drawSvg(map({ glyph: 'core', coreOutline: '0.5' }), {
+      styles: '',
+      title: 'Faint',
+      office: true,
+    });
+    expect(notes).toContain(
+      'Drawn approximately: a glow under a see-through or dashed outline in a faded group, drawn under it.',
+    );
   });
 
   it('draws a response’s ring around its dot, with its outline apart, so that none overlaps', () => {

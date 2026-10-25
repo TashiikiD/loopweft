@@ -166,3 +166,27 @@ export function clipToCircle(points: Pt[], r: number, sides = 64): Pt[] {
   }
   return out;
 }
+
+/**
+ * A convex polygon about the centre grown outwards by `d` on every side, its corners mitred, as a stroke of width
+ * 2d with mitred joins reaches (the joins of a variable's glyph, all wider than a stroke's miter limit allows).
+ */
+export function offsetPolygon(points: Pt[], d: number): Pt[] {
+  const n = points.length;
+  // Each side's line, moved outwards (away from the centre) by d: a point on it and its direction.
+  const sides = points.map(([x1, y1], k) => {
+    const [x2, y2] = points[(k + 1) % n] as Pt;
+    const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+    let [nx, ny] = [(y2 - y1) / length, -(x2 - x1) / length];
+    if (nx * (x1 + x2) + ny * (y1 + y2) < 0) [nx, ny] = [-nx, -ny];
+    return { p: [x1 + nx * d, y1 + ny * d] as Pt, v: [x2 - x1, y2 - y1] as Pt };
+  });
+  return sides.map((b, k) => {
+    const a = sides[(k - 1 + n) % n] as (typeof sides)[number];
+    // Where the line before this corner meets the line after it.
+    const det = a.v[0] * b.v[1] - a.v[1] * b.v[0];
+    if (Math.abs(det) < 1e-12) return b.p;
+    const t = ((b.p[0] - a.p[0]) * b.v[1] - (b.p[1] - a.p[1]) * b.v[0]) / det;
+    return [a.p[0] + a.v[0] * t, a.p[1] + a.v[1] * t] as Pt;
+  });
+}

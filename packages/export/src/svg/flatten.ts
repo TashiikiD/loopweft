@@ -28,6 +28,7 @@ import {
   coverInradius,
   fadeEnd,
   gradientRings,
+  offsetPolygon,
   type Pt,
   type Ring,
 } from './rings.ts';
@@ -1081,7 +1082,8 @@ class Flattener {
 
   /**
    * What the first opaque shape drawn after a glow (in its group, at its centre: a variable's glyph) covers, about
-   * the glow's centre; null if none does, or if it is not a circle, rectangle or convex polygon about the centre.
+   * the glow's centre, its outline included out to half its width where the outline is (nearly) opaque; null if
+   * none does, or if it is not a circle, rectangle or convex polygon about the centre.
    */
   #coverOver(el: SVGElement, cx: number, cy: number): Cover | null {
     for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
@@ -1095,9 +1097,21 @@ class Flattener {
         !next.hasAttribute('transform') &&
         st.transform === 'none';
       if (!opaque) continue;
+      // Its outline covers the glow too, out to half its width. An outline that lets a twentieth through at most
+      // (the map's) is taken as opaque; through a fainter one the glow would show in the plain drawing, which
+      // the rings cannot match there: they stop at the fill.
+      let grow = 0;
+      const line = st.stroke !== 'none' ? parseColour(st.stroke) : null;
+      const width = line ? (parseLength(st.strokeWidth, 0) ?? 0) : 0;
+      if (line && width > 0 && line.alpha > 0 && Number(st.strokeOpacity) > 0) {
+        const solid = line.alpha * Number(st.strokeOpacity) >= 0.949 && st.strokeDasharray === 'none';
+        if (solid) grow = width / 2;
+        else
+          this.approximate('a glow under a see-through or dashed outline in a faded group, drawn under it');
+      }
       const at = (a: string) => Number(next.getAttribute(a) ?? 0);
       if (next.localName === 'circle') {
-        return at('cx') === cx && at('cy') === cy ? { r: at('r') } : null;
+        return at('cx') === cx && at('cy') === cy ? { r: at('r') + grow } : null;
       }
       if (next.localName === 'polygon') {
         const values = (next.getAttribute('points') ?? '')
@@ -1108,12 +1122,23 @@ class Flattener {
         for (let k = 0; k + 1 < values.length; k += 2)
           points.push([(values[k] as number) - cx, (values[k + 1] as number) - cy]);
         return points.length >= 3 && points.every((p) => p.every(Number.isFinite)) && convexAround(points)
-          ? { points }
+          ? { points: grow > 0 ? offsetPolygon(points, grow) : points }
           : null;
       }
       if (next.localName === 'rect') {
-        const [x, y, w, h] = [at('x') - cx, at('y') - cy, at('width'), at('height')];
-        const r = Math.min(Number(next.getAttribute('rx') ?? next.getAttribute('ry') ?? 0), w / 2, h / 2);
+        const [x, y, w, h] = [
+          at('x') - cx - grow,
+          at('y') - cy - grow,
+          at('width') + 2 * grow,
+          at('height') + 2 * grow,
+        ];
+        const rounded = Math.min(
+          Number(next.getAttribute('rx') ?? next.getAttribute('ry') ?? 0),
+          w / 2,
+          h / 2,
+        );
+        // A stroke round a rounded corner is rounded the wider; a square corner stays square (mitred).
+        const r = rounded > 0 ? rounded + grow : 0;
         const points: Pt[] = [];
         // The rounded corners, each as a few points along its arc.
         for (const [ox, oy, start] of [
