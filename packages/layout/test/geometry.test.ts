@@ -332,13 +332,52 @@ describe('marks that keep clear of each other', () => {
     const all = badgeOffsets(graph);
     const a = all.get('a') as Pt;
     const b = all.get('b') as Pt;
-    expect(a).toEqual({ x: 17, y: -17 });
     expect(b).not.toEqual({ x: 17, y: -17 });
     expect(dist({ x: A.x + a.x, y: A.y + a.y }, { x: B.x + b.x, y: B.y + b.y })).toBeGreaterThanOrEqual(
       2 * BADGE_R,
     );
     // One variable's offset is the one chosen with the rest.
     for (const [id, at] of all) expect(badgeOffset(graph, id)).toEqual(at);
+  });
+
+  it('lets the variable with fewest clear corners choose first, so a badge placed earlier cannot push it onto a marker', () => {
+    // Links arrive at B's upper right, lower right and lower left: its upper left is its one clear corner, where
+    // A (first on the map, with no link at all) would put its own upper right badge if it chose first.
+    const A = { x: 0, y: 0, r: 11 };
+    const B = { x: 40, y: 0, r: 11 };
+    const ends = {
+      C: { x: 140, y: -100, r: 11 },
+      D: { x: 140, y: 100, r: 11 },
+      E: { x: -60, y: 100, r: 11 },
+    };
+    const graph = {
+      nodes: new Map([
+        ['a', A],
+        ['b', B],
+        ['c', ends.C],
+        ['d', ends.D],
+        ['e', ends.E],
+      ]),
+      edges: new Map(
+        Object.entries(ends).map(([name, from]) => [
+          `${name}b`,
+          {
+            source: { id: name.toLowerCase() },
+            target: { id: 'b' },
+            geom: edgeGeometry(from, from.r, B, B.r, 0, '+'),
+          },
+        ]),
+      ),
+    };
+    const all = badgeOffsets(graph);
+    const b = all.get('b') as Pt;
+    const centre = { x: B.x + b.x, y: B.y + b.y };
+    const marks = arrivingMarks(graph, 'b');
+    expect(marks).toHaveLength(3);
+    for (const m of marks) expect(distanceToPolygon(m, centre)).toBeGreaterThanOrEqual(BADGE_R);
+    // A takes another corner, clear of B's badge.
+    const a = all.get('a') as Pt;
+    expect(dist({ x: A.x + a.x, y: A.y + a.y }, centre)).toBeGreaterThanOrEqual(2 * BADGE_R);
   });
 
   it('keeps a loop’s name off another loop’s badge on show', () => {

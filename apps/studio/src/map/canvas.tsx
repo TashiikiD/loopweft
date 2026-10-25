@@ -209,7 +209,16 @@ const Labels = memo(function Labels({
     <g className="lw-labels">
       {[...graph.nodes.values()].map((n) => {
         const badge = badges?.get(n.id);
-        const place = clearLabelPlace(n, k, badge, badge ? arrivingMarks(graph, n.id) : []);
+        // Moved off its badge, a label keeps off the arrowheads into its variable and the other variables.
+        const place = badge
+          ? clearLabelPlace(
+              n,
+              k,
+              badge,
+              arrivingMarks(graph, n.id),
+              [...graph.nodes.values()].filter((o) => o.id !== n.id),
+            )
+          : clearLabelPlace(n, k);
         return (
           <text
             key={n.id}

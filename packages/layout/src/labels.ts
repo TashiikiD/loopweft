@@ -256,13 +256,19 @@ export function distanceToPolygon(poly: readonly Pt[], p: Pt): number {
  * Where every variable's ▲/▼/± badge goes, from its centre, in map units: its upper right, unless a link
  * arrives there (its marker, which the badge would hide), another variable sits there or another variable's
  * badge does; then the first corner clear of all three (upper left, lower right, lower left), or, with none
- * clear, the clearest. Variables choose in the map's order, each keeping clear of the badges chosen before it,
- * so the stage, the Studio and label placement all see the same corners.
+ * clear, the clearest. The whole map is placed at once, so the stage, the Studio and label placement all see the
+ * same corners: the variables with fewest clear corners choose first (in the map's order between equals), and
+ * one whose clear corners are all taken by badges already placed may move one of those badges to another of its
+ * clear corners. A variable with no clear corner chooses last.
  */
 export function badgeOffsets(graph: LabelGraph): Map<string, Pt> {
-  const result = new Map<string, Pt>();
-  const chosen: Pt[] = [];
-  for (const [id, n] of graph.nodes) {
+  interface Corner {
+    at: Pt;
+    centre: Pt;
+    /** How far it keeps (with a little air) from what it must not cover, other badges aside. */
+    margin: number;
+  }
+  const spots = [...graph.nodes].map(([id, n], index) => {
     // The last stretch of line into each arriving link, and its marker as painted: a badge over them would hide
     // which way the link runs. (A line merely passing under a badge stays readable either side of it.)
     const points: Pt[] = [];
@@ -277,33 +283,55 @@ export function badgeOffsets(graph: LabelGraph): Map<string, Pt> {
     const marks = arrivingMarks(graph, id);
     const others = [...graph.nodes].filter(([other]) => other !== id).map(([, o]) => o);
     const d = n.r + BADGE_GAP;
-    let best: Pt = { x: CORNERS[0][0] * d, y: CORNERS[0][1] * d };
-    let bestMargin = Number.NEGATIVE_INFINITY;
-    for (const [sx, sy] of CORNERS) {
+    const corners: Corner[] = CORNERS.map(([sx, sy]) => {
       const at = { x: sx * d, y: sy * d };
       const centre = { x: n.x + at.x, y: n.y + at.y };
-      // How far the badge keeps (with a little air) from the arrowheads, from every other variable's glyph (a
-      // corner on another variable would hide it instead) and from the badges already placed.
+      // The arrowheads, and every other variable's glyph (a corner on another variable would hide it instead).
       const margin = Math.min(
         ...points.map((p) => Math.hypot(p.x - centre.x, p.y - centre.y) - (BADGE_R + 3)),
         ...marks.map((m) => distanceToPolygon(m, centre) - (BADGE_R + 3)),
         ...others.map((o) => Math.hypot(o.x - centre.x, o.y - centre.y) - (o.r + BADGE_R + 3)),
-        ...chosen.map((b) => Math.hypot(b.x - centre.x, b.y - centre.y) - (2 * BADGE_R + 3)),
         Number.POSITIVE_INFINITY,
       );
-      if (margin >= 0) {
-        best = at;
-        break;
-      }
-      if (margin > bestMargin) {
-        best = at;
-        bestMargin = margin;
-      }
+      return { at, centre, margin };
+    });
+    const clear = corners.filter((c) => c.margin >= 0);
+    return { id, index, corners, clear };
+  });
+  const byId = new Map(spots.map((s) => [s.id, s]));
+  const rank = (s: (typeof spots)[number]) => (s.clear.length === 0 ? CORNERS.length + 1 : s.clear.length);
+  const order = [...spots].sort((a, b) => rank(a) - rank(b) || a.index - b.index);
+
+  const gap = (p: Pt, q: Pt) => Math.hypot(p.x - q.x, p.y - q.y) - (2 * BADGE_R + 3);
+  const placed = new Map<string, Corner>();
+  /** Whether a badge there keeps clear of every badge placed, but `except`'s. */
+  const free = (centre: Pt, except?: string) =>
+    [...placed].every(([id, c]) => id === except || gap(c.centre, centre) >= 0);
+  for (const s of order) {
+    let pick = s.clear.find((c) => free(c.centre));
+    // Its clear corners all taken: one taken by a single badge that can move to another of its own clear corners
+    // (clear of every other badge and of this one) is freed.
+    for (const c of pick ? [] : s.clear) {
+      const blocking = [...placed].filter(([, p]) => gap(p.centre, c.centre) < 0);
+      if (blocking.length !== 1) continue;
+      const [otherId, other] = blocking[0] as [string, Corner];
+      const moved = byId
+        .get(otherId)
+        ?.clear.find((o) => o !== other && gap(o.centre, c.centre) >= 0 && free(o.centre, otherId));
+      if (!moved) continue;
+      placed.set(otherId, moved);
+      pick = c;
+      break;
     }
-    result.set(id, best);
-    chosen.push({ x: n.x + best.x, y: n.y + best.y });
+    // None clear: the corner keeping furthest from everything, badges included (the first, between equals).
+    if (!pick) {
+      const margin = (c: Corner) =>
+        Math.min(c.margin, ...[...placed.values()].map((p) => gap(p.centre, c.centre)));
+      pick = s.corners.reduce((best, c) => (margin(c) > margin(best) ? c : best));
+    }
+    placed.set(s.id, pick);
   }
-  return result;
+  return new Map(spots.map((s) => [s.id, (placed.get(s.id) as Corner).at]));
 }
 
 /** One variable's badge offset (`badgeOffsets`), or none for a variable not on the map. */

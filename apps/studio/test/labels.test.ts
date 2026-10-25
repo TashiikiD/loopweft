@@ -70,4 +70,39 @@ describe('labels on the canvas', () => {
       expect(distanceToPolygon(m, { x: box.x + box.w / 2, y: box.y + box.h / 2 })).toBeGreaterThan(0);
     }
   });
+
+  it('moved off the badge, do not cover another variable instead', () => {
+    // A's label above it, where links from the upper left leave its badge at the upper right; below, the first
+    // side clear of the badge and of the arrowheads, D sits under the label.
+    let p = createProject({ title: 'Beside' });
+    p.variables = [
+      { id: 'a', label: 'A variable with a wide label', citations: [] },
+      { id: 'b', label: 'B', citations: [] },
+      { id: 'c', label: 'C', citations: [] },
+      { id: 'd', label: 'D', citations: [] },
+    ];
+    p.layout.positions = {
+      a: { x: 500, y: 500, labelSide: 'above' },
+      b: { x: 350, y: 240 },
+      c: { x: 500, y: 200 },
+      d: { x: 560, y: 530 },
+    };
+    p = addLink(p, { from: 'b', to: 'a', sign: '+' }).project;
+    p = addLink(p, { from: 'c', to: 'a', sign: '+' }).project;
+    const graph = buildGraph(p);
+    const a = graph.nodes.get('a');
+    const d = graph.nodes.get('d');
+    if (!a || !d) throw new Error('no a or d');
+    const k = 1;
+    const badge = badgeOffset(graph, 'a');
+    const marks = arrivingMarks(graph, 'a');
+    const others = [...graph.nodes.values()].filter((n) => n.id !== 'a');
+    expect(meets(labelBox(labelPlace(a, k, 'below')), d, d.r)).toBe(true);
+    const box = labelBox(clearLabelPlace(a, k, badge, marks, others));
+    expect(meets(box, { x: a.x + badge.x, y: a.y + badge.y }, BADGE_R)).toBe(false);
+    for (const m of marks) expect(m.some((q) => inBox(box, q))).toBe(false);
+    expect(meets(box, d, d.r)).toBe(false);
+    // Its saved side is unchanged.
+    expect(graph.nodes.get('a')?.labelSide).toBe('above');
+  });
 });

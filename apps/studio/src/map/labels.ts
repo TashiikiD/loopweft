@@ -1,6 +1,7 @@
 // Where the canvas puts a variable's label, in map units at the canvas's zoom: on its preferred side, unless the
 // ▲/▼ badge a ripple draws on the canvas sits there (badgeOffset can put it at any corner); then on the first
-// side clear of it and of the arrowheads arriving there. The preferred side stored in the project is not changed.
+// side clear of it, of the arrowheads arriving there and of the other variables. The preferred side stored in the
+// project is not changed.
 import { BADGE_R, distanceToPolygon, type Pt, segmentsCross } from '@loopweft/layout';
 import type { GraphNode } from '@loopweft/render';
 
@@ -78,26 +79,39 @@ const meetsPolygon = (b: { x: number; y: number; w: number; h: number }, poly: r
 
 /**
  * A label's place: on its preferred side, or, with a ▲/▼ badge at `badge` (its offset from the variable's
- * centre) on that side, on the first other side (below, above, right, left) clear of the badge and of `marks`,
- * the arrowheads arriving at the variable (moved off the badge, it must not cover one instead); with none clear
- * of both, the first clear of the badge, else the preferred one.
+ * centre) on that side, on another side (below, above, right, left) clear of the badge: moved, it must not cover
+ * something else instead, so the first that also meets none of `marks` (the arrowheads arriving at the variable)
+ * and none of `glyphs` (the other variables on show), else the one meeting fewest of them (the first, between
+ * equals); with no side clear of the badge, the preferred one.
  */
 export function clearLabelPlace(
   n: GraphNode,
   k: number,
   badge?: Pt,
   marks: readonly Pt[][] = [],
+  glyphs: ReadonlyArray<{ x: number; y: number; r: number }> = [],
 ): LabelPlace {
   const preferred = labelPlace(n, k);
   if (!badge) return preferred;
   const at = { x: n.x + badge.x, y: n.y + badge.y };
   const offBadge = (place: LabelPlace) => !meets(labelBox(place), at, BADGE_R + 2);
   if (offBadge(preferred)) return preferred;
-  const others = (['below', 'above', 'right', 'left'] as Side[])
-    .filter((side) => side !== n.labelSide)
-    .map((side) => labelPlace(n, k, side))
-    .filter(offBadge);
-  return (
-    others.find((place) => !marks.some((m) => meetsPolygon(labelBox(place), m))) ?? others[0] ?? preferred
-  );
+  const covered = (place: LabelPlace) => {
+    const box = labelBox(place);
+    return marks.filter((m) => meetsPolygon(box, m)).length + glyphs.filter((g) => meets(box, g, g.r)).length;
+  };
+  let best: LabelPlace | undefined;
+  let fewest = Number.POSITIVE_INFINITY;
+  for (const side of ['below', 'above', 'right', 'left'] as Side[]) {
+    if (side === n.labelSide) continue;
+    const place = labelPlace(n, k, side);
+    if (!offBadge(place)) continue;
+    const count = covered(place);
+    if (count < fewest) {
+      best = place;
+      fewest = count;
+    }
+    if (count === 0) break;
+  }
+  return best ?? preferred;
 }
