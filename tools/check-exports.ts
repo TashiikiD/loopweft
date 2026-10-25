@@ -6,10 +6,11 @@
 //   node tools/check-exports.ts <folder> [--out <report.md>]
 //
 // - .loopweft: `loopweft validate` (errors and warnings);
-// - .html: a one-file presentation that opens on its start page and draws its stage (as a rehearsal), offline,
+// - .html: a one-file presentation carrying a valid project, that opens on its start page and draws its stage
+//   (its layers, as a rehearsal) with no problem shown, offline,
 //   asking for nothing but itself, and logging no errors;
 // - .png: the PNG signature, then decoded by the browser (its size in pixels);
-// - .gif: the GIF signature and its blocks read through to the trailer (its frames), then decoded;
+// - .gif: the GIF signature and its blocks read through to the trailer (its frames), then each frame decoded;
 // - .svg: parsed as XML: an SVG root with a viewBox of four numbers, and the texts and shapes it holds;
 // - .pdf: the PDF signature and its page count (pdf-lib);
 // - .mp4, .webm: the signature, then played in the browser until a frame is decoded (its size and length).
@@ -21,6 +22,7 @@ import { pathToFileURL } from 'node:url';
 import { type Browser, chromium, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
 import { main } from '../packages/cli/src/main.ts';
+import { readProject } from '../packages/model/src/index.ts';
 import { findBrowser } from './chrome.ts';
 
 const args = process.argv.slice(2);
@@ -136,6 +138,50 @@ async function decodeImage(page: Page, url: string): Promise<{ width: number; he
   if ('error' in got) throw new Error(`the browser could not decode it: ${got.error}`);
   if (!(got.width > 0 && got.height > 0)) throw new Error('decoded to nothing');
   return got;
+}
+
+/**
+ * The browser's verdict on every frame of a GIF: each decoded whole by its ImageDecoder (an image's decode()
+ * succeeds once the first frame does), as many as its blocks hold; throws where one is not.
+ */
+async function decodeFrames(page: Page, bytes: Buffer, frames: number): Promise<void> {
+  const got = await page.evaluate(
+    async ({ data, wait }) => {
+      if (typeof ImageDecoder === 'undefined')
+        return { error: 'this browser has no ImageDecoder to read frames' };
+      const raw = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      const decoder = new ImageDecoder({ data: raw, type: 'image/gif' });
+      const within = <T>(p: Promise<T>, what: string) =>
+        Promise.race([
+          p,
+          new Promise<T>((_, no) => setTimeout(() => no(new Error(`${what} timed out`)), wait)),
+        ]);
+      try {
+        await within(decoder.tracks.ready, 'reading its frames');
+        const count = decoder.tracks.selectedTrack?.frameCount ?? 0;
+        for (let i = 0; i < count; i++) {
+          try {
+            const { image } = await within(
+              decoder.decode({ frameIndex: i, completeFramesOnly: true }),
+              `frame ${i + 1}`,
+            );
+            image.close();
+          } catch (error) {
+            return { error: `frame ${i + 1} does not decode: ${String((error as Error).message ?? error)}` };
+          }
+        }
+        return { count };
+      } catch (error) {
+        return { error: String((error as Error).message ?? error) };
+      } finally {
+        decoder.close();
+      }
+    },
+    { data: bytes.toString('base64'), wait: WAIT },
+  );
+  if ('error' in got) throw new Error(`the browser could not decode it: ${got.error}`);
+  if (got.count !== frames)
+    throw new Error(`the browser reads ${got.count} frames, its blocks hold ${frames}`);
 }
 
 /** The browser's verdict on a video: a frame decoded while playing, its size and length, or why not. */
@@ -262,19 +308,51 @@ try {
             .waitFor({ timeout: WAIT })
             .then(() => true)
             .catch(() => false);
+        // The project it carries, read as `loopweft validate` reads a file: a page that only looks like one
+        // carries none.
+        const slot = /<script type="application\/json" id="loopweft-project"[^>]*>([\s\S]*?)<\/script>/.exec(
+          bytes.toString('utf8'),
+        )?.[1];
+        const read = slot?.trim() ? readProject(slot) : null;
+        const project = !read
+          ? 'no project in it'
+          : read.ok
+            ? ''
+            : `its project is not valid (${read.issues[0]?.message ?? 'unreadable'})`;
         // Its start page, then the stage, as a rehearsal (one window, no console to wait for).
         await page.goto(url);
         const start = await shows('.lp-start');
+        const problem = async () => (await page.locator('.lp-problem').count()) > 0;
+        const problemAtStart = await problem();
         await page.goto(`${url}?view=audience&rehearse`);
-        const stage = await shows('.lw-stage');
+        // The renderer's stage, its background and map layers drawn at a size, not an element of that name.
+        const stage =
+          (await shows('.lw-stage > .layer-map')) &&
+          (await page.evaluate(() => {
+            const sized = (selector: string) => {
+              const r = document.querySelector(selector)?.getBoundingClientRect();
+              return !!r && r.width > 0 && r.height > 0;
+            };
+            return sized('.lw-stage') && sized('.lw-stage > .layer-bg') && sized('.lw-stage > .layer-map');
+          }));
+        const problemShown = problemAtStart || (await problem());
         const doctype = bytes.subarray(0, 15).toString('latin1').toLowerCase() === '<!doctype html>';
         await page.close();
         row(
-          doctype && start && stage && errors.length === 0 && asked.length === 0 && beside.size === 0,
+          doctype &&
+            !project &&
+            start &&
+            stage &&
+            !problemShown &&
+            errors.length === 0 &&
+            asked.length === 0 &&
+            beside.size === 0,
           [
             doctype ? '' : 'no doctype',
+            project,
             start ? 'opens on its start page' : 'no start page',
             stage ? 'draws its stage (rehearsal), offline' : 'no stage drawn',
+            problemShown ? 'shows a problem instead' : '',
             asked.length ? `asks the network for ${asked.length} thing(s), e.g. ${asked[0]}` : '',
             beside.size
               ? `needs ${beside.size} file(s) beside it, e.g. ${decodeURIComponent([...beside][0]?.split('/').pop() ?? '')}`
@@ -291,8 +369,8 @@ try {
       } else if (ext === '.gif') {
         if (!starts(bytes, 'GIF89a') && !starts(bytes, 'GIF87a')) throw new Error('not a GIF');
         const g = gifInfo(bytes);
-        await decodeImage(media, url);
-        row(true, `GIF ${g.width} × ${g.height}, ${g.frames} frames, decoded`);
+        await decodeFrames(media, bytes, g.frames);
+        row(true, `GIF ${g.width} × ${g.height}, ${g.frames} frames, each decoded`);
       } else if (ext === '.svg') {
         const parsed = await media.evaluate((text) => {
           const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
@@ -347,10 +425,12 @@ for (const u of unreadable)
 if (checked === 0 && unreadable.length === 0)
   rows.push({ file: '(the folder)', ok: false, what: 'no export to check in it' });
 
+/** A table cell: a pipe escaped, and a line break written out, so a file's name cannot add a column or a row. */
+const cell = (text: string) => text.replace(/\|/g, '\\|').replace(/\r/g, '\\r').replace(/\n/g, '\\n');
 const report = [
   `| File | Check | What it holds |`,
   `|---|---|---|`,
-  ...rows.map((r) => `| ${r.file} | ${r.ok ? 'ok' : '**FAILED**'} | ${r.what.replace(/\|/g, '\\|')} |`),
+  ...rows.map((r) => `| ${cell(r.file)} | ${r.ok ? 'ok' : '**FAILED**'} | ${cell(r.what)} |`),
   '',
 ].join('\n');
 process.stdout.write(report);

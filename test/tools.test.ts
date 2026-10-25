@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -109,7 +109,7 @@ describe('the export checker', () => {
     const { code, rows } = check(good);
     expect(rows).toEqual({
       'a.png': { ok: true, what: 'PNG 1 × 1, decoded (0 KB)' },
-      'b.gif': { ok: true, what: 'GIF 1 × 1, 1 frames, decoded (0 KB)' },
+      'b.gif': { ok: true, what: 'GIF 1 × 1, 1 frames, each decoded (0 KB)' },
       'c.svg': { ok: true, what: 'SVG, viewBox 0 0 20 10: 1 texts, 1 shapes (0 KB)' },
       'd.loopweft': { ok: true, what: expect.stringMatching(/^valid: 0 errors, \d+ warnings/) },
       'notes.txt': { ok: true, what: 'not an export (skipped)' },
@@ -156,24 +156,78 @@ describe('the export checker', () => {
     }
   }, 180_000);
 
-  it('fails a one-file HTML that loads a file beside it, though it draws while that file is there', () => {
-    // Both draw their start page and stage; one also shows a picture from the folder, which would be missing
-    // once the HTML is sent alone.
-    const page = (extra: string) =>
-      `<!doctype html><title>T</title><div class="lp-start">Start</div><div class="lw-stage">Stage</div>${extra}`;
-    const { code, rows } = check(
-      folder('beside', {
-        'alone.html': page('<img src="data:image/png;base64,' + TINY_PNG + '">'),
-        'needs.html': page('<img src="beside.png">'),
-        'beside.png': Buffer.from(TINY_PNG, 'base64'),
-      }),
+  it('passes a real one-file HTML, and fails one that loads a file beside it or only looks like one', async () => {
+    const at = folder('beside', { 'beside.png': Buffer.from(TINY_PNG, 'base64') });
+    const map = join(at, 'map.loopweft');
+    expect(await main(['new', map, '--title', 'Beside'], quiet)).toBe(0);
+    expect(await main(['export', map, '--html', '-o', join(at, 'alone.html')], quiet)).toBe(0);
+    rmSync(map);
+    const real = readFileSync(join(at, 'alone.html'), 'utf8');
+    // The same presentation, also showing a picture from the folder: it draws while the picture is there, and
+    // would miss it once sent alone.
+    writeFileSync(join(at, 'needs.html'), real.replace('</body>', '<img src="beside.png"></body>'));
+    // A page with the start page's and the stage's classes, but no project, player or map.
+    writeFileSync(
+      join(at, 'looks.html'),
+      '<!doctype html><title>T</title><div class="lp-start">Start</div><div class="lw-stage">Stage</div>',
     );
+    // A real presentation whose project is not one.
+    writeFileSync(
+      join(at, 'invalid.html'),
+      real.replace(
+        /(<script type="application\/json" id="loopweft-project"[^>]*>)[\s\S]*?(<\/script>)/,
+        '$1{"not":"a map"}$2',
+      ),
+    );
+    const { code, rows } = check(at);
     expect(code).toBe(1);
     expect(rows['alone.html']?.ok, rows['alone.html']?.what).toBe(true);
     expect(rows['beside.png']?.ok).toBe(true);
     expect(rows['needs.html']?.ok).toBe(false);
     expect(rows['needs.html']?.what).toMatch(/needs 1 file\(s\) beside it, e\.g\. beside\.png/);
+    expect(rows['looks.html']?.ok).toBe(false);
+    expect(rows['looks.html']?.what).toMatch(/no project in it; .*no stage drawn/);
+    expect(rows['invalid.html']?.ok).toBe(false);
+    expect(rows['invalid.html']?.what).toMatch(/its project is not valid/);
   }, 180_000);
+
+  it('fails a GIF with a frame that does not decode, though its blocks and first frame are whole', () => {
+    // The 1 × 1 GIF's screen and colours, then its one frame (a descriptor and LZW data), twice; in the broken
+    // one, the second frame's data is replaced by bytes no decoder can read.
+    const tiny = Buffer.from(TINY_GIF, 'base64');
+    const head = tiny.subarray(0, 19);
+    const frame = tiny.subarray(19, tiny.length - 1);
+    const broken = Buffer.from(frame);
+    broken[broken.length - 2] = 0xff;
+    const { code, rows } = check(
+      folder('frames', {
+        'two.gif': Buffer.concat([head, frame, frame, Buffer.from([0x3b])]),
+        'second-broken.gif': Buffer.concat([head, frame, broken, Buffer.from([0x3b])]),
+      }),
+    );
+    expect(code).toBe(1);
+    expect(rows['two.gif']).toEqual({ ok: true, what: 'GIF 1 × 1, 2 frames, each decoded (0 KB)' });
+    expect(rows['second-broken.gif']?.ok).toBe(false);
+    expect(rows['second-broken.gif']?.what).toMatch(/frame 2|reads 1 frames/);
+  }, 180_000);
+
+  // A name with a pipe in it, which Windows does not allow.
+  it.skipIf(process.platform === 'win32')(
+    'keeps a file’s name in its cell, whatever it holds',
+    () => {
+      const run = spawnSync(
+        process.execPath,
+        [join('tools', 'check-exports.ts'), folder('names', { 'map|draft.svg': SVG, 'b.svg': SVG })],
+        { encoding: 'utf8', timeout: 150_000 },
+      );
+      const lines = run.stdout.split('\n').filter((l) => l.startsWith('|'));
+      // The header, its rule and one row a file, each of three cells (four pipes not escaped).
+      expect(lines).toHaveLength(4);
+      for (const l of lines) expect(l.split(/(?<!\\)\|/)).toHaveLength(5);
+      expect(lines.some((l) => l.startsWith('| map\\|draft.svg | ok |'))).toBe(true);
+    },
+    180_000,
+  );
 
   it('checks a good video after a broken one as if it came first', async () => {
     const videos = folder('videos', {
