@@ -2,7 +2,8 @@
 // window shows at the same steps; the same project gives the same bytes, from the command line and from the
 // Studio alike; the sizes, the trimmed map and categories in words are what they say; `loopweft export --png`
 // writes a step, every step into a new folder (never over anything without --force) and the whole map. With
-// LOOPWEFT_REVIEW set to a folder, the pictures and the player's screens are saved there for the review.
+// LOOPWEFT_REVIEW set to a folder, the pictures and the player's screens are saved there for the review, and two
+// pictures that should be the same bytes and are not are both kept there (evidence.ts).
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,6 +16,7 @@ import { playerTemplate } from '@loopweft/player/build';
 import { chromium, expect, test } from '@playwright/test';
 import { unzipSync } from 'fflate';
 import { findBrowser } from '../../../tools/chrome.ts';
+import { sameBytes } from './evidence.ts';
 import { difference, pictures, pngSize, review, text } from './pictures.ts';
 import { choose } from './story.ts';
 
@@ -49,7 +51,11 @@ test('pictures of steps match what the audience window shows, and come out the s
       categoryWords: false,
     });
     expect(
-      Buffer.from((again as FileEvent).bytes).equals(Buffer.from(made[keys.indexOf(key)]?.bytes ?? [])),
+      sameBytes(
+        `png-again-${key}.png`,
+        (again as FileEvent).bytes,
+        made[keys.indexOf(key)]?.bytes ?? new Uint8Array(),
+      ),
     ).toBe(true);
   }
 
@@ -206,9 +212,13 @@ test('loopweft export --png: a step, every step into a new folder, and the whole
     scale: 1,
     categoryWords: false,
   });
-  expect(readFileSync(join(folder, 'talk-S05.6b.png')).equals(Buffer.from((direct as FileEvent).bytes))).toBe(
-    true,
-  );
+  expect(
+    sameBytes(
+      'png-cli-S05.6b.png',
+      readFileSync(join(folder, 'talk-S05.6b.png')),
+      (direct as FileEvent).bytes,
+    ),
+  ).toBe(true);
   // A project without the story still draws its map.
   const read = readProject(text);
   if (!read.ok) throw new Error('The example does not open.');
@@ -269,7 +279,7 @@ test.describe('in the Studio', () => {
     review('studio-export.png', new Uint8Array(await page.screenshot()));
     // Drawn again the same way, it is the same file.
     const twice = await save('Export PNG…');
-    expect(Buffer.from(twice.bytes).equals(Buffer.from(one.bytes))).toBe(true);
+    expect(sameBytes('png-studio-twice-S05.6b.png', twice.bytes, one.bytes)).toBe(true);
 
     await card.getByLabel(/^Every step/).check();
     const zip = await save('Export pictures…');
