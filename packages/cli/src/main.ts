@@ -43,6 +43,7 @@ import {
 import { exportCommand } from './export.ts';
 import { guideCommand } from './guide.ts';
 import { importCommand } from './import.ts';
+import { linkShowCommand, varShowCommand } from './show.ts';
 import {
   citeAddCommand,
   citeListCommand,
@@ -279,11 +280,17 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--force', 'replace the output file (or files in the folder) if it exists')
     .action((file: string, o) => run(() => exportCommand(file, o, { progress: progressLine(io) }))());
 
-  const variable = program.command('var').description('variables: list, add, set, rm');
+  const variable = program.command('var').description('variables: list, show, add, set, rm');
   variable
     .command('list <file>')
     .description('list the variables')
     .action((file: string) => run(() => varListCommand(file))());
+  variable
+    .command('show <file> <variable>')
+    .description(
+      'a variable in full, named by id or label: its fields, place, citations, links in and out, loops, warnings',
+    )
+    .action((file: string, ref: string) => run(() => varShowCommand(file, ref))());
   const variableOptions = (command: Command) =>
     command
       .option('--map-label <text>', 'a shorter name drawn on the map (\\n breaks the line)')
@@ -316,11 +323,15 @@ function createProgram(io: Io, env: () => Env, run: Run): Command {
     .option('--dry-run', DRY_RUN)
     .action((file: string, refs: string[], o) => run(() => varRemoveCommand(env(), file, refs, o))());
 
-  const link = program.command('link').description('links: list, add, set, rm, flip');
+  const link = program.command('link').description('links: list, show, add, set, rm, flip');
   link
     .command('list <file>')
     .description('list the links')
     .action((file: string) => run(() => linkListCommand(file))());
+  link
+    .command('show <file> <link>')
+    .description('a link in full: its ends, sign, fields, citations, loops and warnings')
+    .action((file: string, id: string) => run(() => linkShowCommand(file, id))());
   const linkOptions = (command: Command) =>
     command
       .option('--type <id>', 'a link type id')

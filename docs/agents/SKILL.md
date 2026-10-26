@@ -143,7 +143,9 @@ loopweft var set garden.loopweft constraint --label 'Shortage of plots' --defini
 loopweft var list garden.loopweft
 ```
 
-Variables and links are named by id or by label (case and spacing do not matter).
+Variables and links are named by id or by label (case and spacing do not matter). `loopweft var show <file>
+<variable>` and `loopweft link show <file> <link>` give one in full: its fields, place, the sources it cites with
+their pages, its links and named loops, and its warnings.
 
 ### 4. Add links in shorthand
 
@@ -344,7 +346,8 @@ warnings (8 uncited links, 1 unknown sign)."
 - `loopweft info <file>`: what a project holds, in one screen.
 - `loopweft meta <file>`: the title, description, author and course; `loopweft theme <file>`: the look
   (`--base cinematic-dark|light|high-contrast`, `--palette okabe-ito`, …).
-- `loopweft story show <file> <step|scene>`: a step or scene in full.
+- `loopweft story show <file> <step|scene>`: a step or scene in full; `loopweft var show` and `loopweft link show`:
+  a variable or a link in full.
 - `loopweft paths <file> <from> <to>`, `loopweft connected <file>`: paths between variables; the most-connected
   ones (connected does not mean leverage).
 - `loopweft type category|role|link|field add …`: categories (colours), roles (shapes), link types and custom

@@ -138,6 +138,66 @@ test2020: Test (2020)
     link L2: test2020 pp. 4–5 · moderate
 [exit 0]
 
+$ loopweft var show pop.loopweft Population
+population "Population": variable 2 of 4
+  category: people (People)
+  role: stock (Stock)
+  size: large
+  not placed on the map
+Cites: nothing
+Links in (2):
+  L1     Births → Population (+)
+  L4     Deaths → Population (−)
+Links out (2):
+  L2     Population → Births (+)
+  L3     Population → Deaths (+)
+Named loops:
+  R1 "More people, more births" (R): L2 L1
+  B1 "Deaths" (B): L3 L4
+[exit 0]
+
+$ loopweft var show pop.loopweft fertility
+fertility "Fertility": variable 4 of 4
+  definition: Births per woman.
+  at 200, 300
+Cites: nothing
+Links in: none
+Links out (1):
+  L5     Fertility → Births (+)
+Named loops: none
+[exit 0]
+
+$ loopweft link show pop.loopweft L1
+L1: Births → Population (+, same direction): link 1 of 5
+  from births, to population
+  rationale: Each birth adds a person.
+  Evidence: Explicit (explicit)
+Cites (1):
+  test2020 pp. 4–5 · strong · Fig. 2  (Test (2020))
+Named loops:
+  R1 "More people, more births" (R): L2 L1
+[exit 0]
+
+$ loopweft link show pop.loopweft L2
+L2: Population → Births (+, same direction): link 2 of 5
+  from population, to births
+  delay: 20 yrs
+Cites (1):
+  test2020 pp. 4–5 · moderate  (Test (2020))
+Named loops:
+  R1 "More people, more births" (R): L2 L1
+[exit 0]
+
+$ loopweft link show pop.loopweft L3
+L3: Population → Deaths (+, same direction): link 3 of 5
+  from population, to deaths
+Cites: nothing
+Named loops:
+  B1 "Deaths" (B): L3 L4
+Warnings:
+  Link L3 (population → deaths) cites no source.
+[exit 0]
+
 $ loopweft references pop.loopweft --markdown
 - Test, A. (2020). *A fictitious source for tests*. Test Press.
 [exit 0]

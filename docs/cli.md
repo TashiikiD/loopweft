@@ -109,8 +109,8 @@ $ loopweft story overlay add pop.loopweft S1.2 statement --line 'More people, mo
 - [`add`](#add): Add links written in shorthand, e.g. "Births -> Population (+)"
 - [`import`](#import): Make a .loopweft file from tables (CSV, TSV, Excel), a Kumu map (its JSON export, a blueprint or its spreadsheet), or a DataViz project
 - [`export`](#export): The project as one HTML file that opens by double-click, offline (a start page, the slides, the presenter console and the sources), as pictures (PNG) or drawings (SVG) of its steps or of the whole map, as PDF documents (the slides, the speaker notes, the references), or as video (MP4 or WebM) of its story
-- [`var list`](#var-list) · [`var add`](#var-add) · [`var set`](#var-set) · [`var rm`](#var-rm): Variables: list, add, set, rm
-- [`link list`](#link-list) · [`link add`](#link-add) · [`link set`](#link-set) · [`link rm`](#link-rm) · [`link flip`](#link-flip): Links: list, add, set, rm, flip
+- [`var list`](#var-list) · [`var show`](#var-show) · [`var add`](#var-add) · [`var set`](#var-set) · [`var rm`](#var-rm): Variables: list, show, add, set, rm
+- [`link list`](#link-list) · [`link show`](#link-show) · [`link add`](#link-add) · [`link set`](#link-set) · [`link rm`](#link-rm) · [`link flip`](#link-flip): Links: list, show, add, set, rm, flip
 - [`type <kind> add`](#type-kind-add) · [`type <kind> set`](#type-kind-set) · [`type <kind> rm`](#type-kind-rm) · [`type <kind> move`](#type-kind-move): The vocabulary: categories, roles, link types and custom fields (add, set, rm, move)
 - [`loops list`](#loops-list) · [`loops add`](#loops-add) · [`loops set`](#loops-set) · [`loops rm`](#loops-rm): Feedback loops: list the loops found, and name them
 - [`ripple`](#ripple): What if a variable rises (up) or falls (down)? which way the change pushes each variable it reaches, by the signs of the links
@@ -813,7 +813,7 @@ Drawn in Chrome or Edge, so not run for this page: see [exporting](export.md).
 
 ## `var`
 
-Variables: list, add, set, rm.
+Variables: list, show, add, set, rm.
 
 ### `var list`
 
@@ -857,6 +857,67 @@ With `--json`:
     }
     // … 1 more
   ]
+}
+```
+
+### `var show`
+
+A variable in full, named by id or label: its fields, place, citations, links in and out, loops, warnings.
+
+```text
+loopweft var show <file> <variable>
+```
+
+No options.
+
+```console
+$ loopweft var show pop.loopweft Births
+births "Births": variable 1 of 4
+  category: people (People)
+  not placed on the map
+Cites: nothing
+Links in (2):
+  L2     Population → Births (+)
+  L5     Fertility → Births (+)
+Links out (1):
+  L1     Births → Population (+)
+Named loops:
+  R1 "More people, more births" (R): L2 L1
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "variable": {
+    "id": "births",
+    "label": "Births",
+    "category": "people",
+    "citations": []
+  },
+  "links": {
+    "in": [
+      "L2",
+      "L5"
+    ],
+    "out": [
+      "L1"
+    ]
+  },
+  "loops": [
+    {
+      "id": "R1",
+      "name": "More people, more births",
+      "polarity": "R",
+      "links": [
+        "L2",
+        "L1"
+      ]
+    }
+  ],
+  "warnings": []
 }
 ```
 
@@ -1008,7 +1069,7 @@ With `--json`:
 
 ## `link`
 
-Links: list, add, set, rm, flip.
+Links: list, show, add, set, rm, flip.
 
 ### `link list`
 
@@ -1056,6 +1117,59 @@ With `--json`:
     }
     // … 2 more
   ]
+}
+```
+
+### `link show`
+
+A link in full: its ends, sign, fields, citations, loops and warnings.
+
+```text
+loopweft link show <file> <link>
+```
+
+No options.
+
+```console
+$ loopweft link show pop.loopweft L1
+L1: Births → Population (+, same direction): link 1 of 5
+  from births, to population
+Cites (1):
+  example p. 4  (Example (2020))
+Named loops:
+  R1 "More people, more births" (R): L2 L1
+[exit 0]
+```
+
+With `--json`:
+
+```jsonc
+{
+  "ok": true,
+  "link": {
+    "id": "L1",
+    "from": "births",
+    "to": "population",
+    "sign": "+",
+    "citations": [
+      {
+        "source": "example",
+        "pages": "4"
+      }
+    ]
+  },
+  "loops": [
+    {
+      "id": "R1",
+      "name": "More people, more births",
+      "polarity": "R",
+      "links": [
+        "L2",
+        "L1"
+      ]
+    }
+  ],
+  "warnings": []
 }
 ```
 

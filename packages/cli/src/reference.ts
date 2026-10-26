@@ -143,6 +143,7 @@ const EXAMPLES: Record<string, Example[]> = {
     { args: ['export', PROJECT, '--mp4', '--scene', 'Growth'], run: false, note: DRAWN },
   ],
   'var list': [{ args: ['var', 'list', PROJECT] }],
+  'var show': [{ args: ['var', 'show', PROJECT, 'Births'] }],
   'var add': [
     {
       args: [
@@ -164,6 +165,7 @@ const EXAMPLES: Record<string, Example[]> = {
     { args: ['var', 'rm', PROJECT, 'Fertility', '--cascade'] },
   ],
   'link list': [{ args: ['link', 'list', PROJECT] }],
+  'link show': [{ args: ['link', 'show', PROJECT, 'L1'] }],
   'link add': [
     { args: ['link', 'add', PROJECT, '--from', 'Population', '--to', 'Fertility', '--sign', '?'] },
   ],

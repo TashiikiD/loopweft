@@ -157,6 +157,11 @@ describe('a session', () => {
       ['cite', 'list', 'pop.loopweft', '--uncited'],
       ['source', 'list', 'pop.loopweft'],
       ['source', 'show', 'pop.loopweft', 'Test (2020)'],
+      ['var', 'show', 'pop.loopweft', 'Population'],
+      ['var', 'show', 'pop.loopweft', 'fertility'],
+      ['link', 'show', 'pop.loopweft', 'L1'],
+      ['link', 'show', 'pop.loopweft', 'L2'],
+      ['link', 'show', 'pop.loopweft', 'L3'],
       ['references', 'pop.loopweft', '--markdown'],
       ['source', 'rm', 'pop.loopweft', 'test2020', '--dry-run'],
       ['ripple', 'pop.loopweft', 'Births', 'up'],
@@ -435,10 +440,12 @@ describe('the contract for agents', () => {
       'import',
       'export',
       'var list',
+      'var show',
       'var add',
       'var set',
       'var rm',
       'link list',
+      'link show',
       'link add',
       'link set',
       'link rm',
@@ -926,6 +933,51 @@ describe('the story commands', () => {
     expect(saved('story-overlay.loopweft').story.scenes[0]?.steps[0]).toMatchObject({
       overlays: [{ type: 'legend', place: 'bottom-left' }],
     });
+  });
+});
+
+describe('var show and link show', () => {
+  it('give one element in full as one JSON document, and refuse what is not there', async () => {
+    const file = 'element-show.loopweft';
+    await run('new', file, '--title', 'Show');
+    await run('add', file, '--shorthand', 'A -> B (+)\\nB -> A (-)\\nB -> C (+)');
+    await run('loops', 'add', file, '--links', 'L1,L2', '--name', 'Back and forth');
+    await run(
+      'source',
+      'add',
+      file,
+      '--apa',
+      'Test, A. (2020). *A fictitious source for tests*. Test Press.',
+    );
+    await run('cite', 'add', file, 'B,L1', 'test2020', '--pages', '7');
+
+    const variable = (await json('var', 'show', file, 'b')).doc;
+    expect(variable).toMatchObject({
+      ok: true,
+      variable: { id: 'b', label: 'B', citations: [{ source: 'test2020', pages: '7' }] },
+      links: { in: ['L1'], out: ['L2', 'L3'] },
+      loops: [{ id: 'B1', name: 'Back and forth', polarity: 'B', links: ['L1', 'L2'] }],
+    });
+    const link = (await json('link', 'show', file, 'L2')).doc;
+    expect(link).toMatchObject({
+      ok: true,
+      link: { id: 'L2', from: 'b', to: 'a', sign: '-', citations: [] },
+      loops: [{ id: 'B1' }],
+      warnings: [{ code: 'uncitedLink' }],
+    });
+    // Neither writes the file.
+    const before = readFileSync(join(dir, file), 'utf8');
+    await run('var', 'show', file, 'C');
+    await run('link', 'show', file, 'L3');
+    expect(readFileSync(join(dir, file), 'utf8')).toBe(before);
+
+    for (const args of [
+      ['var', 'show', file, 'nowhere'],
+      ['link', 'show', file, 'L9'],
+    ]) {
+      const missing = await json(...args);
+      expect(missing).toMatchObject({ code: 2, doc: { ok: false, error: { exitCode: 2 } } });
+    }
   });
 });
 

@@ -38,8 +38,8 @@ run can be repeated byte for byte).
 | `meta <file> [--title] [--description] [--author] [--course] [--clear <fields…>]` | Shows what the project says about itself, or changes it |
 | `theme <file> [--base cinematic-dark\|light\|high-contrast] [--palette <id>] [--clear base palette]` | Shows how the project looks, or changes it |
 | `add <file> --shorthand "<text>"` or `--shorthand-file <f>` | Adds links written in shorthand (see below) |
-| `var list\|add\|set\|rm` | Variables: `add <file> --label <l> [--category] [--role] [--definition] [--map-label] [--size] [--field k=v] [--at x,y]`; `set <file> <variable> … [--clear <fields…>] [--clear-field <ids…>]`; `rm <file> <variables…> [--cascade]` |
-| `link list\|add\|set\|rm\|flip` | Links: `add <file> --from <v> --to <v> --sign <+\|-\|?> [--type] [--conditional] [--delay [label]] [--confidence] [--weight] [--rationale] [--field k=v]`; `flip <file> <link>` turns + into − and back |
+| `var list\|show\|add\|set\|rm` | Variables: `show <file> <variable>` gives one in full (its fields, place, citations with their pages, links in and out, named loops and warnings); `add <file> --label <l> [--category] [--role] [--definition] [--map-label] [--size] [--field k=v] [--at x,y]`; `set <file> <variable> … [--clear <fields…>] [--clear-field <ids…>]`; `rm <file> <variables…> [--cascade]` |
+| `link list\|show\|add\|set\|rm\|flip` | Links: `show <file> <link>` gives one in full (its ends, sign, fields, citations with their pages, named loops and warnings); `add <file> --from <v> --to <v> --sign <+\|-\|?> [--type] [--conditional] [--delay [label]] [--confidence] [--weight] [--rationale] [--field k=v]`; `flip <file> <link>` turns + into − and back |
 | `type category\|role\|link\|field add\|set\|rm\|move` | The vocabulary: e.g. `type role add <file> --name Stock --shape rounded-square`, `type field add <file> --name Evidence --kind choice --option explicit=Explicit` |
 | `loops list <file> [--max-length n] [--limit n] [--include-optional]` | The loops the map makes, R or B by their signs, and which are named |
 | `loops add\|set\|rm` | Named loops: `add <file> --links L1,L2 --name "<n>" [--archetype]` |
