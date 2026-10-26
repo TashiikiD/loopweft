@@ -162,6 +162,11 @@ test('cite a map end to end', async ({ page, context }) => {
   await citeChosen(page, [E033, E034], /^Lawrence et al\. \(2024\)/, '8');
   await citeChosen(page, [E094], /^Lawrence et al\. \(2024\)/, '5');
   await citeChosen(page, [E093, E097, E100], /^Richards, Lupton and Allwood \(2021\)/, '14');
+  // Just cited, they stay in the list (to cite another source on them at once) until it is left.
+  await expect(page.getByText(/^Just cited: they stay here/)).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: `Choose ${E033}`, exact: true })).toBeVisible();
+  await segment(page, 'All');
+  await segment(page, 'Citing nothing');
   await expect(page.getByText('Every one of the 6 links cites a source.')).toBeVisible();
   await segment(page, 'All');
   await citeChosen(page, [E093, E100], /^Richards, Lupton and Allwood \(2021\)/, '10');

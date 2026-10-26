@@ -259,6 +259,18 @@ describe('the Coverage view', () => {
     await user.click(screen.getByRole('radio', { name: 'Weak' }));
     await user.click(screen.getByRole('button', { name: 'Cite' }));
     expect(store.getState().project.links.map((l) => l.citations.length)).toEqual([1, 1, 1]);
+    // Just cited, they stay in the list with their citation, so a second source can be cited on one at once.
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    expect(within(table).getAllByText('Other (2021) (weak)')).toHaveLength(2);
+    expect(screen.getByText(/^Just cited: they stay here/)).toBeTruthy();
+    await user.click(within(table).getByRole('checkbox', { name: 'Choose Population → Births (+)' }));
+    await chooseSource(user, /^Test \(2020\)/);
+    await user.click(screen.getByRole('button', { name: 'Cite' }));
+    expect(store.getState().project.links[1]?.citations.map((c) => c.source)).toEqual(['U', 'T']);
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
+    // Leaving the list (for All and back) lets them go.
+    await user.click(screen.getByRole('radio', { name: 'All' }));
+    await user.click(screen.getByRole('radio', { name: 'Citing nothing' }));
     expect(screen.getByText('Every one of the 3 links cites a source.')).toBeTruthy();
 
     await user.click(screen.getByRole('radio', { name: 'Variables' }));

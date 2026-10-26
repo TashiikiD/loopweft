@@ -116,7 +116,8 @@ and each with the scenes that draw on it.
     takes a reference by hand.
   - **Coverage**: how many links, variables and named loops cite a source, the citations by strength, and
     the list of what cites nothing; choose rows and cite a source on all of them at once, or select them on
-    the map.
+    the map. What you cite there stays in the list, with its new citation, until you leave it, so a second
+    source can be cited on it at once.
   - **Reference list**: the APA list, to copy as plain text or with its italics.
 - **Map** workspace: the inspector shows a variable's or link's citations, to change (pages, strength,
   note) or remove, and cites a source on it; with several selected, it cites one source on all of them. The

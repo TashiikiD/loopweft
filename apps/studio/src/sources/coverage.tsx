@@ -1,5 +1,6 @@
 // How far the map's evidence reaches: the links, variables and named loops that cite a source and those that
-// cite nothing, with the citations by strength. Rows can be chosen and cited in one go, or shown on the map.
+// cite nothing, with the citations by strength. Rows can be chosen and cited in one go, or shown on the map; what
+// is cited from the list of what cites nothing stays in it until the list is left.
 import { type Citation, evidenceCoverage, signText } from '@loopweft/model';
 import {
   Anchor,
@@ -37,6 +38,9 @@ export function Coverage() {
   const [kind, setKind] = useState<Kind>('link');
   const [filter, setFilter] = useState<Show>('uncited');
   const [chosen, setChosen] = useState<string[]>([]);
+  // What was cited from "Citing nothing": it stays in view, with its new citation, until the list is left (another
+  // kind or filter, or another view), so a second source can be cited on it at once.
+  const [kept, setKept] = useState<string[]>([]);
 
   const label = new Map(project.sources.map((s) => [s.id, s.label ?? s.id]));
   const citationsText = (citations: Citation[]) =>
@@ -57,7 +61,9 @@ export function Coverage() {
       : kind === 'variable'
         ? project.variables.map((v) => ({ id: v.id, name: v.label, citations: v.citations }))
         : project.loops.map((l) => ({ id: l.id, name: l.name, citations: l.citations }));
-  const rows = filter === 'uncited' ? items.filter((i) => i.citations.length === 0) : items;
+  const rows =
+    filter === 'uncited' ? items.filter((i) => i.citations.length === 0 || kept.includes(i.id)) : items;
+  const justCited = filter === 'uncited' && rows.some((r) => r.citations.length > 0);
   const visible = new Set(rows.map((r) => r.id));
   const picked = chosen.filter((id) => visible.has(id));
   const count = coverage[kind === 'link' ? 'links' : kind === 'variable' ? 'variables' : 'loops'];
@@ -101,6 +107,7 @@ export function Coverage() {
             onChange={(next) => {
               setKind(next as Kind);
               setChosen([]);
+              setKept([]);
             }}
             data={KINDS}
             aria-label="Which elements"
@@ -108,7 +115,10 @@ export function Coverage() {
           <SegmentedControl
             size="xs"
             value={filter}
-            onChange={(next) => setFilter(next as Show)}
+            onChange={(next) => {
+              setFilter(next as Show);
+              setKept([]);
+            }}
             data={[
               { value: 'uncited', label: 'Citing nothing' },
               { value: 'all', label: 'All' },
@@ -128,72 +138,79 @@ export function Coverage() {
               : `Every one of the ${count.total} ${word} cites a source.`}
           </Text>
         ) : (
-          <ScrollArea type="auto" offsetScrollbars style={{ flex: 1 }}>
-            <Table
-              striped
-              highlightOnHover
-              verticalSpacing={4}
-              aria-label={`${KINDS.find((k) => k.value === kind)?.label} and their citations`}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w={36}>
-                    <Checkbox
-                      size="xs"
-                      checked={picked.length === rows.length}
-                      indeterminate={picked.length > 0 && picked.length < rows.length}
-                      onChange={(event) =>
-                        setChosen(event.currentTarget.checked ? rows.map((r) => r.id) : [])
-                      }
-                      aria-label="Choose them all"
-                    />
-                  </Table.Th>
-                  <Table.Th>{KINDS.find((k) => k.value === kind)?.label.replace(/s$/, '')}</Table.Th>
-                  <Table.Th>Cites</Table.Th>
-                  <Table.Th w={110} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {rows.map((row) => (
-                  <Table.Tr key={row.id}>
-                    <Table.Td>
+          <>
+            {justCited && (
+              <Text size="xs" c="dimmed">
+                Just cited: they stay here, to cite another source on them, until you leave this list.
+              </Text>
+            )}
+            <ScrollArea type="auto" offsetScrollbars style={{ flex: 1 }}>
+              <Table
+                striped
+                highlightOnHover
+                verticalSpacing={4}
+                aria-label={`${KINDS.find((k) => k.value === kind)?.label} and their citations`}
+              >
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={36}>
                       <Checkbox
                         size="xs"
-                        checked={picked.includes(row.id)}
-                        onChange={(event) => {
-                          const on = event.currentTarget.checked;
-                          setChosen((current) =>
-                            on ? [...current, row.id] : current.filter((id) => id !== row.id),
-                          );
-                        }}
-                        aria-label={`Choose ${row.name}`}
+                        checked={picked.length === rows.length}
+                        indeterminate={picked.length > 0 && picked.length < rows.length}
+                        onChange={(event) =>
+                          setChosen(event.currentTarget.checked ? rows.map((r) => r.id) : [])
+                        }
+                        aria-label="Choose them all"
                       />
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{row.name}</Text>
-                      <Text size="xs" c="dimmed">
-                        {row.id}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {row.citations.length ? (
-                        <Text size="sm">{citationsText(row.citations)}</Text>
-                      ) : (
-                        <Text size="sm" c="yellow.7">
-                          nothing
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Anchor component="button" size="xs" onClick={() => show(kind, [row.id])}>
-                        Show on map
-                      </Anchor>
-                    </Table.Td>
+                    </Table.Th>
+                    <Table.Th>{KINDS.find((k) => k.value === kind)?.label.replace(/s$/, '')}</Table.Th>
+                    <Table.Th>Cites</Table.Th>
+                    <Table.Th w={110} />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
+                </Table.Thead>
+                <Table.Tbody>
+                  {rows.map((row) => (
+                    <Table.Tr key={row.id}>
+                      <Table.Td>
+                        <Checkbox
+                          size="xs"
+                          checked={picked.includes(row.id)}
+                          onChange={(event) => {
+                            const on = event.currentTarget.checked;
+                            setChosen((current) =>
+                              on ? [...current, row.id] : current.filter((id) => id !== row.id),
+                            );
+                          }}
+                          aria-label={`Choose ${row.name}`}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{row.name}</Text>
+                        <Text size="xs" c="dimmed">
+                          {row.id}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        {row.citations.length ? (
+                          <Text size="sm">{citationsText(row.citations)}</Text>
+                        ) : (
+                          <Text size="sm" c="yellow.7">
+                            nothing
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Anchor component="button" size="xs" onClick={() => show(kind, [row.id])}>
+                          Show on map
+                        </Anchor>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </>
         )}
       </Stack>
       <aside className="lw-coverage-side" aria-label="Cite the chosen">
@@ -203,7 +220,10 @@ export function Coverage() {
         <CiteForm
           elements={picked}
           what={picked.length ? `the ${picked.length} chosen` : undefined}
-          onCited={() => setChosen([])}
+          onCited={() => {
+            setKept((current) => [...current, ...picked]);
+            setChosen([]);
+          }}
         />
       </aside>
     </div>
